@@ -288,9 +288,9 @@ export default function LandingPage() {
           </div>
           <p className="text-sm text-slate-400">© {new Date().getFullYear()} Reputix. Tous droits réservés.</p>
           <div className="flex gap-6">
-            <a href="#" className="text-sm text-slate-400 hover:text-slate-600 transition-colors">Mentions légales</a>
-            <a href="#" className="text-sm text-slate-400 hover:text-slate-600 transition-colors">CGU</a>
-            <a href="#" className="text-sm text-slate-400 hover:text-slate-600 transition-colors">Contact</a>
+            <Link href="/privacy" className="text-sm text-slate-400 hover:text-slate-600 transition-colors">Confidentialité</Link>
+            <Link href="/terms" className="text-sm text-slate-400 hover:text-slate-600 transition-colors">CGU</Link>
+            <a href="mailto:franquevilleanthony.pro@gmail.com" className="text-sm text-slate-400 hover:text-slate-600 transition-colors">Contact</a>
           </div>
         </div>
       </footer>
