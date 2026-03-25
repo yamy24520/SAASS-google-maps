@@ -25,17 +25,24 @@ export async function POST() {
     customerId = customer.id
   }
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    customer: customerId,
-    payment_method_types: ["card"],
-    mode: "subscription",
-    line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
-    success_url: `${process.env.NEXTAUTH_URL}/onboarding?success=true`,
-    cancel_url: `${process.env.NEXTAUTH_URL}/billing`,
-    subscription_data: { trial_period_days: 14 },
-    locale: "fr",
-    metadata: { userId: user.id },
-  })
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://reputix-zeta.vercel.app"
 
-  return NextResponse.json({ url: checkoutSession.url })
+  try {
+    const checkoutSession = await stripe.checkout.sessions.create({
+      customer: customerId,
+      payment_method_types: ["card"],
+      mode: "subscription",
+      line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
+      success_url: `${appUrl}/onboarding?success=true`,
+      cancel_url: `${appUrl}/billing`,
+      subscription_data: { trial_period_days: 14 },
+      locale: "fr",
+      metadata: { userId: user.id },
+    })
+    return NextResponse.json({ url: checkoutSession.url })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur Stripe inconnue"
+    console.error("Stripe checkout error:", message)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

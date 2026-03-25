@@ -13,10 +13,17 @@ export async function POST() {
     return NextResponse.json({ error: "Aucun abonnement trouvé" }, { status: 404 })
   }
 
-  const portalSession = await stripe.billingPortal.sessions.create({
-    customer: subscription.stripeCustomerId,
-    return_url: `${process.env.NEXTAUTH_URL}/billing`,
-  })
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://reputix-zeta.vercel.app"
 
-  return NextResponse.json({ url: portalSession.url })
+  try {
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: subscription.stripeCustomerId,
+      return_url: `${appUrl}/billing`,
+    })
+    return NextResponse.json({ url: portalSession.url })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur Stripe inconnue"
+    console.error("Stripe portal error:", message)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
