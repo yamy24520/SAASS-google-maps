@@ -10,9 +10,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) redirect("/login")
 
-  const subscription = await prisma.subscription.findUnique({
-    where: { userId: session.user.id },
-  })
+  const [subscription, businesses] = await Promise.all([
+    prisma.subscription.findUnique({ where: { userId: session.user.id } }),
+    prisma.business.findMany({
+      where: { userId: session.user.id },
+      select: { id: true, name: true },
+      orderBy: { createdAt: "asc" },
+    }),
+  ])
 
   const isActive = subscription?.status === "ACTIVE" || subscription?.status === "TRIALING"
 
@@ -22,7 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <AppSidebar isSubscribed={isActive} />
+      <AppSidebar isSubscribed={isActive} businesses={businesses} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <AppTopbar user={session.user} />
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">
