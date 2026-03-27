@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ rev
   const body = await req.json()
   const { response } = schema.parse(body)
 
-  const business = await prisma.business.findUnique({ where: { userId: session.user.id } })
+  const business = await prisma.business.findFirst({ where: { userId: session.user.id } })
   if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
 
   const review = await prisma.review.findFirst({

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { MessageSquare, Star, Filter, ChevronLeft, ChevronRight } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -20,6 +21,9 @@ interface Review {
 }
 
 export default function ReviewsPage() {
+  const searchParams = useSearchParams()
+  const bizId = searchParams.get("biz")
+
   const [reviews, setReviews] = useState<Review[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -30,6 +34,7 @@ export default function ReviewsPage() {
   async function fetchReviews() {
     setLoading(true)
     const params = new URLSearchParams({ page: String(page), limit: "20" })
+    if (bizId) params.set("biz", bizId)
     if (statusFilter !== "ALL") params.set("status", statusFilter)
     if (ratingFilter !== "ALL") params.set("rating", ratingFilter)
 
@@ -40,7 +45,7 @@ export default function ReviewsPage() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchReviews() }, [page, statusFilter, ratingFilter])
+  useEffect(() => { fetchReviews() }, [page, statusFilter, ratingFilter, bizId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalPages = Math.ceil(total / 20)
 
@@ -98,7 +103,7 @@ export default function ReviewsPage() {
       ) : (
         <div className="space-y-3">
           {reviews.map((review) => (
-            <Link key={review.id} href={`/reviews/${review.id}`}>
+            <Link key={review.id} href={`/reviews/${review.id}${bizId ? `?biz=${bizId}` : ""}`}>
               <Card className="p-4 hover:shadow-md hover:border-sky-200 transition-all cursor-pointer">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center text-white font-bold flex-shrink-0">

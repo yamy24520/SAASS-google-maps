@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Sparkles, Send, X, Loader2, CheckCircle2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -25,6 +25,9 @@ interface Review {
 export default function ReviewDetailPage() {
   const { reviewId } = useParams<{ reviewId: string }>()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const bizId = searchParams.get("biz")
+  const bizParam = bizId ? `?biz=${bizId}` : ""
   const [review, setReview] = useState<Review | null>(null)
   const [response, setResponse] = useState("")
   const [generating, setGenerating] = useState(false)
@@ -33,14 +36,14 @@ export default function ReviewDetailPage() {
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    fetch(`/api/reviews/${reviewId}`)
+    fetch(`/api/reviews/${reviewId}${bizParam}`)
       .then((r) => r.json())
       .then((data) => {
         setReview(data.review)
         if (data.review?.aiDraftResponse) setResponse(data.review.aiDraftResponse)
         if (data.review?.publishedResponse) setResponse(data.review.publishedResponse)
       })
-  }, [reviewId])
+  }, [reviewId, bizParam])
 
   async function handleGenerate() {
     if (!review) return
@@ -49,7 +52,7 @@ export default function ReviewDetailPage() {
 
     abortRef.current = new AbortController()
 
-    const res = await fetch(`/api/reviews/${reviewId}/generate`, {
+    const res = await fetch(`/api/reviews/${reviewId}/generate${bizParam}`, {
       method: "POST",
       signal: abortRef.current.signal,
     })
@@ -96,7 +99,7 @@ export default function ReviewDetailPage() {
     if (!response.trim()) return
     setPublishing(true)
 
-    const res = await fetch(`/api/reviews/${reviewId}/publish`, {
+    const res = await fetch(`/api/reviews/${reviewId}/publish${bizParam}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ response }),
@@ -104,7 +107,7 @@ export default function ReviewDetailPage() {
 
     if (res.ok) {
       toast({ title: "Publié !", description: "Votre réponse a été publiée sur Google.", variant: "success" })
-      router.push("/reviews")
+      router.push(`/reviews${bizParam}`)
     } else {
       const data = await res.json()
       toast({ title: "Erreur", description: data.error, variant: "destructive" })
@@ -114,8 +117,8 @@ export default function ReviewDetailPage() {
 
   async function handleIgnore() {
     setIgnoring(true)
-    await fetch(`/api/reviews/${reviewId}/ignore`, { method: "POST" })
-    router.push("/reviews")
+    await fetch(`/api/reviews/${reviewId}/ignore${bizParam}`, { method: "POST" })
+    router.push(`/reviews${bizParam}`)
   }
 
   if (!review) {

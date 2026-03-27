@@ -15,11 +15,19 @@ const schema = z.object({
   language: z.string().optional(),
 })
 
-export async function GET() {
+async function getBusinessForUser(userId: string, bizId: string | null) {
+  if (bizId) {
+    return prisma.business.findFirst({ where: { id: bizId, userId } })
+  }
+  return prisma.business.findFirst({ where: { userId }, orderBy: { createdAt: "asc" } })
+}
+
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
-  const business = await prisma.business.findUnique({ where: { userId: session.user.id } })
+  const bizId = new URL(req.url).searchParams.get("biz")
+  const business = await getBusinessForUser(session.user.id, bizId)
   return NextResponse.json({ business })
 }
 
@@ -27,14 +35,22 @@ export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
+  const bizId = new URL(req.url).searchParams.get("biz")
   const body = await req.json()
   const data = schema.parse(body)
 
-  const business = await prisma.business.upsert({
-    where: { userId: session.user.id },
-    create: { userId: session.user.id, name: data.name ?? "Mon établissement", ...data },
-    update: data,
-  })
+  let business = await getBusinessForUser(session.user.id, bizId)
+
+  if (!business) {
+    business = await prisma.business.create({
+      data: { userId: session.user.id, name: data.name ?? "Mon établissement", ...data },
+    })
+  } else {
+    business = await prisma.business.update({
+      where: { id: business.id },
+      data,
+    })
+  }
 
   return NextResponse.json({ business })
 }

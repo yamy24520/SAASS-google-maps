@@ -9,7 +9,7 @@ export async function POST() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
-  const business = await prisma.business.findUnique({
+  const business = await prisma.business.findFirst({
     where: { userId: session.user.id },
     include: { user: { select: { email: true, name: true } } },
   })

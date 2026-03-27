@@ -5,10 +5,10 @@ import { prisma } from "@/lib/prisma"
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const code = searchParams.get("code")
-  const userId = searchParams.get("state")
+  const businessId = searchParams.get("state")
   const error = searchParams.get("error")
 
-  if (error || !code || !userId) {
+  if (error || !code || !businessId) {
     return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/onboarding?error=google_denied`)
   }
 
@@ -19,18 +19,9 @@ export async function GET(req: NextRequest) {
     const accounts = await listAccounts(tokens.access_token)
     const gbpAccountId = accounts[0]?.name ?? null
 
-    await prisma.business.upsert({
-      where: { userId },
-      create: {
-        userId,
-        name: "Mon établissement",
-        gbpAccountId,
-        gbpAccessToken: tokens.access_token,
-        gbpRefreshToken: tokens.refresh_token,
-        gbpTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-        gbpConnectedAt: new Date(),
-      },
-      update: {
+    await prisma.business.update({
+      where: { id: businessId },
+      data: {
         gbpAccountId,
         gbpAccessToken: tokens.access_token,
         gbpRefreshToken: tokens.refresh_token,
@@ -39,7 +30,14 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/onboarding?step=2`)
+    // Determine redirect: original onboarding or multi-business new flow
+    const business = await prisma.business.findUnique({ where: { id: businessId }, select: { name: true } })
+    const isAddFlow = business?.name === "Nouvel établissement"
+    const redirect = isAddFlow
+      ? `${process.env.NEXTAUTH_URL}/onboarding/new?step=2&biz=${businessId}`
+      : `${process.env.NEXTAUTH_URL}/onboarding?step=2`
+
+    return NextResponse.redirect(redirect)
   } catch (err) {
     console.error("[google/callback] error:", err)
     return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/onboarding?error=token_failed`)

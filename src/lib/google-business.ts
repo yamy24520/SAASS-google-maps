@@ -4,7 +4,7 @@ import type { Business } from "@prisma/client"
 const GBP_BASE = "https://mybusinessaccountmanagement.googleapis.com/v1"
 const REVIEWS_BASE = "https://mybusiness.googleapis.com/v4"
 
-export function getGBPAuthUrl(userId: string): string {
+export function getGBPAuthUrl(businessId: string): string {
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID!,
     redirect_uri: `${process.env.NEXTAUTH_URL}/api/google/callback`,
@@ -12,7 +12,7 @@ export function getGBPAuthUrl(userId: string): string {
     scope: "https://www.googleapis.com/auth/business.manage",
     access_type: "offline",
     prompt: "consent",
-    state: userId,
+    state: businessId,
   })
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`
 }

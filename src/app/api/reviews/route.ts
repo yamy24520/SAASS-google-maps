@@ -8,12 +8,16 @@ export async function GET(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
+  const bizId = searchParams.get("biz")
   const status = searchParams.get("status")
   const rating = searchParams.get("rating")
   const page = parseInt(searchParams.get("page") ?? "1")
   const limit = parseInt(searchParams.get("limit") ?? "20")
 
-  const business = await prisma.business.findUnique({ where: { userId: session.user.id } })
+  const business = bizId
+    ? await prisma.business.findFirst({ where: { id: bizId, userId: session.user.id } })
+    : await prisma.business.findFirst({ where: { userId: session.user.id }, orderBy: { createdAt: "asc" } })
+
   if (!business) return NextResponse.json({ reviews: [], total: 0 })
 
   const where = {

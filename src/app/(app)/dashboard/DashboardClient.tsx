@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Star, MessageSquare, CheckCircle2, Clock, TrendingUp, RefreshCw } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,10 @@ interface Review {
 interface ChartPoint { week: string; avg: number; count: number }
 
 export function DashboardClient() {
+  const searchParams = useSearchParams()
+  const bizId = searchParams.get("biz")
+  const bizParam = bizId ? `?biz=${bizId}` : ""
+
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentReviews, setRecentReviews] = useState<Review[]>([])
   const [chartData, setChartData] = useState<ChartPoint[]>([])
@@ -38,7 +43,7 @@ export function DashboardClient() {
   const [loading, setLoading] = useState(true)
 
   async function fetchData() {
-    const res = await fetch("/api/dashboard")
+    const res = await fetch(`/api/dashboard${bizParam}`)
     const data = await res.json()
     setStats(data.stats)
     setRecentReviews(data.recentReviews ?? [])
@@ -54,7 +59,7 @@ export function DashboardClient() {
 
   async function handleSync() {
     setSyncing(true)
-    const res = await fetch("/api/reviews/sync", { method: "POST" })
+    const res = await fetch(`/api/reviews/sync${bizParam}`, { method: "POST" })
     const data = await res.json()
     if (res.ok) {
       toast({ title: "Synchronisé", description: `${data.synced} avis récupérés.`, variant: "success" })
@@ -65,7 +70,7 @@ export function DashboardClient() {
     setSyncing(false)
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (

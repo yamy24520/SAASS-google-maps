@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ revi
 
   const { reviewId } = await params
 
-  const business = await prisma.business.findUnique({ where: { userId: session.user.id } })
+  const business = await prisma.business.findFirst({ where: { userId: session.user.id } })
   if (!business) return NextResponse.json({ error: "Introuvable" }, { status: 404 })
 
   const review = await prisma.review.findFirst({ where: { id: reviewId, businessId: business.id } })

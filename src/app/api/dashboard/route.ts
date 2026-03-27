@@ -1,13 +1,17 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
-  const business = await prisma.business.findUnique({ where: { userId: session.user.id } })
+  const bizId = new URL(req.url).searchParams.get("biz")
+  const business = bizId
+    ? await prisma.business.findFirst({ where: { id: bizId, userId: session.user.id } })
+    : await prisma.business.findFirst({ where: { userId: session.user.id }, orderBy: { createdAt: "asc" } })
+
   if (!business) return NextResponse.json({ stats: null, recentReviews: [] })
 
   const now = new Date()
@@ -37,7 +41,6 @@ export async function GET() {
       orderBy: { reviewPublishedAt: "desc" },
       take: 5,
     }),
-    // Rating evolution - last 8 weeks grouped
     prisma.$queryRaw<{ week: Date; avg: number; count: bigint }[]>`
       SELECT
         date_trunc('week', "reviewPublishedAt") as week,

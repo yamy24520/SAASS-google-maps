@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Save, Loader2, Globe, Unlink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +25,10 @@ interface Business {
 }
 
 export default function SettingsPage() {
+  const searchParams = useSearchParams()
+  const bizId = searchParams.get("biz")
+  const bizParam = bizId ? `?biz=${bizId}` : ""
+
   const [form, setForm] = useState<Business>({
     name: "",
     category: "RESTAURANT",
@@ -40,17 +45,17 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    fetch("/api/settings")
+    fetch(`/api/settings${bizParam}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.business) setForm({ ...data.business, customSignature: data.business.customSignature ?? "" })
         setLoading(false)
       })
-  }, [])
+  }, [bizParam])
 
   async function handleSave() {
     setSaving(true)
-    const res = await fetch("/api/settings", {
+    const res = await fetch(`/api/settings${bizParam}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, customSignature: form.customSignature || null }),
@@ -227,7 +232,7 @@ export default function SettingsPage() {
                 )}
               </div>
               <Button variant="outline" size="sm" className="gap-2 text-red-500 hover:text-red-600 hover:border-red-300" asChild>
-                <a href="/api/google/disconnect">
+                <a href={`/api/google/disconnect${bizParam}`}>
                   <Unlink className="w-3.5 h-3.5" />
                   Déconnecter
                 </a>
@@ -237,7 +242,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <p className="text-sm text-slate-500">Google Business Profile non connecté</p>
               <Button variant="outline" size="sm" className="gap-2" asChild>
-                <a href="/api/google/connect">
+                <a href={`/api/google/connect${bizParam}`}>
                   <Globe className="w-3.5 h-3.5" />
                   Connecter
                 </a>
