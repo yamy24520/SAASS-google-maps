@@ -47,9 +47,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <Image src="/logo.png" alt="Reputix" width={40} height={40} className="rounded-2xl shadow-lg shadow-sky-500/25" />
-            <span className="font-bold text-slate-900 text-xl">Reputix</span>
+          <Link href="/" className="inline-flex items-center mb-6">
+            <Image src="/logo.png" alt="Reputix" width={120} height={120} className="rounded-2xl shadow-lg shadow-sky-500/25" />
           </Link>
           <h1 className="text-2xl font-bold text-slate-900">Bon retour !</h1>
           <p className="text-slate-500 mt-1">Connectez-vous à votre compte</p>

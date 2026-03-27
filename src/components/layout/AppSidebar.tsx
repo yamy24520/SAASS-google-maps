@@ -20,9 +20,8 @@ export function AppSidebar({ isSubscribed }: { isSubscribed: boolean }) {
     <aside className="hidden lg:flex w-64 flex-col border-r border-slate-200 bg-white">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-slate-200">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <Image src="/logo.png" alt="Reputix" width={32} height={32} className="rounded-xl" />
-          <span className="font-bold text-slate-900 text-lg">Reputix</span>
+        <Link href="/dashboard" className="flex items-center">
+          <Image src="/logo.png" alt="Reputix" width={80} height={80} className="rounded-xl" />
         </Link>
       </div>
 

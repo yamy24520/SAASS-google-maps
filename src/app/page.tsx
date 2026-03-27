@@ -19,9 +19,8 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Reputix" width={32} height={32} className="rounded-xl" />
-            <span className="font-bold text-slate-900 text-lg tracking-tight">Reputix</span>
+          <div className="flex items-center">
+            <Image src="/logo.png" alt="Reputix" width={80} height={80} className="rounded-xl" />
           </div>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">Fonctionnalités</a>
@@ -278,9 +277,8 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-slate-200 py-12 px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Reputix" width={28} height={28} className="rounded-lg" />
-            <span className="font-bold text-slate-900">Reputix</span>
+          <div className="flex items-center">
+            <Image src="/logo.png" alt="Reputix" width={72} height={72} className="rounded-lg" />
           </div>
           <p className="text-sm text-slate-400">© {new Date().getFullYear()} Reputix. Tous droits réservés.</p>
           <div className="flex gap-6">
