@@ -26,7 +26,12 @@ export async function POST(req: NextRequest) {
       data: { userId: user.id, token, expires },
     })
 
-    await sendPasswordResetEmail({ userEmail: user.email!, userName: user.name ?? "Utilisateur", token })
+    try {
+      await sendPasswordResetEmail({ userEmail: user.email!, userName: user.name ?? "Utilisateur", token })
+    } catch (emailErr) {
+      console.error("[forgot-password] email error:", emailErr)
+      // On ne bloque pas — le token est créé, l'email a juste échoué
+    }
 
     return NextResponse.json({ success: true })
   } catch (err) {

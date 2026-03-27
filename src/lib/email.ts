@@ -13,7 +13,7 @@ export async function sendPasswordResetEmail(params: {
   const resetUrl = `${appUrl}/reset-password?token=${params.token}`
 
   await getResend().emails.send({
-    from: "Reputix <alertes@reputix.net>",
+    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.userEmail,
     subject: "Réinitialisation de votre mot de passe Reputix",
     html: `
@@ -58,7 +58,7 @@ export async function sendVerificationEmail(params: {
   const verifyUrl = `${appUrl}/api/auth/verify-email?token=${params.token}`
 
   await getResend().emails.send({
-    from: "Reputix <alertes@reputix.net>",
+    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.userEmail,
     subject: "Confirmez votre adresse email Reputix",
     html: `
@@ -107,7 +107,7 @@ export async function sendNegativeReviewAlert(params: {
   const appUrl = process.env.NEXTAUTH_URL ?? "https://reputix.net"
 
   await getResend().emails.send({
-    from: "Reputix <alertes@reputix.net>",
+    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.userEmail,
     subject: `⚠️ Nouvel avis négatif sur ${params.businessName}`,
     html: `
