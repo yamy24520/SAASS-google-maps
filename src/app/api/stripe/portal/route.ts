@@ -13,7 +13,7 @@ export async function POST() {
     return NextResponse.json({ error: "Aucun abonnement trouvé" }, { status: 404 })
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://reputix-zeta.vercel.app"
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://reputix.net"
 
   try {
     const portalSession = await stripe.billingPortal.sessions.create({

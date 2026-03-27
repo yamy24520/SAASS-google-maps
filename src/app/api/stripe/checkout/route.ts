@@ -25,7 +25,7 @@ export async function POST() {
     customerId = customer.id
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://reputix-zeta.vercel.app"
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://reputix.net"
 
   try {
     const checkoutSession = await stripe.checkout.sessions.create({

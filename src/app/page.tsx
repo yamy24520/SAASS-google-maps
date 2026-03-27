@@ -98,7 +98,7 @@ export default function LandingPage() {
               </div>
               <div className="flex-1 flex justify-center">
                 <div className="bg-white rounded-lg px-4 py-1 text-xs text-slate-400 border border-slate-200">
-                  app.reputix.fr/dashboard
+                  app.reputix.net/dashboard
                 </div>
               </div>
             </div>

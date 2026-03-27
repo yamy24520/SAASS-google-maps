@@ -14,10 +14,10 @@ export async function sendNegativeReviewAlert(params: {
   reviewId: string
 }) {
   const stars = "⭐".repeat(params.rating)
-  const appUrl = process.env.NEXTAUTH_URL ?? "https://reputix.fr"
+  const appUrl = process.env.NEXTAUTH_URL ?? "https://reputix.net"
 
   await getResend().emails.send({
-    from: "Reputix <alertes@reputix.fr>",
+    from: "Reputix <alertes@reputix.net>",
     to: params.userEmail,
     subject: `⚠️ Nouvel avis négatif sur ${params.businessName}`,
     html: `
