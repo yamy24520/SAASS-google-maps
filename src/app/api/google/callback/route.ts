@@ -40,7 +40,8 @@ export async function GET(req: NextRequest) {
     })
 
     return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/onboarding?step=2`)
-  } catch {
+  } catch (err) {
+    console.error("[google/callback] error:", err)
     return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/onboarding?error=token_failed`)
   }
 }
