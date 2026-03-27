@@ -17,11 +17,17 @@ export const metadata: Metadata = {
   description:
     "Répondez automatiquement à vos avis Google grâce à l'IA. Améliorez votre SEO local et fidélisez vos clients. Pour restaurants, hôtels et commerces.",
   keywords: ["avis google", "réputation en ligne", "réponse automatique", "SEO local", "restaurant", "hôtel"],
+  icons: {
+    icon: "/favicon.png",
+    apple: "/logo.png",
+  },
   openGraph: {
     title: "Reputix — Gérez votre réputation en ligne automatiquement",
     description: "Répondez automatiquement à vos avis Google grâce à l'IA.",
     type: "website",
     locale: "fr_FR",
+    url: "https://reputix.net",
+    images: [{ url: "/logo.png", width: 512, height: 512, alt: "Reputix" }],
   },
 }
 

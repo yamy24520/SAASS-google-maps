@@ -4,7 +4,8 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signIn } from "next-auth/react"
-import { Star, Mail, Lock, User, Globe, Eye, EyeOff } from "lucide-react"
+import Image from "next/image"
+import { Mail, Lock, User, Globe, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -54,9 +55,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-2xl gradient-bg flex items-center justify-center shadow-lg shadow-sky-500/25">
-              <Star className="w-5 h-5 text-white fill-white" />
-            </div>
+            <Image src="/logo.png" alt="Reputix" width={40} height={40} className="rounded-2xl shadow-lg shadow-sky-500/25" />
             <span className="font-bold text-slate-900 text-xl">Reputix</span>
           </Link>
           <h1 className="text-2xl font-bold text-slate-900">Créer votre compte</h1>

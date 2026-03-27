@@ -1,8 +1,9 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Star, LayoutDashboard, MessageSquare, Settings, CreditCard, ChevronRight } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Settings, CreditCard, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
@@ -20,9 +21,7 @@ export function AppSidebar({ isSubscribed }: { isSubscribed: boolean }) {
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-slate-200">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl gradient-bg flex items-center justify-center shadow-md shadow-sky-500/20">
-            <Star className="w-4 h-4 text-white fill-white" />
-          </div>
+          <Image src="/logo.png" alt="Reputix" width={32} height={32} className="rounded-xl" />
           <span className="font-bold text-slate-900 text-lg">Reputix</span>
         </Link>
       </div>
