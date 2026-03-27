@@ -37,20 +37,32 @@ export async function PUT(req: NextRequest) {
 
   const bizId = new URL(req.url).searchParams.get("biz")
   const body = await req.json()
-  const data = schema.parse(body)
 
-  let business = await getBusinessForUser(session.user.id, bizId)
-
-  if (!business) {
-    business = await prisma.business.create({
-      data: { userId: session.user.id, name: data.name ?? "Mon établissement", ...data },
-    })
-  } else {
-    business = await prisma.business.update({
-      where: { id: business.id },
-      data,
-    })
+  let data
+  try {
+    data = schema.parse(body)
+  } catch (err) {
+    console.error("[settings PUT] validation error:", err)
+    return NextResponse.json({ error: "Données invalides." }, { status: 400 })
   }
 
-  return NextResponse.json({ business })
+  try {
+    let business = await getBusinessForUser(session.user.id, bizId)
+
+    if (!business) {
+      business = await prisma.business.create({
+        data: { userId: session.user.id, name: data.name ?? "Mon établissement", ...data },
+      })
+    } else {
+      business = await prisma.business.update({
+        where: { id: business.id },
+        data,
+      })
+    }
+
+    return NextResponse.json({ business })
+  } catch (err) {
+    console.error("[settings PUT] db error:", err)
+    return NextResponse.json({ error: "Erreur serveur." }, { status: 500 })
+  }
 }
