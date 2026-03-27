@@ -80,7 +80,10 @@ export async function listAccounts(accessToken: string): Promise<GBPAccount[]> {
   const res = await fetch(`${GBP_BASE}/accounts`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
-  if (!res.ok) throw new Error("Failed to list GBP accounts")
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Failed to list GBP accounts: ${res.status} ${err}`)
+  }
   const data = await res.json()
   return data.accounts ?? []
 }
