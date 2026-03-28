@@ -1,7 +1,7 @@
 "use client"
 
 import { use, useEffect, useRef, useState } from "react"
-import { Camera, ChevronRight, Clock, GripVertical, Globe, Images, MapPin, Pencil, Plus, Save, Star, Trash2, UtensilsCrossed, X } from "lucide-react"
+import { Camera, ChevronRight, GripVertical, MapPin, Pencil, Plus, Save, Trash2, X } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -145,6 +145,7 @@ function MenuCategoryTabs({ categories, activeCatId, t, isEditing, onSelect, onA
 function MenuSection({ categories, t, isEditing, onChange }: { categories: MenuCategory[]; t: Theme; isEditing: boolean; onChange?: (c: MenuCategory[]) => void }) {
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState("")
+  const [scanProgress, setScanProgress] = useState("")
   const [activeCatId, setActiveCatId] = useState<string | null>(categories[0]?.id ?? null)
 
   const activeCat = categories.find(c => c.id === activeCatId) ?? categories[0] ?? null
@@ -155,30 +156,54 @@ function MenuSection({ categories, t, isEditing, onChange }: { categories: MenuC
     }
   }, [categories, activeCatId])
 
-  async function handleScan(file: File) {
+  async function scanFile(file: File): Promise<MenuCategory[] | null> {
+    return new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onload = async ev => {
+        const raw = (ev.target?.result as string).split(",")[1]
+        const mime = file.type as string
+        try {
+          const res = await fetch("/api/menu-scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageBase64: raw, mediaType: mime }),
+          })
+          const data = await res.json()
+          if (data.error) { resolve(null); return }
+          resolve((data.categories ?? []).map((c: { name: string; items: { name: string; description: string; price: string }[] }) => ({
+            id: uid(), name: c.name,
+            items: (c.items ?? []).map((item: { name: string; description: string; price: string }) => ({ id: uid(), name: item.name, description: item.description ?? "", price: item.price ?? "" })),
+          })))
+        } catch { resolve(null) }
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function handleScans(files: FileList) {
     setScanning(true)
     setScanError("")
-    const reader = new FileReader()
-    reader.onload = async ev => {
-      const raw = (ev.target?.result as string).split(",")[1]
-      const mime = file.type as string
-      const res = await fetch("/api/menu-scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: raw, mediaType: mime }),
-      })
-      const data = await res.json()
-      if (data.error) { setScanError(data.error); setScanning(false); return }
-      const newCats: MenuCategory[] = (data.categories ?? []).map((c: { name: string; items: { name: string; description: string; price: string }[] }) => ({
-        id: uid(), name: c.name,
-        items: (c.items ?? []).map((item: { name: string; description: string; price: string }) => ({ id: uid(), name: item.name, description: item.description ?? "", price: item.price ?? "" })),
-      }))
-      const merged = [...categories, ...newCats]
-      onChange?.(merged)
-      setActiveCatId(newCats[0]?.id ?? activeCatId)
-      setScanning(false)
+    const accumulated = categories.map(c => ({ ...c, items: [...c.items] }))
+    const fileArr = Array.from(files)
+    let firstNewId: string | null = null
+    for (let i = 0; i < fileArr.length; i++) {
+      if (fileArr.length > 1) setScanProgress(`Photo ${i + 1}/${fileArr.length}...`)
+      const newCats = await scanFile(fileArr[i])
+      if (!newCats) continue
+      for (const newCat of newCats) {
+        const existing = accumulated.find(c => c.name.toLowerCase().trim() === newCat.name.toLowerCase().trim())
+        if (existing) {
+          existing.items = [...existing.items, ...newCat.items]
+        } else {
+          accumulated.push(newCat)
+          if (!firstNewId) firstNewId = newCat.id
+        }
+      }
     }
-    reader.readAsDataURL(file)
+    onChange?.(accumulated)
+    if (firstNewId) setActiveCatId(firstNewId)
+    setScanProgress("")
+    setScanning(false)
   }
 
   function addCategory() {
@@ -226,17 +251,17 @@ function MenuSection({ categories, t, isEditing, onChange }: { categories: MenuC
         {scanning ? (
           <>
             <div style={{ width: 16, height: 16, border: `2px solid ${t.muted}`, borderTopColor: t.accent, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-            <span style={{ color: t.secondary, fontSize: 14, fontWeight: 500 }}>Analyse en cours...</span>
+            <span style={{ color: t.secondary, fontSize: 14, fontWeight: 500 }}>{scanProgress || "Analyse en cours..."}</span>
           </>
         ) : (
           <>
             <Camera size={18} style={{ color: t.accent }} />
             <span style={{ color: t.text, fontSize: 14, fontWeight: 600 }}>Scanner la carte</span>
-            <span style={{ color: t.muted, fontSize: 13 }}>— photo ou galerie</span>
+            <span style={{ color: t.muted, fontSize: 13 }}>— 1 ou plusieurs photos</span>
           </>
         )}
-        <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} disabled={scanning}
-          onChange={e => { const f = e.target.files?.[0]; if (f) handleScan(f); e.target.value = "" }} />
+        <input type="file" accept="image/*" multiple style={{ display: "none" }} disabled={scanning}
+          onChange={e => { if (e.target.files?.length) handleScans(e.target.files); e.target.value = "" }} />
       </label>
       {scanError && <p style={{ color: "#f87171", fontSize: 13, textAlign: "center", margin: "-8px 0 0" }}>{scanError}</p>}
 
@@ -491,15 +516,7 @@ function PhotosSection({ images, t, isEditing, onChange }: { images: PhotoItem[]
 
 // ── Edit section wrapper ──────────────────────────────────────────────────────
 
-const SECTION_LABELS: Record<string, string> = { reviews: "Avis", menu: "Carte", social: "Réseaux", hours: "Horaires", location: "Adresse", photos: "Photos" }
-const SECTION_ICONS: Record<string, React.ReactNode> = {
-  reviews:  <Star size={17} />,
-  menu:     <UtensilsCrossed size={17} />,
-  social:   <Globe size={17} />,
-  hours:    <Clock size={17} />,
-  location: <MapPin size={17} />,
-  photos:   <Images size={17} />,
-}
+const SECTION_LABELS: Record<string, string> = { reviews: "Avis clients", menu: "Carte & Menu", social: "Réseaux sociaux", hours: "Horaires", location: "Adresse", photos: "Photos" }
 
 function EditWrapper({ section, t, onToggle, dragIdx, myIdx, onDragStart, onDrop, children }: { section: Section; t: Theme; onToggle: () => void; dragIdx: number | null; myIdx: number; onDragStart: () => void; onDrop: () => void; children: React.ReactNode }) {
   return (
@@ -534,7 +551,6 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
   const [tagline, setTagline]   = useState<string | null>(null)
   const [theme, setTheme]       = useState("dark")
   const [dragIdx, setDragIdx]   = useState<number | null>(null)
-  const [activeTab, setActiveTab] = useState<string>("")
   const tracked                 = useRef(false)
 
   useEffect(() => {
@@ -554,8 +570,6 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
       setLogo(d.logoDataUrl)
       setTagline(d.pageTagline)
       setTheme(d.pageTheme ?? "dark")
-      const firstEnabled = merged.find((s: Section) => s.enabled)
-      if (firstEnabled) setActiveTab(firstEnabled.type)
       setLoading(false)
     }).catch(() => { setError("Page introuvable"); setLoading(false) })
   }, [slug])
@@ -686,33 +700,9 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
           )}
         </div>
 
-        {/* Separator */}
-        <div style={{ height: 1, background: t.border, margin: "0 24px 0" }} />
-
-        {/* ── Tab bar (public view only) ── */}
-        {!isEditing && (() => {
-          const enabledSections = sections.filter(s => s.enabled)
-          if (enabledSections.length < 2) return null
-          return (
-            <div style={{ position: "sticky", top: 0, zIndex: 20, background: t.bg, backdropFilter: "blur(16px)", borderBottom: `1px solid ${t.border}` }}>
-              <div style={{ display: "flex", overflowX: "auto", scrollbarWidth: "none", padding: "0 8px" }}>
-                {enabledSections.map(section => {
-                  const active = activeTab === section.type
-                  return (
-                    <button key={section.type} onClick={() => setActiveTab(section.type)} style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "12px 16px", background: "none", border: "none", cursor: "pointer", borderBottom: active ? `2px solid ${t.accent}` : "2px solid transparent", transition: "border-color 0.15s" }}>
-                      <span style={{ color: active ? t.accent : t.muted, transition: "color 0.15s" }}>{SECTION_ICONS[section.type]}</span>
-                      <span style={{ fontSize: 10, fontWeight: active ? 700 : 500, color: active ? t.text : t.muted, whiteSpace: "nowrap", letterSpacing: "0.02em" }}>{SECTION_LABELS[section.type]}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })()}
-
         {/* ── Sections ── */}
         {isEditing ? (
-          <div style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 32 }}>
+          <div style={{ padding: "24px 20px 0", display: "flex", flexDirection: "column", gap: 32 }}>
             {sections.map((section, i) => {
               const content = renderSection(section)
               if (!content) return null
@@ -724,10 +714,22 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
             })}
           </div>
         ) : (
-          <div style={{ padding: "24px 20px 0" }}>
-            {sections.filter(s => s.enabled && s.type === activeTab).map(section => (
-              <div key={section.id}>{renderSection(section)}</div>
-            ))}
+          <div>
+            {sections.filter(s => s.enabled).map((section, i) => {
+              const content = renderSection(section)
+              if (!content) return null
+              const showLabel = section.type !== "reviews"
+              return (
+                <div key={section.id} style={{ borderTop: i > 0 ? `1px solid ${t.border}` : "none", padding: "28px 20px 0" }}>
+                  {showLabel && (
+                    <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: t.muted, margin: "0 0 16px 2px" }}>
+                      {SECTION_LABELS[section.type]}
+                    </p>
+                  )}
+                  {content}
+                </div>
+              )
+            })}
           </div>
         )}
 
