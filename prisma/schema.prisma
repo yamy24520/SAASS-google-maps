@@ -116,6 +116,7 @@ model Business {
 
   bookingEnabled       Boolean  @default(false)
   bookingHours         Json?
+  bookingSettings      Json?
 
   pageEvents           PageEvent[]
   services             Service[]

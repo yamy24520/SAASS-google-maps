@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react"
 import { CheckCircle2, ChevronLeft, Clock, Euro } from "lucide-react"
 
 interface Service { id: string; name: string; description: string | null; duration: number; price: number }
-interface BusinessInfo { businessId: string; businessName: string; logoDataUrl: string | null; pageTheme: string }
+interface BusinessInfo { businessId: string; businessName: string; logoDataUrl: string | null; pageTheme: string; maxDaysAhead: number }
 
 type Step = "service" | "datetime" | "form" | "done"
 
@@ -25,6 +25,13 @@ function getDatesAhead(n: number): string[] {
 
 function fmtDate(dateStr: string) {
   return new Date(dateStr + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })
+}
+
+function groupSlots(slots: string[]) {
+  const morning   = slots.filter(s => parseInt(s) < 12)
+  const afternoon = slots.filter(s => parseInt(s) >= 12 && parseInt(s) < 17)
+  const evening   = slots.filter(s => parseInt(s) >= 17)
+  return { morning, afternoon, evening }
 }
 
 export default function BookPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -51,9 +58,11 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
     Promise.all([
       fetch(`/api/r/${slug}`).then(r => r.json()),
       fetch(`/api/book/${slug}`).then(r => r.json()),
-    ]).then(([pageData, bookData]) => {
+      fetch(`/api/services?slug=${slug}`).then(r => r.json()).catch(() => ({})),
+    ]).then(([pageData, bookData, svcSettings]) => {
       if (pageData.error || !bookData.bookingEnabled) { setNotFound(true); setLoading(false); return }
-      setInfo({ businessId: pageData.businessId, businessName: pageData.businessName, logoDataUrl: pageData.logoDataUrl, pageTheme: pageData.pageTheme })
+      const maxDaysAhead = svcSettings?.bookingSettings?.maxDaysAhead ?? 60
+      setInfo({ businessId: pageData.businessId, businessName: pageData.businessName, logoDataUrl: pageData.logoDataUrl, pageTheme: pageData.pageTheme, maxDaysAhead })
       setServices(bookData.services ?? [])
       setLoading(false)
     }).catch(() => { setNotFound(true); setLoading(false) })
@@ -110,7 +119,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   )
 
   const accent = "#0ea5e9"
-  const dates = getDatesAhead(14)
+  const dates = getDatesAhead(info?.maxDaysAhead ?? 60)
 
   return (
     <div style={{ minHeight: "100svh", background: "#f8fafc", fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" }}>
@@ -211,19 +220,34 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                   <div style={{ padding: "24px 0" }}><Spinner /></div>
                 ) : slots.length === 0 ? (
                   <p style={{ color: "#94a3b8", fontSize: 14, textAlign: "center", padding: "20px 0" }}>Aucun créneau disponible ce jour</p>
-                ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 24 }}>
-                    {slots.map(slot => {
-                      const active = slot === selectedSlot
-                      return (
-                        <button key={slot} onClick={() => setSelectedSlot(slot)}
-                          style={{ padding: "10px 4px", borderRadius: 10, border: `2px solid ${active ? accent : "#e2e8f0"}`, background: active ? accent : "#fff", color: active ? "#fff" : "#0f172a", fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>
-                          {slot}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
+                ) : (() => {
+                  const grouped = groupSlots(slots)
+                  const periods = [
+                    { label: "🌅 Matin", slots: grouped.morning },
+                    { label: "☀️ Après-midi", slots: grouped.afternoon },
+                    { label: "🌆 Soir", slots: grouped.evening },
+                  ].filter(p => p.slots.length > 0)
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
+                      {periods.map(period => (
+                        <div key={period.label}>
+                          <p style={{ fontSize: 12, fontWeight: 600, color: "#64748b", marginBottom: 8, letterSpacing: "0.04em" }}>{period.label}</p>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                            {period.slots.map(slot => {
+                              const active = slot === selectedSlot
+                              return (
+                                <button key={slot} onClick={() => setSelectedSlot(slot)}
+                                  style={{ padding: "10px 4px", borderRadius: 10, border: `2px solid ${active ? accent : "#e2e8f0"}`, background: active ? accent : "#fff", color: active ? "#fff" : "#0f172a", fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>
+                                  {slot}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
               </>
             )}
 

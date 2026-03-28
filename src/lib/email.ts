@@ -206,6 +206,119 @@ export async function sendReviewRequestWithOffer(params: {
   })
 }
 
+// ─── BOOKING EMAILS ───────────────────────────────────────────────────────────
+
+function bookingBlock(params: { serviceName: string; date: string; timeSlot: string; duration: number; price: number }) {
+  return `
+    <div style="background:#f8fafc;border-radius:12px;padding:20px;margin:0 0 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="color:#64748b;font-size:13px;padding-bottom:6px;">Prestation</td><td style="color:#1e293b;font-weight:600;font-size:14px;text-align:right;">${params.serviceName}</td></tr>
+        <tr><td style="color:#64748b;font-size:13px;padding-bottom:6px;">Date</td><td style="color:#1e293b;font-weight:600;font-size:14px;text-align:right;">${params.date}</td></tr>
+        <tr><td style="color:#64748b;font-size:13px;padding-bottom:6px;">Heure</td><td style="color:#1e293b;font-weight:600;font-size:14px;text-align:right;">${params.timeSlot}</td></tr>
+        <tr><td style="color:#64748b;font-size:13px;padding-bottom:6px;">Durée</td><td style="color:#1e293b;font-weight:600;font-size:14px;text-align:right;">${params.duration} min</td></tr>
+        <tr><td style="color:#64748b;font-size:13px;">Prix</td><td style="color:#0ea5e9;font-weight:700;font-size:15px;text-align:right;">${params.price.toFixed(2)} €</td></tr>
+      </table>
+    </div>`
+}
+
+function emailShell(title: string, subtitle: string, body: string) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="font-family:-apple-system,sans-serif;background:#f8fafc;padding:40px 20px;margin:0;">
+  <div style="max-width:520px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#0ea5e9,#06b6d4);padding:28px 32px;text-align:center;">
+      <h1 style="color:white;margin:0;font-size:22px;font-weight:700;">Reputix</h1>
+      <p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:14px;">${title}</p>
+    </div>
+    <div style="padding:32px;">${body}</div>
+    <div style="padding:14px 32px;background:#f8fafc;text-align:center;">
+      <p style="color:#94a3b8;font-size:11px;margin:0;">Propulsé par <strong>Reputix</strong></p>
+    </div>
+  </div>
+</body></html>`
+}
+
+export async function sendBookingRequestClient(params: {
+  clientEmail: string; clientName: string; businessName: string
+  serviceName: string; date: string; timeSlot: string; duration: number; price: number
+}) {
+  await getResend().emails.send({
+    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    to: params.clientEmail,
+    subject: `📅 Demande de RDV reçue — ${params.businessName}`,
+    html: emailShell("Réservation", "Votre demande a bien été reçue", `
+      <p style="color:#64748b;margin:0 0 6px;">Bonjour <strong>${params.clientName}</strong>,</p>
+      <p style="color:#1e293b;margin:0 0 20px;">Votre demande de rendez-vous chez <strong>${params.businessName}</strong> a bien été reçue. Vous recevrez une confirmation dès que l'établissement l'aura validée.</p>
+      ${bookingBlock(params)}
+      <div style="background:#fef9c3;border-radius:10px;padding:14px 16px;">
+        <p style="color:#854d0e;font-size:13px;margin:0;">⏳ En attente de confirmation par l'établissement</p>
+      </div>
+    `),
+  })
+}
+
+export async function sendBookingRequestOwner(params: {
+  ownerEmail: string; businessName: string; clientName: string; clientEmail: string; clientPhone: string | null
+  serviceName: string; date: string; timeSlot: string; duration: number; price: number; dashboardUrl: string
+}) {
+  await getResend().emails.send({
+    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    to: params.ownerEmail,
+    subject: `🔔 Nouvelle demande de RDV — ${params.clientName}`,
+    html: emailShell("Nouvelle réservation", params.businessName, `
+      <p style="color:#1e293b;margin:0 0 20px;font-size:16px;">Vous avez une nouvelle demande de rendez-vous !</p>
+      ${bookingBlock(params)}
+      <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:24px;">
+        <p style="font-weight:600;color:#1e293b;font-size:13px;margin:0 0 8px;">Coordonnées client</p>
+        <p style="color:#475569;font-size:13px;margin:0 0 4px;">👤 ${params.clientName}</p>
+        <p style="color:#475569;font-size:13px;margin:0 0 4px;">✉️ ${params.clientEmail}</p>
+        ${params.clientPhone ? `<p style="color:#475569;font-size:13px;margin:0;">📞 ${params.clientPhone}</p>` : ""}
+      </div>
+      <a href="${params.dashboardUrl}" style="display:block;background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:white;text-decoration:none;text-align:center;padding:14px 24px;border-radius:10px;font-weight:600;font-size:15px;">
+        Confirmer ou refuser →
+      </a>
+    `),
+  })
+}
+
+export async function sendBookingConfirmedClient(params: {
+  clientEmail: string; clientName: string; businessName: string
+  serviceName: string; date: string; timeSlot: string; duration: number; price: number
+}) {
+  await getResend().emails.send({
+    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    to: params.clientEmail,
+    subject: `✅ RDV confirmé — ${params.businessName}`,
+    html: emailShell("Rendez-vous confirmé", params.businessName, `
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:#dcfce7;display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:12px;">✅</div>
+        <p style="color:#1e293b;font-size:18px;font-weight:700;margin:0;">Votre RDV est confirmé !</p>
+      </div>
+      <p style="color:#64748b;margin:0 0 20px;">Bonjour <strong>${params.clientName}</strong>, votre rendez-vous chez <strong>${params.businessName}</strong> est confirmé.</p>
+      ${bookingBlock(params)}
+      <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0;">En cas d'empêchement, merci de prévenir l'établissement le plus tôt possible.</p>
+    `),
+  })
+}
+
+export async function sendBookingCancelledClient(params: {
+  clientEmail: string; clientName: string; businessName: string
+  serviceName: string; date: string; timeSlot: string
+}) {
+  await getResend().emails.send({
+    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    to: params.clientEmail,
+    subject: `❌ RDV annulé — ${params.businessName}`,
+    html: emailShell("Rendez-vous annulé", params.businessName, `
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:#fee2e2;display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:12px;">❌</div>
+        <p style="color:#1e293b;font-size:18px;font-weight:700;margin:0;">Votre RDV a été annulé</p>
+      </div>
+      <p style="color:#64748b;margin:0 0 20px;">Bonjour <strong>${params.clientName}</strong>, votre rendez-vous <strong>${params.serviceName}</strong> du <strong>${params.date} à ${params.timeSlot}</strong> chez <strong>${params.businessName}</strong> a été annulé.</p>
+      <p style="color:#94a3b8;font-size:13px;text-align:center;">N'hésitez pas à reprendre rendez-vous.</p>
+    `),
+  })
+}
+
 export async function sendMonthlyReport(params: {
   userEmail: string
   userName: string
