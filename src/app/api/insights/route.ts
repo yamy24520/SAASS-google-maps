@@ -85,8 +85,10 @@ ${reviewsText}`
     })
 
     const raw = message.content[0].type === "text" ? message.content[0].text : ""
-    const content = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim()
-    const analysis = JSON.parse(content)
+    const start = raw.indexOf("{")
+    const end = raw.lastIndexOf("}")
+    if (start === -1 || end === -1) throw new Error("Réponse IA invalide")
+    const analysis = JSON.parse(raw.slice(start, end + 1))
 
     return NextResponse.json({ analysis, reviewCount: reviews.length })
   } catch (err) {
