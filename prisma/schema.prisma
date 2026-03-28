@@ -101,6 +101,8 @@ model Business {
   responseRate         Float        @default(0)
 
   reviews              Review[]
+  reputationSnapshots  ReputationSnapshot[]
+  competitors          Competitor[]
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -168,6 +170,39 @@ enum ReviewStatus {
   PUBLISHED
   IGNORED
   FAILED
+}
+
+// ─── REPUTATION & COMPETITORS ─────────────────────────────────────────────────
+
+model ReputationSnapshot {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  rating       Float
+  reviewCount  Int
+  placeId      String?  // Google Place ID
+  recordedAt   DateTime @default(now())
+
+  @@index([businessId, recordedAt])
+}
+
+model Competitor {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name        String
+  placeId     String
+  rating      Float
+  reviewCount Int
+  address     String?
+  category    String?
+  photoUrl    String?
+  lastSyncAt  DateTime @default(now())
+
+  @@unique([businessId, placeId])
+  @@index([businessId])
 }
 
 // ─── SUBSCRIPTIONS ────────────────────────────────────────────────────────────

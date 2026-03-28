@@ -3,13 +3,16 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { LayoutDashboard, MessageSquare, Settings, CreditCard, ChevronRight, Building2, Plus, ChevronDown } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Settings, CreditCard, ChevronRight, Building2, Plus, ChevronDown, TrendingUp, Users, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/reviews", label: "Avis", icon: MessageSquare },
+  { href: "/reputation", label: "Réputation", icon: TrendingUp },
+  { href: "/competitors", label: "Concurrents", icon: Users },
+  { href: "/seo-local", label: "SEO Local", icon: Search },
   { href: "/settings", label: "Paramètres", icon: Settings },
 ]
 
