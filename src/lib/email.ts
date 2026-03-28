@@ -154,12 +154,20 @@ export async function sendReviewRequestWithOffer(params: {
   customerEmail: string
   businessName: string
   offerText: string
+  offerType: "FIXED" | "SPIN_WHEEL"
   reviewUrl: string
+  claimUrl: string
 }) {
+  const incentiveText = params.offerType === "SPIN_WHEEL"
+    ? "Tentez votre chance à la roulette des cadeaux !"
+    : params.offerText
+
+  const incentiveEmoji = params.offerType === "SPIN_WHEEL" ? "🎰" : "🎁"
+
   await getResend().emails.send({
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.customerEmail,
-    subject: `🎁 Votre cadeau de ${params.businessName} vous attend`,
+    subject: `${incentiveEmoji} Votre récompense de ${params.businessName} vous attend`,
     html: `
 <!DOCTYPE html>
 <html>
@@ -172,17 +180,19 @@ export async function sendReviewRequestWithOffer(params: {
     </div>
     <div style="padding: 32px;">
       <div style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 2px solid #86efac; border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 28px;">
-        <div style="font-size: 40px; margin-bottom: 8px;">🎁</div>
-        <p style="color: #166534; font-size: 18px; font-weight: 700; margin: 0 0 6px;">Votre cadeau :</p>
-        <p style="color: #15803d; font-size: 20px; font-weight: 800; margin: 0;">${params.offerText}</p>
-        <p style="color: #86efac; font-size: 12px; margin: 12px 0 0;">Présentez cet email lors de votre prochaine visite</p>
+        <div style="font-size: 40px; margin-bottom: 8px;">${incentiveEmoji}</div>
+        <p style="color: #166534; font-size: 18px; font-weight: 700; margin: 0 0 6px;">Votre récompense :</p>
+        <p style="color: #15803d; font-size: 18px; font-weight: 800; margin: 0;">${incentiveText}</p>
       </div>
-      <div style="border-top: 1px solid #f1f5f9; padding-top: 24px; text-align: center;">
-        <p style="color: #64748b; margin: 0 0 8px; font-size: 15px;">Vous avez apprécié votre visite ?</p>
-        <p style="color: #1e293b; font-weight: 600; margin: 0 0 20px; font-size: 16px;">Laissez-nous un avis sur Google, ça nous aide beaucoup ! ⭐</p>
-        <a href="${params.reviewUrl}"
-           style="display: inline-block; background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: white; text-decoration: none; text-align: center; padding: 14px 32px; border-radius: 10px; font-weight: 600; font-size: 15px;">
-          Laisser un avis Google →
+      <p style="color: #1e293b; font-weight: 600; margin: 0 0 8px; font-size: 16px; text-align: center;">Étape 1 : Laissez-nous un avis Google ⭐</p>
+      <p style="color: #64748b; font-size: 14px; text-align: center; margin: 0 0 16px;">Cela prend moins d'une minute et nous aide énormément !</p>
+      <a href="${params.reviewUrl}" style="display: block; background: linear-gradient(135deg, #0ea5e9, #06b6d4); color: white; text-decoration: none; text-align: center; padding: 14px 24px; border-radius: 10px; font-weight: 600; font-size: 15px; margin-bottom: 24px;">
+        Laisser mon avis Google →
+      </a>
+      <div style="border-top: 1px solid #f1f5f9; padding-top: 20px; text-align: center;">
+        <p style="color: #64748b; font-size: 13px; margin: 0 0 12px;">Étape 2 : Une fois votre avis publié, réclamez votre récompense</p>
+        <a href="${params.claimUrl}" style="display: inline-block; background: white; color: #0ea5e9; text-decoration: none; text-align: center; padding: 12px 24px; border-radius: 10px; font-weight: 600; font-size: 14px; border: 2px solid #0ea5e9;">
+          ${params.offerType === "SPIN_WHEEL" ? "🎰 Tourner la roulette" : "🎁 Réclamer mon offre"}
         </a>
       </div>
     </div>

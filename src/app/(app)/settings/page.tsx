@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Save, Loader2, Globe, Unlink, Gift } from "lucide-react"
+import { Save, Loader2, Globe, Unlink, Gift, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,6 +10,12 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { toast } from "@/components/ui/toaster"
+
+interface SpinPrize {
+  emoji: string
+  label: string
+  probability: number
+}
 
 interface Business {
   name: string
@@ -24,7 +30,16 @@ interface Business {
   gbpLocationName: string | null
   offerEnabled: boolean
   offerText: string | null
+  offerType: "FIXED" | "SPIN_WHEEL"
+  spinPrizes: SpinPrize[] | null
 }
+
+const DEFAULT_SPIN_PRIZES: SpinPrize[] = [
+  { emoji: "🍷", label: "Verre offert", probability: 30 },
+  { emoji: "🍮", label: "Dessert offert", probability: 25 },
+  { emoji: "💸", label: "-10% sur l'addition", probability: 30 },
+  { emoji: "🙏", label: "Merci !", probability: 15 },
+]
 
 export default function SettingsPage() {
   const searchParams = useSearchParams()
@@ -44,6 +59,8 @@ export default function SettingsPage() {
     gbpLocationName: null,
     offerEnabled: false,
     offerText: null,
+    offerType: "FIXED",
+    spinPrizes: null,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -62,7 +79,12 @@ export default function SettingsPage() {
     const res = await fetch(`/api/settings${bizParam}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, customSignature: form.customSignature || null, offerText: form.offerText || null }),
+      body: JSON.stringify({
+        ...form,
+        customSignature: form.customSignature || null,
+        offerText: form.offerText || null,
+        spinPrizes: form.offerType === "SPIN_WHEEL" ? (form.spinPrizes ?? DEFAULT_SPIN_PRIZES) : null,
+      }),
     })
     if (res.ok) {
       toast({ title: "Sauvegardé", description: "Vos paramètres ont été mis à jour.", variant: "success" })
@@ -239,14 +261,131 @@ export default function SettingsPage() {
             />
           </div>
           {form.offerEnabled && (
-            <div className="space-y-1.5">
-              <Label>Texte de l&apos;offre</Label>
-              <Input
-                value={form.offerText ?? ""}
-                onChange={(e) => setForm({ ...form, offerText: e.target.value })}
-                placeholder="Ex: Un verre offert à votre prochaine visite"
-              />
-              <p className="text-xs text-slate-400">Ce texte sera affiché dans l&apos;email envoyé à vos clients</p>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>Type d&apos;offre</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { value: "FIXED", label: "Offre fixe", desc: "Un cadeau défini à l'avance" },
+                    { value: "SPIN_WHEEL", label: "Roulette des cadeaux", desc: "Le client tourne une roue" },
+                  ].map((t) => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, offerType: t.value as "FIXED" | "SPIN_WHEEL" })}
+                      className={`p-3 rounded-xl border-2 text-left transition-all ${
+                        form.offerType === t.value
+                          ? "border-sky-500 bg-sky-50"
+                          : "border-slate-200 hover:border-sky-200"
+                      }`}
+                    >
+                      <div className="text-sm font-medium text-slate-900">{t.label}</div>
+                      <div className="text-xs text-slate-500">{t.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {form.offerType === "FIXED" && (
+                <div className="space-y-1.5">
+                  <Label>Texte de l&apos;offre</Label>
+                  <Input
+                    value={form.offerText ?? ""}
+                    onChange={(e) => setForm({ ...form, offerText: e.target.value })}
+                    placeholder="Ex: Un verre offert à votre prochaine visite"
+                  />
+                  <p className="text-xs text-slate-400">Ce texte sera affiché dans l&apos;email envoyé à vos clients</p>
+                </div>
+              )}
+
+              {form.offerType === "SPIN_WHEEL" && (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label>Texte de présentation de l&apos;offre</Label>
+                    <Input
+                      value={form.offerText ?? ""}
+                      onChange={(e) => setForm({ ...form, offerText: e.target.value })}
+                      placeholder="Ex: Tentez votre chance !"
+                    />
+                    <p className="text-xs text-slate-400">Affiché dans l&apos;email d&apos;invitation</p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Prix de la roulette</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 h-7 text-xs"
+                        onClick={() => {
+                          const prizes = form.spinPrizes ?? DEFAULT_SPIN_PRIZES
+                          setForm({ ...form, spinPrizes: [...prizes, { emoji: "🎁", label: "Surprise", probability: 10 }] })
+                        }}
+                      >
+                        <Plus className="w-3 h-3" />
+                        Ajouter
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {(form.spinPrizes ?? DEFAULT_SPIN_PRIZES).map((prize, i) => {
+                        const prizes = form.spinPrizes ?? DEFAULT_SPIN_PRIZES
+                        return (
+                          <div key={i} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
+                            <Input
+                              value={prize.emoji}
+                              onChange={(e) => {
+                                const updated = [...prizes]
+                                updated[i] = { ...updated[i], emoji: e.target.value }
+                                setForm({ ...form, spinPrizes: updated })
+                              }}
+                              className="w-14 text-center px-1"
+                              placeholder="🎁"
+                            />
+                            <Input
+                              value={prize.label}
+                              onChange={(e) => {
+                                const updated = [...prizes]
+                                updated[i] = { ...updated[i], label: e.target.value }
+                                setForm({ ...form, spinPrizes: updated })
+                              }}
+                              className="flex-1"
+                              placeholder="Nom du prix"
+                            />
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                min={1}
+                                max={100}
+                                value={prize.probability}
+                                onChange={(e) => {
+                                  const updated = [...prizes]
+                                  updated[i] = { ...updated[i], probability: parseInt(e.target.value) || 1 }
+                                  setForm({ ...form, spinPrizes: updated })
+                                }}
+                                className="w-16 text-center px-1"
+                              />
+                              <span className="text-xs text-slate-400">%</span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-400 hover:text-red-600"
+                              onClick={() => {
+                                const updated = prizes.filter((_, idx) => idx !== i)
+                                setForm({ ...form, spinPrizes: updated.length > 0 ? updated : null })
+                              }}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <p className="text-xs text-slate-400">Les probabilités sont relatives — elles n&apos;ont pas besoin de totaliser 100.</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

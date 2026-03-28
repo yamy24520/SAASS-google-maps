@@ -104,6 +104,8 @@ model Business {
   placeType            String?
   offerEnabled         Boolean  @default(false)
   offerText            String?
+  offerType            OfferType        @default(FIXED)
+  spinPrizes           Json?
 
   reviews              Review[]
   reputationSnapshots  ReputationSnapshot[]
@@ -219,6 +221,10 @@ model ReviewRequest {
   status     ReviewRequestStatus @default(PENDING)
   createdAt  DateTime            @default(now())
   sentAt     DateTime?
+  claimToken       String?          @unique
+  claimStatus      ClaimStatus      @default(WAITING_REVIEW)
+  claimedAt        DateTime?
+  prizeWon         String?
 
   @@index([businessId])
   @@index([status])
@@ -227,6 +233,16 @@ model ReviewRequest {
 enum ReviewRequestStatus {
   PENDING
   SENT
+}
+
+enum OfferType {
+  FIXED
+  SPIN_WHEEL
+}
+
+enum ClaimStatus {
+  WAITING_REVIEW
+  CLAIMED
 }
 
 // ─── SUBSCRIPTIONS ────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 import { z } from "zod"
 
 const schema = z.object({
@@ -15,6 +16,12 @@ const schema = z.object({
   language: z.string().optional(),
   offerEnabled: z.boolean().optional(),
   offerText: z.string().nullable().optional(),
+  offerType: z.enum(["FIXED", "SPIN_WHEEL"]).optional(),
+  spinPrizes: z.array(z.object({
+    emoji: z.string(),
+    label: z.string(),
+    probability: z.number().min(0).max(100),
+  })).nullable().optional(),
 })
 
 async function getBusinessForUser(userId: string, bizId: string | null) {
@@ -51,14 +58,25 @@ export async function PUT(req: NextRequest) {
   try {
     let business = await getBusinessForUser(session.user.id, bizId)
 
+    // Prisma requires Prisma.JsonNull (not JS null) for nullable JSON fields
+    const { spinPrizes, ...restData } = data
+    const prismaData = {
+      ...restData,
+      spinPrizes: spinPrizes === null
+        ? Prisma.JsonNull
+        : spinPrizes !== undefined
+          ? (spinPrizes as Prisma.InputJsonValue)
+          : undefined,
+    }
+
     if (!business) {
       business = await prisma.business.create({
-        data: { userId: session.user.id, name: data.name ?? "Mon établissement", ...data },
+        data: { userId: session.user.id, name: data.name ?? "Mon établissement", ...prismaData },
       })
     } else {
       business = await prisma.business.update({
         where: { id: business.id },
-        data,
+        data: prismaData,
       })
     }
 

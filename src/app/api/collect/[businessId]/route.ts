@@ -6,7 +6,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ busi
   const { businessId } = await params
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { name: true, offerEnabled: true, offerText: true, gbpLocationId: true },
+    select: { name: true, offerEnabled: true, offerText: true, offerType: true, gbpLocationId: true },
   })
   if (!business || !business.offerEnabled) {
     return NextResponse.json({ error: "Offre non disponible" }, { status: 404 })
@@ -14,6 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ busi
   return NextResponse.json({
     businessName: business.name,
     offerText: business.offerText,
+    offerType: business.offerType,
     hasPlace: !!business.gbpLocationId,
   })
 }
@@ -28,14 +29,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bus
 
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { name: true, offerEnabled: true, offerText: true, gbpLocationId: true },
+    select: { name: true, offerEnabled: true, offerText: true, offerType: true, spinPrizes: true, gbpLocationId: true },
   })
 
   if (!business || !business.offerEnabled || !business.offerText) {
     return NextResponse.json({ error: "Offre non disponible" }, { status: 404 })
   }
 
-  // Check duplicate (same email + business within 30 days)
   const existing = await prisma.reviewRequest.findFirst({
     where: {
       businessId,
@@ -47,8 +47,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bus
     return NextResponse.json({ success: true, alreadySent: true })
   }
 
+  const claimToken = crypto.randomUUID()
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "https://reputix.net"
+  const claimUrl = `${appUrl}/collect/${businessId}/claim/${claimToken}`
+
   const reviewRequest = await prisma.reviewRequest.create({
-    data: { businessId, email, status: "PENDING" },
+    data: { businessId, email, status: "PENDING", claimToken },
   })
 
   const reviewUrl = business.gbpLocationId
@@ -60,7 +64,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bus
       customerEmail: email,
       businessName: business.name,
       offerText: business.offerText,
+      offerType: business.offerType as "FIXED" | "SPIN_WHEEL",
       reviewUrl,
+      claimUrl,
     })
     await prisma.reviewRequest.update({
       where: { id: reviewRequest.id },

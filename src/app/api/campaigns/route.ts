@@ -18,7 +18,7 @@ export async function GET() {
       reviewRequests: {
         orderBy: { createdAt: "desc" },
         take: 50,
-        select: { id: true, email: true, status: true, createdAt: true, sentAt: true },
+        select: { id: true, email: true, status: true, createdAt: true, sentAt: true, claimStatus: true, prizeWon: true },
       },
     },
   })
