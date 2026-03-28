@@ -1,0 +1,70 @@
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+
+async function findBusiness(slug: string) {
+  // Try slug first, then businessId (backward compat)
+  const bySlug = await prisma.business.findUnique({ where: { pageSlug: slug } })
+  if (bySlug) return bySlug
+  return prisma.business.findUnique({ where: { id: slug } })
+}
+
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params
+  const session = await getServerSession(authOptions)
+
+  const business = await findBusiness(slug)
+  if (!business) return NextResponse.json({ error: "Page introuvable" }, { status: 404 })
+
+  const isOwner = session?.user?.id === business.userId
+  if (!business.reputationPageEnabled && !isOwner) {
+    return NextResponse.json({ error: "Page introuvable" }, { status: 404 })
+  }
+
+  const snapshot = await prisma.reputationSnapshot.findFirst({
+    where: { businessId: business.id },
+    orderBy: { recordedAt: "desc" },
+    select: { rating: true, reviewCount: true, placeId: true },
+  })
+
+  const reviews = await prisma.review.findMany({
+    where: { businessId: business.id, rating: { gte: 4 }, comment: { not: null } },
+    orderBy: { reviewPublishedAt: "desc" },
+    take: 5,
+    select: { reviewerName: true, rating: true, comment: true, reviewPublishedAt: true },
+  })
+
+  const placeId = business.gbpLocationId ?? snapshot?.placeId ?? null
+  const rating = snapshot?.rating ?? business.averageRating ?? 0
+  const reviewCount = snapshot?.reviewCount ?? business.totalReviews ?? 0
+
+  const DEFAULT_CONFIG = {
+    sections: [
+      { id: "reviews", type: "reviews", enabled: true, order: 0 },
+      { id: "social",  type: "social",  enabled: true, order: 1, links: [] },
+      { id: "hours",   type: "hours",   enabled: false, order: 2, schedule: {} },
+      { id: "location",type: "location",enabled: false, order: 3, address: "" },
+      { id: "photos",  type: "photos",  enabled: false, order: 4, images: [] },
+    ],
+  }
+
+  return NextResponse.json({
+    businessId: business.id,
+    businessName: business.name,
+    rating,
+    reviewCount,
+    placeId,
+    reviews,
+    logoDataUrl: business.logoDataUrl ?? null,
+    pageTheme: business.pageTheme ?? "dark",
+    pageTagline: business.pageTagline ?? null,
+    pageConfig: (business.pageConfig as object) ?? DEFAULT_CONFIG,
+    socialLinks: (business.socialLinks as Record<string, string>) ?? {},
+    isOwner,
+    reputationPageEnabled: business.reputationPageEnabled,
+  })
+}

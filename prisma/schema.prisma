@@ -111,6 +111,10 @@ model Business {
   logoDataUrl          String? @db.Text
   pageTheme            String  @default("dark")
   pageTagline          String?
+  pageSlug             String? @unique
+  pageConfig           Json?
+
+  pageEvents           PageEvent[]
 
   reviews              Review[]
   reputationSnapshots  ReputationSnapshot[]
@@ -248,6 +252,19 @@ enum OfferType {
 enum ClaimStatus {
   WAITING_REVIEW
   CLAIMED
+}
+
+// ─── PAGE EVENTS ──────────────────────────────────────────────────────────────
+
+model PageEvent {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  type       String   // "view" | "cta_review" | "cta_maps" | "cta_social_facebook" ...
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, type])
+  @@index([businessId, createdAt])
 }
 
 // ─── SUBSCRIPTIONS ────────────────────────────────────────────────────────────

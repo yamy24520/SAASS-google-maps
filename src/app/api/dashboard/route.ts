@@ -56,6 +56,19 @@ export async function GET(req: NextRequest) {
 
   const responseRate = totalReviews > 0 ? Math.round((publishedCount / totalReviews) * 100) : 0
 
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const [pageViewsTotal, pageViewsWeek, pageClicks, pageViewsByDay] = await Promise.all([
+    prisma.pageEvent.count({ where: { businessId: business.id, type: "view" } }),
+    prisma.pageEvent.count({ where: { businessId: business.id, type: "view", createdAt: { gte: sevenDaysAgo } } }),
+    prisma.pageEvent.groupBy({ by: ["type"], where: { businessId: business.id, type: { not: "view" } }, _count: { type: true }, orderBy: { _count: { type: "desc" } }, take: 3 }),
+    prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+      SELECT date_trunc('day', "createdAt") as day, COUNT(*) as count
+      FROM "PageEvent"
+      WHERE "businessId" = ${business.id} AND type = 'view' AND "createdAt" >= ${sevenDaysAgo}
+      GROUP BY day ORDER BY day ASC
+    `,
+  ])
+
   return NextResponse.json({
     stats: {
       totalReviews,
@@ -72,5 +85,16 @@ export async function GET(req: NextRequest) {
       avg: Math.round(r.avg * 10) / 10,
       count: Number(r.count),
     })),
+    pageStats: {
+      viewsTotal: pageViewsTotal,
+      viewsWeek: pageViewsWeek,
+      clicks: pageClicks.map(c => ({ type: c.type, count: c._count.type })),
+      viewsByDay: (pageViewsByDay as { day: Date; count: bigint }[]).map(r => ({
+        day: new Date(r.day).toLocaleDateString("fr-FR", { weekday: "short" }),
+        views: Number(r.count),
+      })),
+    },
+    pageSlug: business.pageSlug,
+    reputationPageEnabled: business.reputationPageEnabled,
   })
 }

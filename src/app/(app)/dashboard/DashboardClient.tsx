@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Star, MessageSquare, CheckCircle2, Clock, TrendingUp, RefreshCw } from "lucide-react"
+import { Star, MessageSquare, CheckCircle2, Clock, TrendingUp, RefreshCw, Globe, ExternalLink } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import Link from "next/link"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts"
 import { formatDate, getStatusLabel, getRatingColor } from "@/lib/utils"
 import { toast } from "@/components/ui/toaster"
 
@@ -41,6 +42,9 @@ export function DashboardClient() {
   const [chartData, setChartData] = useState<ChartPoint[]>([])
   const [syncing, setSyncing] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [pageStats, setPageStats] = useState<{ viewsTotal: number; viewsWeek: number; clicks: { type: string; count: number }[]; viewsByDay: { day: string; views: number }[] } | null>(null)
+  const [pageSlug, setPageSlug] = useState<string | null>(null)
+  const [reputationPageEnabled, setReputationPageEnabled] = useState(false)
 
   async function fetchData() {
     const res = await fetch(`/api/dashboard${bizParam}`)
@@ -54,6 +58,9 @@ export function DashboardClient() {
         count: r.count,
       }))
     )
+    if (data.pageStats) setPageStats(data.pageStats)
+    if (data.pageSlug) setPageSlug(data.pageSlug)
+    setReputationPageEnabled(!!data.reputationPageEnabled)
     setLoading(false)
   }
 
@@ -229,6 +236,82 @@ export function DashboardClient() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Page vitrine stats */}
+      {reputationPageEnabled && pageStats && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Globe className="w-4 h-4 text-indigo-500" />
+                Page vitrine
+              </CardTitle>
+              {pageSlug && (
+                <Link href={`/r/${pageSlug}`} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7">
+                    <ExternalLink className="w-3 h-3" />
+                    Voir la page
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 mb-5">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-slate-900">{pageStats.viewsTotal.toLocaleString("fr-FR")}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Vues totales</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-slate-900">{pageStats.viewsWeek}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Cette semaine</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-slate-900">{pageStats.clicks.reduce((s, c) => s + c.count, 0)}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Clics CTAs</p>
+              </div>
+            </div>
+
+            {pageStats.viewsByDay.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-slate-400 mb-2 font-medium">Vues — 7 derniers jours</p>
+                <ResponsiveContainer width="100%" height={80}>
+                  <BarChart data={pageStats.viewsByDay} barSize={20}>
+                    <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 11 }} formatter={(v) => [v, "vues"]} />
+                    <Bar dataKey="views" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {pageStats.clicks.length > 0 && (
+              <div>
+                <p className="text-xs text-slate-400 mb-2 font-medium">Top actions</p>
+                <div className="space-y-1.5">
+                  {pageStats.clicks.map((c) => {
+                    const label = c.type === "cta_review" ? "Laisser un avis" : c.type === "cta_maps" ? "Google Maps" : c.type.replace("cta_social_", "")
+                    const max = pageStats.clicks[0]?.count ?? 1
+                    return (
+                      <div key={c.type} className="flex items-center gap-3">
+                        <span className="text-xs text-slate-600 w-32 truncate capitalize">{label}</span>
+                        <div className="flex-1 bg-slate-100 rounded-full h-1.5">
+                          <div className="bg-indigo-500 h-1.5 rounded-full transition-all" style={{ width: `${(c.count / max) * 100}%` }} />
+                        </div>
+                        <span className="text-xs text-slate-500 w-6 text-right">{c.count}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {pageStats.viewsTotal === 0 && (
+              <p className="text-sm text-slate-400 text-center py-4">Aucune visite encore. Partagez votre page !</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
