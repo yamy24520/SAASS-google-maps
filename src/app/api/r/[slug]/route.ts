@@ -44,11 +44,12 @@ export async function GET(
 
   const DEFAULT_CONFIG = {
     sections: [
-      { id: "reviews", type: "reviews", enabled: true, order: 0 },
-      { id: "social",  type: "social",  enabled: true, order: 1, links: [] },
-      { id: "hours",   type: "hours",   enabled: false, order: 2, schedule: {} },
-      { id: "location",type: "location",enabled: false, order: 3, address: "" },
-      { id: "photos",  type: "photos",  enabled: false, order: 4, images: [] },
+      { id: "reviews",  type: "reviews",  enabled: true,  order: 0 },
+      { id: "menu",     type: "menu",     enabled: false, order: 1, categories: [] },
+      { id: "social",   type: "social",   enabled: true,  order: 2, links: [] },
+      { id: "hours",    type: "hours",    enabled: false, order: 3, schedule: {} },
+      { id: "location", type: "location", enabled: false, order: 4, address: "" },
+      { id: "photos",   type: "photos",   enabled: false, order: 5, images: [] },
     ],
   }
 

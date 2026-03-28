@@ -1,7 +1,7 @@
 "use client"
 
 import { use, useEffect, useRef, useState } from "react"
-import { ChevronRight, GripVertical, MapPin, Pencil, Plus, Save, Trash2, X, Quote } from "lucide-react"
+import { Camera, ChevronRight, GripVertical, MapPin, Pencil, Plus, Save, Trash2, X, Quote } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -9,7 +9,9 @@ interface ReviewData { reviewerName: string; rating: number; comment: string | n
 interface SocialLink  { platform: string; url: string; label: string }
 interface HourEntry   { open: string; close: string; closed: boolean }
 interface PhotoItem   { dataUrl: string; caption: string }
-interface Section     { id: string; type: string; enabled: boolean; order: number; links?: SocialLink[]; schedule?: Record<string, HourEntry>; address?: string; images?: PhotoItem[] }
+interface MenuItem    { id: string; name: string; description: string; price: string; photo?: string }
+interface MenuCategory{ id: string; name: string; items: MenuItem[] }
+interface Section     { id: string; type: string; enabled: boolean; order: number; links?: SocialLink[]; schedule?: Record<string, HourEntry>; address?: string; images?: PhotoItem[]; categories?: MenuCategory[] }
 interface PageData    { businessId: string; businessName: string; rating: number; reviewCount: number; placeId: string | null; reviews: ReviewData[]; logoDataUrl: string | null; pageTheme: string; pageTagline: string | null; pageConfig: { sections: Section[] }; socialLinks: Record<string, string>; isOwner: boolean; reputationPageEnabled: boolean }
 
 // ── Themes ────────────────────────────────────────────────────────────────────
@@ -91,6 +93,179 @@ function compressImage(file: File, size: number): Promise<string> {
 
 const DAYS: [string, string][] = [["monday","Lun"],["tuesday","Mar"],["wednesday","Mer"],["thursday","Jeu"],["friday","Ven"],["saturday","Sam"],["sunday","Dim"]]
 const TODAY_KEY = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1]?.[0] ?? "monday"
+
+// ── Compress dish photo (small, JPEG) ────────────────────────────────────────
+
+function compressDish(file: File): Promise<string> {
+  return new Promise(resolve => {
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const img = new window.Image()
+      img.onload = () => {
+        const size = 320
+        const canvas = document.createElement("canvas")
+        canvas.width = size; canvas.height = size
+        const ctx = canvas.getContext("2d")!
+        const scale = Math.max(size / img.width, size / img.height)
+        const w = img.width * scale, h = img.height * scale
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)
+        resolve(canvas.toDataURL("image/jpeg", 0.7))
+      }
+      img.src = ev.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+function uid() { return Math.random().toString(36).slice(2, 9) }
+
+// ── Section: Menu ─────────────────────────────────────────────────────────────
+
+function MenuSection({ categories, t, isEditing, onChange }: { categories: MenuCategory[]; t: Theme; isEditing: boolean; onChange?: (c: MenuCategory[]) => void }) {
+  const [scanning, setScanning] = useState(false)
+  const [scanError, setScanError] = useState("")
+  const [editingItem, setEditingItem] = useState<string | null>(null)
+
+  async function handleScan(file: File) {
+    setScanning(true)
+    setScanError("")
+    const reader = new FileReader()
+    reader.onload = async ev => {
+      const raw = (ev.target?.result as string).split(",")[1]
+      const mime = file.type as string
+      const res = await fetch("/api/menu-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: raw, mediaType: mime }),
+      })
+      const data = await res.json()
+      if (data.error) { setScanError(data.error); setScanning(false); return }
+      const newCats: MenuCategory[] = (data.categories ?? []).map((c: { name: string; items: { name: string; description: string; price: string }[] }) => ({
+        id: uid(), name: c.name,
+        items: (c.items ?? []).map((item: { name: string; description: string; price: string }) => ({ id: uid(), name: item.name, description: item.description ?? "", price: item.price ?? "" })),
+      }))
+      onChange?.([...categories, ...newCats])
+      setScanning(false)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Public view
+  if (!isEditing) {
+    if (!categories.length) return null
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {categories.map(cat => (
+          <div key={cat.id}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: t.muted, marginBottom: 10, paddingLeft: 2 }}>{cat.name}</p>
+            <div style={{ background: t.surface, borderRadius: 16, overflow: "hidden" }}>
+              {cat.items.map((item, i) => (
+                <div key={item.id} style={{ display: "flex", gap: 12, padding: "14px 16px", borderBottom: i < cat.items.length - 1 ? `1px solid ${t.border}` : "none", alignItems: "flex-start" }}>
+                  {item.photo && (
+                    <img src={item.photo} alt={item.name} style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                      <p style={{ color: t.text, fontWeight: 600, fontSize: 15, margin: 0, lineHeight: 1.3 }}>{item.name}</p>
+                      {item.price && <span style={{ color: t.accent, fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{item.price}</span>}
+                    </div>
+                    {item.description && <p style={{ color: t.secondary, fontSize: 13, margin: "4px 0 0", lineHeight: 1.4 }}>{item.description}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Edit view
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Scan button */}
+      <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "14px", borderRadius: 14, border: `1.5px dashed ${t.border}`, cursor: scanning ? "default" : "pointer", background: t.surface, opacity: scanning ? 0.7 : 1 }}>
+        {scanning ? (
+          <>
+            <div style={{ width: 16, height: 16, border: `2px solid ${t.muted}`, borderTopColor: t.accent, borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+            <span style={{ color: t.secondary, fontSize: 14, fontWeight: 500 }}>Analyse en cours...</span>
+          </>
+        ) : (
+          <>
+            <Camera size={18} style={{ color: t.accent }} />
+            <span style={{ color: t.text, fontSize: 14, fontWeight: 600 }}>Scanner la carte</span>
+            <span style={{ color: t.muted, fontSize: 13 }}>— photo ou galerie</span>
+          </>
+        )}
+        <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} disabled={scanning}
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleScan(f); e.target.value = "" }} />
+      </label>
+      {scanError && <p style={{ color: "#f87171", fontSize: 13, textAlign: "center", margin: "-12px 0 0" }}>{scanError}</p>}
+
+      {/* Categories */}
+      {categories.map((cat, ci) => (
+        <div key={cat.id} style={{ background: t.surface, borderRadius: 16, overflow: "hidden" }}>
+          {/* Category header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderBottom: `1px solid ${t.border}`, background: t.elevated }}>
+            <input value={cat.name} onChange={e => onChange?.(categories.map((c, i) => i === ci ? { ...c, name: e.target.value } : c))}
+              style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontWeight: 700, fontSize: 13, outline: "none", letterSpacing: "0.05em", textTransform: "uppercase" }} />
+            <button onClick={() => onChange?.(categories.filter((_, i) => i !== ci))} style={{ background: "none", border: "none", cursor: "pointer", color: "#f87171", padding: 4 }}><Trash2 size={14} /></button>
+          </div>
+
+          {/* Items */}
+          {cat.items.map((item, ii) => (
+            <div key={item.id} style={{ borderBottom: `1px solid ${t.border}` }}>
+              <div style={{ display: "flex", gap: 10, padding: "12px 14px", alignItems: "flex-start" }}>
+                {/* Dish photo */}
+                <label style={{ width: 52, height: 52, borderRadius: 10, overflow: "hidden", flexShrink: 0, cursor: "pointer", background: t.elevated, display: "flex", alignItems: "center", justifyContent: "center", border: `1px dashed ${t.border}` }}>
+                  {item.photo ? (
+                    <img src={item.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <Camera size={16} style={{ color: t.muted }} />
+                  )}
+                  <input type="file" accept="image/*" style={{ display: "none" }}
+                    onChange={async e => {
+                      const f = e.target.files?.[0]; if (!f) return
+                      const photo = await compressDish(f)
+                      const updated = categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, photo } : it) } : c)
+                      onChange?.(updated); e.target.value = ""
+                    }} />
+                </label>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input value={item.name} placeholder="Nom du plat"
+                      onChange={e => { const u = categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, name: e.target.value } : it) } : c); onChange?.(u) }}
+                      style={{ flex: 1, background: t.elevated, border: "none", borderRadius: 8, padding: "6px 10px", color: t.text, fontSize: 14, fontWeight: 600, outline: "none" }} />
+                    <input value={item.price} placeholder="Prix"
+                      onChange={e => { const u = categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, price: e.target.value } : it) } : c); onChange?.(u) }}
+                      style={{ width: 72, background: t.elevated, border: "none", borderRadius: 8, padding: "6px 10px", color: t.accent, fontSize: 14, fontWeight: 700, outline: "none", textAlign: "right" }} />
+                  </div>
+                  <input value={item.description} placeholder="Description (optionnel)"
+                    onChange={e => { const u = categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, description: e.target.value } : it) } : c); onChange?.(u) }}
+                    style={{ background: t.elevated, border: "none", borderRadius: 8, padding: "6px 10px", color: t.secondary, fontSize: 13, outline: "none" }} />
+                </div>
+                <button onClick={() => { const u = categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.filter((_, ii2) => ii2 !== ii) } : c); onChange?.(u) }}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#f87171", padding: "4px", flexShrink: 0 }}><X size={14} /></button>
+              </div>
+            </div>
+          ))}
+
+          {/* Add item */}
+          <button onClick={() => { const u = categories.map((c, ci2) => ci2 === ci ? { ...c, items: [...c.items, { id: uid(), name: "", description: "", price: "" }] } : c); onChange?.(u) }}
+            style={{ width: "100%", padding: "10px 14px", background: "none", border: "none", cursor: "pointer", color: t.accent, fontSize: 13, fontWeight: 600, textAlign: "left", display: "flex", alignItems: "center", gap: 6 }}>
+            <Plus size={14} /> Ajouter un plat
+          </button>
+        </div>
+      ))}
+
+      {/* Add category */}
+      <button onClick={() => onChange?.([...categories, { id: uid(), name: "Nouvelle catégorie", items: [] }])}
+        style={{ padding: "10px 14px", background: t.surface, border: `1px solid ${t.border}`, borderRadius: 12, cursor: "pointer", color: t.secondary, fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
+        <Plus size={14} /> Ajouter une catégorie
+      </button>
+    </div>
+  )
+}
 
 // ── Section: Reviews ──────────────────────────────────────────────────────────
 
@@ -274,7 +449,7 @@ function PhotosSection({ images, t, isEditing, onChange }: { images: PhotoItem[]
 
 // ── Edit section wrapper ──────────────────────────────────────────────────────
 
-const SECTION_LABELS: Record<string, string> = { reviews: "Avis clients", social: "Réseaux sociaux", hours: "Horaires", location: "Adresse", photos: "Photos" }
+const SECTION_LABELS: Record<string, string> = { reviews: "Avis clients", menu: "Carte & Menu", social: "Réseaux sociaux", hours: "Horaires", location: "Adresse", photos: "Photos" }
 
 function EditWrapper({ section, t, onToggle, dragIdx, myIdx, onDragStart, onDrop, children }: { section: Section; t: Theme; onToggle: () => void; dragIdx: number | null; myIdx: number; onDragStart: () => void; onDrop: () => void; children: React.ReactNode }) {
   return (
@@ -377,6 +552,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
       case "hours":    return <HoursSection schedule={section.schedule ?? {}} t={t} isEditing={isEditing} onChange={s => updateSection(section.id, { schedule: s })} />
       case "location": return <LocationSection address={section.address ?? ""} placeId={data.placeId} t={t} isEditing={isEditing} onChange={a => updateSection(section.id, { address: a })} track={track} />
       case "photos":   return <PhotosSection images={section.images ?? []} t={t} isEditing={isEditing} onChange={imgs => updateSection(section.id, { images: imgs })} />
+      case "menu":     return <MenuSection categories={section.categories ?? []} t={t} isEditing={isEditing} onChange={c => updateSection(section.id, { categories: c })} />
       default: return null
     }
   }
