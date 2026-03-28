@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { TrendingUp, Star, MessageSquare, BarChart2, Search, RefreshCw } from "lucide-react"
+import { TrendingUp, Star, MessageSquare, BarChart2, Search, RefreshCw, MapPin, Pencil, X } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ export default function ReputationPage() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
   const [linking, setLinking] = useState(false)
+  const [changingPlace, setChangingPlace] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -58,6 +59,7 @@ export default function ReputationPage() {
     })
     setSearchResults([])
     setSearchQuery("")
+    setChangingPlace(false)
     await load()
     setLinking(false)
   }
@@ -84,15 +86,52 @@ export default function ReputationPage() {
         </Button>
       </div>
 
-      {/* Link Google Maps if not done */}
-      {!business?.placeId && (
+      {/* Fiche liée */}
+      {business?.placeId && !changingPlace ? (
+        <Card className="border-emerald-200 bg-emerald-50">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                  <MapPin className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-emerald-900">{business.name}</p>
+                  <p className="text-xs text-emerald-700">Fiche Google Maps liée · {business.totalReviews} avis · ⭐ {business.rating?.toFixed(1)}</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setChangingPlace(true); setSearchResults([]); setSearchQuery("") }}
+                className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-100 flex-shrink-0"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Changer
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Search form — shown when not linked OR when changing */}
+      {(!business?.placeId || changingPlace) && (
         <Card className="border-sky-200 bg-sky-50">
           <CardContent className="pt-6">
-            <p className="font-semibold text-sky-900 mb-1">Liez votre fiche Google Maps</p>
-            <p className="text-sm text-sky-700 mb-4">Recherchez votre établissement pour activer le suivi de réputation en temps réel.</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-semibold text-sky-900">
+                {changingPlace ? "Changer de fiche Google Maps" : "Liez votre fiche Google Maps"}
+              </p>
+              {changingPlace && (
+                <button onClick={() => { setChangingPlace(false); setSearchResults([]) }} className="text-sky-400 hover:text-sky-600">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-sky-700 mb-4">Recherchez votre établissement par nom et ville.</p>
             <div className="flex gap-2">
               <Input
-                placeholder="Ex: Restaurant Le Jardin Paris"
+                placeholder="Ex: Saint James Bergerac"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -100,7 +139,7 @@ export default function ReputationPage() {
               />
               <Button onClick={handleSearch} disabled={searching} className="gap-2">
                 <Search className="w-4 h-4" />
-                {searching ? "Recherche..." : "Rechercher"}
+                {searching ? "..." : "Rechercher"}
               </Button>
             </div>
             {searchResults.length > 0 && (
@@ -113,7 +152,7 @@ export default function ReputationPage() {
                       <p className="text-xs text-sky-600 mt-0.5">⭐ {r.rating} · {r.reviewCount} avis</p>
                     </div>
                     <Button size="sm" onClick={() => handleLink(r.placeId)} disabled={linking}>
-                      {linking ? "Liaison..." : "Lier"}
+                      {linking ? "Liaison..." : changingPlace ? "Choisir" : "Lier"}
                     </Button>
                   </div>
                 ))}
