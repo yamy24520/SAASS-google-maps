@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "asc" },
   })
 
-  return NextResponse.json({ services, bookingEnabled: business.bookingEnabled, bookingHours: business.bookingHours, bookingSettings: business.bookingSettings })
+  return NextResponse.json({ services, bookingEnabled: business.bookingEnabled, bookingHours: business.bookingHours, bookingSettings: business.bookingSettings, bookingType: business.bookingType, bookingMaxCovers: business.bookingMaxCovers })
 }
 
 export async function POST(req: NextRequest) {
@@ -53,7 +53,7 @@ export async function PUT(req: NextRequest) {
   const business = await getBusiness(session.user.id, bizId)
   if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
 
-  const { bookingEnabled, bookingHours, bookingSettings } = await req.json()
+  const { bookingEnabled, bookingHours, bookingSettings, bookingType, bookingMaxCovers } = await req.json()
 
   await prisma.business.update({
     where: { id: business.id },
@@ -61,6 +61,8 @@ export async function PUT(req: NextRequest) {
       ...(bookingEnabled !== undefined && { bookingEnabled }),
       ...(bookingHours !== undefined && { bookingHours }),
       ...(bookingSettings !== undefined && { bookingSettings }),
+      ...(bookingType !== undefined && { bookingType }),
+      ...(bookingMaxCovers !== undefined && { bookingMaxCovers }),
     },
   })
 

@@ -1,12 +1,16 @@
 "use client"
 
 import { use, useEffect, useState } from "react"
-import { CheckCircle2, ChevronLeft, Clock, Euro } from "lucide-react"
+import { CheckCircle2, ChevronLeft, Clock, Euro, Users } from "lucide-react"
 
 interface Service { id: string; name: string; description: string | null; duration: number; price: number }
-interface BusinessInfo { businessId: string; businessName: string; logoDataUrl: string | null; pageTheme: string; maxDaysAhead: number }
+interface Staff   { id: string; name: string; color: string }
+interface BusinessInfo {
+  businessId: string; businessName: string; logoDataUrl: string | null
+  pageTheme: string; maxDaysAhead: number; bookingType: string; bookingMaxCovers: number | null
+}
 
-type Step = "service" | "datetime" | "form" | "done"
+type Step = "service" | "staff" | "datetime" | "form" | "done"
 
 function Spinner() {
   return <div style={{ width: 20, height: 20, border: "2px solid rgba(0,0,0,0.1)", borderTopColor: "#0ea5e9", borderRadius: "50%", animation: "spin 0.7s linear infinite", margin: "0 auto" }} />
@@ -39,47 +43,66 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
 
   const [info, setInfo] = useState<BusinessInfo | null>(null)
   const [services, setServices] = useState<Service[]>([])
+  const [staffs, setStaffs] = useState<Staff[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
   const [step, setStep] = useState<Step>("service")
   const [selectedService, setSelectedService] = useState<Service | null>(null)
+  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null)
+  const [anyStaff, setAnyStaff] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string>("")
   const [slots, setSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<string>("")
+  const [partySize, setPartySize] = useState(2)
 
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" })
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
 
-  // Load business info + services
+  // Load business info + services + staffs
   useEffect(() => {
     Promise.all([
       fetch(`/api/r/${slug}`).then(r => r.json()),
       fetch(`/api/book/${slug}`).then(r => r.json()),
-      fetch(`/api/services?slug=${slug}`).then(r => r.json()).catch(() => ({})),
-    ]).then(([pageData, bookData, svcSettings]) => {
+    ]).then(([pageData, bookData]) => {
       if (pageData.error || !bookData.bookingEnabled) { setNotFound(true); setLoading(false); return }
-      const maxDaysAhead = svcSettings?.bookingSettings?.maxDaysAhead ?? 60
-      setInfo({ businessId: pageData.businessId, businessName: pageData.businessName, logoDataUrl: pageData.logoDataUrl, pageTheme: pageData.pageTheme, maxDaysAhead })
+      const maxDaysAhead = (bookData.bookingSettings as { maxDaysAhead?: number } | null)?.maxDaysAhead ?? 60
+      setInfo({
+        businessId: pageData.businessId,
+        businessName: pageData.businessName,
+        logoDataUrl: pageData.logoDataUrl,
+        pageTheme: pageData.pageTheme,
+        maxDaysAhead,
+        bookingType: bookData.bookingType ?? "appointment",
+        bookingMaxCovers: bookData.bookingMaxCovers ?? null,
+      })
       setServices(bookData.services ?? [])
+      setStaffs(bookData.staffs ?? [])
+      // For restaurant mode, skip service step
+      if (bookData.bookingType === "restaurant") setStep("datetime")
       setLoading(false)
     }).catch(() => { setNotFound(true); setLoading(false) })
   }, [slug])
 
-  // Load slots when date changes
+  // Load slots when date/service/staff changes
   useEffect(() => {
-    if (!selectedService || !selectedDate || !info) return
+    if (!info || !selectedDate) return
+    if (info.bookingType === "appointment" && !selectedService) return
     setLoadingSlots(true)
     setSlots([])
     setSelectedSlot("")
-    fetch(`/api/availability?businessId=${info.businessId}&serviceId=${selectedService.id}&date=${selectedDate}`)
+    const staffId = (anyStaff || !selectedStaff) ? "" : selectedStaff?.id ?? ""
+    const svcParam = selectedService ? `&serviceId=${selectedService.id}` : ""
+    const staffParam = staffId ? `&staffId=${staffId}` : ""
+    fetch(`/api/availability?businessId=${info.businessId}&date=${selectedDate}${svcParam}${staffParam}`)
       .then(r => r.json()).then(d => { setSlots(d.slots ?? []); setLoadingSlots(false) })
-  }, [selectedService, selectedDate, info])
+  }, [selectedService, selectedStaff, anyStaff, selectedDate, info])
 
   async function submit() {
-    if (!info || !selectedService || !selectedDate || !selectedSlot) return
+    if (!info || !selectedDate || !selectedSlot) return
+    if (info.bookingType === "appointment" && !selectedService) return
     setSubmitting(true)
     setSubmitError("")
     const res = await fetch("/api/bookings", {
@@ -87,13 +110,15 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         businessId: info.businessId,
-        serviceId: selectedService.id,
+        serviceId: selectedService?.id ?? null,
+        staffId: anyStaff ? null : (selectedStaff?.id ?? null),
         clientName: form.name,
         clientEmail: form.email,
         clientPhone: form.phone || null,
         date: selectedDate,
         timeSlot: selectedSlot,
         notes: form.notes || null,
+        partySize: info.bookingType === "restaurant" ? partySize : null,
       }),
     })
     const data = await res.json()
@@ -120,6 +145,18 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
 
   const accent = "#0ea5e9"
   const dates = getDatesAhead(info?.maxDaysAhead ?? 60)
+  const isRestaurant = info?.bookingType === "restaurant"
+  const hasStaff = staffs.length > 0
+
+  // Steps for appointment with staff: service → staff → datetime → form
+  // Steps for appointment without staff: service → datetime → form
+  // Steps for restaurant: datetime → form
+  const STEPS: Step[] = isRestaurant
+    ? ["datetime", "form"]
+    : hasStaff ? ["service", "staff", "datetime", "form"] : ["service", "datetime", "form"]
+  const LABELS: Record<Step, string> = {
+    service: "Prestation", staff: "Prestataire", datetime: "Date & heure", form: "Coordonnées", done: "Confirmé"
+  }
 
   return (
     <div style={{ minHeight: "100svh", background: "#f8fafc", fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" }}>
@@ -136,7 +173,9 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         )}
         <div>
           <p style={{ fontWeight: 700, fontSize: 16, color: "#0f172a", margin: 0 }}>{info?.businessName}</p>
-          <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>Réservation en ligne</p>
+          <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
+            {isRestaurant ? "Réservation de table" : "Rendez-vous en ligne"}
+          </p>
         </div>
       </div>
 
@@ -145,33 +184,35 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         {/* Steps indicator */}
         {step !== "done" && (
           <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 28 }}>
-            {(["service", "datetime", "form"] as Step[]).map((s, i) => {
-              const labels = ["Prestation", "Date & heure", "Coordonnées"]
-              const stepIdx = ["service", "datetime", "form"].indexOf(step)
+            {STEPS.map((s, i) => {
+              const stepIdx = STEPS.indexOf(step)
               const done = i < stepIdx
               const active = s === step
               return (
-                <div key={s} style={{ display: "flex", alignItems: "center", flex: i < 2 ? 1 : "none" }}>
+                <div key={s} style={{ display: "flex", alignItems: "center", flex: i < STEPS.length - 1 ? 1 : "none" }}>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                     <div style={{ width: 28, height: 28, borderRadius: "50%", background: done || active ? accent : "#e2e8f0", color: done || active ? "#fff" : "#94a3b8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, transition: "all 0.2s" }}>
                       {done ? "✓" : i + 1}
                     </div>
-                    <span style={{ fontSize: 10, color: active ? accent : "#94a3b8", fontWeight: active ? 600 : 400, whiteSpace: "nowrap" }}>{labels[i]}</span>
+                    <span style={{ fontSize: 10, color: active ? accent : "#94a3b8", fontWeight: active ? 600 : 400, whiteSpace: "nowrap" }}>{LABELS[s]}</span>
                   </div>
-                  {i < 2 && <div style={{ flex: 1, height: 2, background: done ? accent : "#e2e8f0", margin: "0 6px", marginBottom: 18, transition: "background 0.2s" }} />}
+                  {i < STEPS.length - 1 && <div style={{ flex: 1, height: 2, background: done ? accent : "#e2e8f0", margin: "0 6px", marginBottom: 18, transition: "background 0.2s" }} />}
                 </div>
               )
             })}
           </div>
         )}
 
-        {/* STEP 1 — Service */}
-        {step === "service" && (
+        {/* STEP: Service */}
+        {step === "service" && !isRestaurant && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <p style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", margin: "0 0 4px" }}>Choisissez une prestation</p>
             {services.length === 0 && <p style={{ color: "#94a3b8", fontSize: 14, textAlign: "center", padding: "32px 0" }}>Aucune prestation disponible</p>}
             {services.map(svc => (
-              <button key={svc.id} onClick={() => { setSelectedService(svc); setStep("datetime") }}
+              <button key={svc.id} onClick={() => {
+                setSelectedService(svc)
+                setStep(hasStaff ? "staff" : "datetime")
+              }}
                 style={{ background: "#fff", border: "2px solid #e2e8f0", borderRadius: 16, padding: "16px 18px", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 14, transition: "border-color 0.15s", outline: "none" }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = accent)}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = "#e2e8f0")}>
@@ -188,17 +229,76 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           </div>
         )}
 
-        {/* STEP 2 — Date & Heure */}
-        {step === "datetime" && selectedService && (
+        {/* STEP: Staff */}
+        {step === "staff" && hasStaff && (
           <div>
             <button onClick={() => setStep("service")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 14, padding: "0 0 16px", fontWeight: 500 }}>
               <ChevronLeft style={{ width: 16, height: 16 }} /> Retour
             </button>
-
-            <div style={{ background: "#fff", borderRadius: 16, padding: "14px 16px", marginBottom: 20, border: "1px solid #e2e8f0" }}>
-              <p style={{ fontWeight: 600, fontSize: 14, color: "#0f172a", margin: "0 0 2px" }}>{selectedService.name}</p>
-              <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>{selectedService.duration} min · {selectedService.price.toFixed(2)} €</p>
+            <p style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", margin: "0 0 16px" }}>Choisissez un prestataire</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* Any available */}
+              <button onClick={() => { setAnyStaff(true); setSelectedStaff(null); setStep("datetime") }}
+                style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: "#fff", border: `2px solid ${anyStaff ? accent : "#e2e8f0"}`, borderRadius: 14, cursor: "pointer", textAlign: "left", transition: "border-color 0.15s" }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Users style={{ width: 18, height: 18, color: "#64748b" }} />
+                </div>
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: 14, color: "#0f172a", margin: 0 }}>Premier disponible</p>
+                  <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>Peu importe le prestataire</p>
+                </div>
+              </button>
+              {staffs.map(s => (
+                <button key={s.id} onClick={() => { setSelectedStaff(s); setAnyStaff(false); setStep("datetime") }}
+                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: "#fff", border: `2px solid ${!anyStaff && selectedStaff?.id === s.id ? s.color : "#e2e8f0"}`, borderRadius: 14, cursor: "pointer", textAlign: "left", transition: "border-color 0.15s" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: s.color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 15 }}>
+                    {s.name.charAt(0)}
+                  </div>
+                  <p style={{ fontWeight: 600, fontSize: 14, color: "#0f172a", margin: 0 }}>{s.name}</p>
+                </button>
+              ))}
             </div>
+          </div>
+        )}
+
+        {/* STEP: Date & Heure */}
+        {step === "datetime" && (
+          <div>
+            <button onClick={() => setStep(hasStaff && !isRestaurant ? "staff" : (isRestaurant ? "datetime" : "service"))}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 14, padding: "0 0 16px", fontWeight: 500, visibility: isRestaurant ? "hidden" : "visible" }}>
+              <ChevronLeft style={{ width: 16, height: 16 }} /> Retour
+            </button>
+
+            {/* Recap */}
+            {selectedService && (
+              <div style={{ background: "#fff", borderRadius: 16, padding: "14px 16px", marginBottom: 20, border: "1px solid #e2e8f0" }}>
+                <p style={{ fontWeight: 600, fontSize: 14, color: "#0f172a", margin: "0 0 2px" }}>{selectedService.name}</p>
+                <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+                  {selectedService.duration} min · {selectedService.price.toFixed(2)} €
+                  {(selectedStaff && !anyStaff) ? ` · ${selectedStaff.name}` : ""}
+                </p>
+              </div>
+            )}
+
+            {/* Nb personnes (restaurant uniquement) */}
+            {isRestaurant && (
+              <div style={{ marginBottom: 24 }}>
+                <p style={{ fontSize: 15, fontWeight: 600, color: "#0f172a", margin: "0 0 12px" }}>Nombre de personnes</p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[1,2,3,4,5,6,7,8].map(n => (
+                    <button key={n} onClick={() => setPartySize(n)}
+                      style={{ width: 44, height: 44, borderRadius: 10, border: `2px solid ${partySize === n ? accent : "#e2e8f0"}`, background: partySize === n ? accent : "#fff", color: partySize === n ? "#fff" : "#0f172a", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }}>
+                      {n}
+                    </button>
+                  ))}
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1 }}>
+                    <input type="number" min="1" value={partySize} onChange={e => setPartySize(Math.max(1, Number(e.target.value)))}
+                      style={{ width: 60, padding: "8px", border: "1.5px solid #e2e8f0", borderRadius: 10, fontSize: 14, textAlign: "center", outline: "none" }} />
+                  </div>
+                </div>
+                {info?.bookingMaxCovers && <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 6 }}>Max {info.bookingMaxCovers} couverts par créneau</p>}
+              </div>
+            )}
 
             <p style={{ fontSize: 15, fontWeight: 600, color: "#0f172a", margin: "0 0 12px" }}>Choisissez une date</p>
             <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 24, scrollbarWidth: "none" }}>
@@ -260,8 +360,8 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           </div>
         )}
 
-        {/* STEP 3 — Form */}
-        {step === "form" && selectedService && (
+        {/* STEP: Form */}
+        {step === "form" && (
           <div>
             <button onClick={() => setStep("datetime")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 14, padding: "0 0 16px", fontWeight: 500 }}>
               <ChevronLeft style={{ width: 16, height: 16 }} /> Retour
@@ -269,10 +369,22 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
 
             {/* Recap */}
             <div style={{ background: `${accent}10`, border: `1px solid ${accent}30`, borderRadius: 14, padding: "14px 16px", marginBottom: 24 }}>
-              <p style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", margin: "0 0 4px" }}>{selectedService.name}</p>
-              <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
-                {fmtDate(selectedDate)} à {selectedSlot} · {selectedService.duration} min · {selectedService.price.toFixed(2)} €
-              </p>
+              {isRestaurant ? (
+                <>
+                  <p style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", margin: "0 0 4px" }}>
+                    Table pour {partySize} personne{partySize > 1 ? "s" : ""}
+                  </p>
+                  <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>{fmtDate(selectedDate)} à {selectedSlot}</p>
+                </>
+              ) : selectedService && (
+                <>
+                  <p style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", margin: "0 0 4px" }}>{selectedService.name}</p>
+                  <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+                    {fmtDate(selectedDate)} à {selectedSlot} · {selectedService.duration} min · {selectedService.price.toFixed(2)} €
+                    {selectedStaff && !anyStaff ? ` · ${selectedStaff.name}` : ""}
+                  </p>
+                </>
+              )}
             </div>
 
             <p style={{ fontSize: 15, fontWeight: 600, color: "#0f172a", margin: "0 0 16px" }}>Vos coordonnées</p>
@@ -282,7 +394,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                 { key: "name", label: "Nom complet *", type: "text", placeholder: "Jean Dupont" },
                 { key: "email", label: "Email *", type: "email", placeholder: "jean@exemple.fr" },
                 { key: "phone", label: "Téléphone", type: "tel", placeholder: "06 12 34 56 78" },
-                { key: "notes", label: "Note (optionnel)", type: "text", placeholder: "Cheveux courts, allergie..." },
+                { key: "notes", label: "Note (optionnel)", type: "text", placeholder: isRestaurant ? "Chaise bébé, allergie..." : "Cheveux courts, allergie..." },
               ].map(({ key, label, type, placeholder }) => (
                 <div key={key}>
                   <label style={{ fontSize: 13, fontWeight: 500, color: "#475569", display: "block", marginBottom: 6 }}>{label}</label>
@@ -304,7 +416,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           </div>
         )}
 
-        {/* STEP 4 — Done */}
+        {/* STEP: Done */}
         {step === "done" && (
           <div style={{ textAlign: "center", padding: "40px 0" }}>
             <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
@@ -312,10 +424,18 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
             </div>
             <p style={{ fontSize: 22, fontWeight: 700, color: "#0f172a", margin: "0 0 8px" }}>Réservation envoyée !</p>
             <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 8px" }}>
-              {selectedService?.name} · {fmtDate(selectedDate)} à {selectedSlot}
+              {isRestaurant
+                ? `Table pour ${partySize} · ${fmtDate(selectedDate)} à ${selectedSlot}`
+                : `${selectedService?.name} · ${fmtDate(selectedDate)} à ${selectedSlot}`
+              }
             </p>
             <p style={{ fontSize: 13, color: "#94a3b8" }}>Vous recevrez une confirmation dès que {info?.businessName} aura validé votre RDV.</p>
-            <button onClick={() => { setStep("service"); setSelectedService(null); setSelectedDate(""); setSelectedSlot(""); setForm({ name: "", email: "", phone: "", notes: "" }) }}
+            <button onClick={() => {
+              setStep(isRestaurant ? "datetime" : "service")
+              setSelectedService(null); setSelectedStaff(null); setAnyStaff(false)
+              setSelectedDate(""); setSelectedSlot(""); setPartySize(2)
+              setForm({ name: "", email: "", phone: "", notes: "" })
+            }}
               style={{ marginTop: 32, padding: "12px 28px", borderRadius: 12, background: accent, color: "#fff", fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer" }}>
               Nouvelle réservation
             </button>

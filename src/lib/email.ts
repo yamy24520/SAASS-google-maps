@@ -240,18 +240,25 @@ function emailShell(title: string, subtitle: string, body: string) {
 export async function sendBookingRequestClient(params: {
   clientEmail: string; clientName: string; businessName: string
   serviceName: string; date: string; timeSlot: string; duration: number; price: number
+  cancelUrl?: string; isRestaurant?: boolean; partySize?: number | null
 }) {
+  const cancelBlock = params.cancelUrl ? `
+    <div style="margin-top:20px;text-align:center;">
+      <a href="${params.cancelUrl}" style="color:#94a3b8;font-size:12px;text-decoration:underline;">Annuler ma réservation</a>
+    </div>` : ""
+
   await getResend().emails.send({
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.clientEmail,
     subject: `📅 Demande de RDV reçue — ${params.businessName}`,
     html: emailShell("Réservation", "Votre demande a bien été reçue", `
       <p style="color:#64748b;margin:0 0 6px;">Bonjour <strong>${params.clientName}</strong>,</p>
-      <p style="color:#1e293b;margin:0 0 20px;">Votre demande de rendez-vous chez <strong>${params.businessName}</strong> a bien été reçue. Vous recevrez une confirmation dès que l'établissement l'aura validée.</p>
+      <p style="color:#1e293b;margin:0 0 20px;">Votre demande ${params.isRestaurant ? "de table" : "de rendez-vous"} chez <strong>${params.businessName}</strong> a bien été reçue. Vous recevrez une confirmation dès que l'établissement l'aura validée.</p>
       ${bookingBlock(params)}
       <div style="background:#fef9c3;border-radius:10px;padding:14px 16px;">
         <p style="color:#854d0e;font-size:13px;margin:0;">⏳ En attente de confirmation par l'établissement</p>
       </div>
+      ${cancelBlock}
     `),
   })
 }
@@ -283,7 +290,13 @@ export async function sendBookingRequestOwner(params: {
 export async function sendBookingConfirmedClient(params: {
   clientEmail: string; clientName: string; businessName: string
   serviceName: string; date: string; timeSlot: string; duration: number; price: number
+  cancelUrl?: string
 }) {
+  const cancelBlock = params.cancelUrl ? `
+    <div style="margin-top:20px;text-align:center;">
+      <a href="${params.cancelUrl}" style="color:#94a3b8;font-size:12px;text-decoration:underline;">Annuler ma réservation</a>
+    </div>` : ""
+
   await getResend().emails.send({
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.clientEmail,
@@ -296,6 +309,34 @@ export async function sendBookingConfirmedClient(params: {
       <p style="color:#64748b;margin:0 0 20px;">Bonjour <strong>${params.clientName}</strong>, votre rendez-vous chez <strong>${params.businessName}</strong> est confirmé.</p>
       ${bookingBlock(params)}
       <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0;">En cas d'empêchement, merci de prévenir l'établissement le plus tôt possible.</p>
+      ${cancelBlock}
+    `),
+  })
+}
+
+export async function sendBookingReminderClient(params: {
+  clientEmail: string; clientName: string; businessName: string
+  serviceName: string; date: string; timeSlot: string; duration: number; price: number
+  cancelUrl?: string
+}) {
+  const cancelBlock = params.cancelUrl ? `
+    <div style="margin-top:20px;text-align:center;">
+      <a href="${params.cancelUrl}" style="color:#94a3b8;font-size:12px;text-decoration:underline;">Annuler ma réservation</a>
+    </div>` : ""
+
+  await getResend().emails.send({
+    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    to: params.clientEmail,
+    subject: `⏰ Rappel — Votre RDV demain chez ${params.businessName}`,
+    html: emailShell("Rappel de rendez-vous", params.businessName, `
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="font-size:40px;margin-bottom:8px;">⏰</div>
+        <p style="color:#1e293b;font-size:18px;font-weight:700;margin:0;">Votre RDV est demain !</p>
+      </div>
+      <p style="color:#64748b;margin:0 0 20px;">Bonjour <strong>${params.clientName}</strong>, n'oubliez pas votre rendez-vous chez <strong>${params.businessName}</strong> demain.</p>
+      ${bookingBlock(params)}
+      <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0;">En cas d'empêchement, merci de prévenir l'établissement le plus tôt possible.</p>
+      ${cancelBlock}
     `),
   })
 }

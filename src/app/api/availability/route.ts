@@ -13,35 +13,42 @@ function toTime(min: number) {
 }
 
 interface BookingSettings {
-  bufferMinutes: number   // temps tampon entre RDV
-  minNoticeHours: number  // délai minimum avant réservation (ex: 2h)
-  maxDaysAhead: number    // fenêtre de réservation max (ex: 60 jours)
-  breakStart?: string     // "12:00"
-  breakEnd?: string       // "13:30"
+  bufferMinutes: number
+  minNoticeHours: number
+  maxDaysAhead: number
+  breakStart?: string
+  breakEnd?: string
+  breakEnabled?: boolean
+  slotInterval?: number  // minutes: 15, 30, 60 — overrides the step
 }
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const businessId = url.searchParams.get("businessId")
   const serviceId  = url.searchParams.get("serviceId")
+  const staffId    = url.searchParams.get("staffId") ?? undefined
   const date       = url.searchParams.get("date") // "2026-03-28"
 
-  if (!businessId || !serviceId || !date) {
+  if (!businessId || !date) {
     return NextResponse.json({ error: "Paramètres manquants" }, { status: 400 })
   }
 
   const [business, service] = await Promise.all([
     prisma.business.findUnique({
       where: { id: businessId },
-      select: { bookingHours: true, bookingSettings: true },
+      select: { bookingHours: true, bookingSettings: true, bookingType: true, bookingMaxCovers: true },
     }),
-    prisma.service.findFirst({
-      where: { id: serviceId, businessId, active: true },
-      select: { duration: true },
-    }),
+    serviceId
+      ? prisma.service.findFirst({ where: { id: serviceId, businessId, active: true }, select: { duration: true } })
+      : null,
   ])
 
-  if (!business || !service) return NextResponse.json({ slots: [], reason: "not_found" })
+  if (!business) return NextResponse.json({ slots: [], reason: "not_found" })
+
+  const isRestaurant = business.bookingType === "restaurant"
+  // Restaurant: no service needed, duration = 0 (won't block slots)
+  const duration = service?.duration ?? (isRestaurant ? 0 : null)
+  if (duration === null) return NextResponse.json({ slots: [], reason: "service_not_found" })
 
   const settings: BookingSettings = {
     bufferMinutes: 0,
@@ -67,21 +74,20 @@ export async function GET(req: NextRequest) {
 
   if (!dayHours || dayHours.closed) return NextResponse.json({ slots: [], reason: "closed" })
 
-  const duration = service.duration
   const buffer   = settings.bufferMinutes
-  const step     = duration + buffer
+  // step = slotInterval si configuré, sinon duration + buffer (ancien comportement)
+  const step     = settings.slotInterval ?? (duration + buffer)
 
-  // Générer tous les créneaux théoriques
   const openMin  = toMin(dayHours.open)
   const closeMin = toMin(dayHours.close)
-  const breakS   = settings.breakStart ? toMin(settings.breakStart) : null
-  const breakE   = settings.breakEnd   ? toMin(settings.breakEnd)   : null
+  const breakS   = (settings.breakEnabled && settings.breakStart) ? toMin(settings.breakStart) : null
+  const breakE   = (settings.breakEnabled && settings.breakEnd)   ? toMin(settings.breakEnd)   : null
 
+  // Générer tous les créneaux théoriques
   const allSlots: string[] = []
   let cur = openMin
-  while (cur + duration <= closeMin) {
-    // Sauter la pause si le créneau chevauche
-    if (breakS !== null && breakE !== null && cur < breakE && cur + duration > breakS) {
+  while (cur + (isRestaurant ? step : duration) <= closeMin) {
+    if (breakS !== null && breakE !== null && cur < breakE && cur + (isRestaurant ? step : duration) > breakS) {
       cur = breakE
       continue
     }
@@ -89,31 +95,46 @@ export async function GET(req: NextRequest) {
     cur += step
   }
 
-  // Récupérer les réservations existantes ce jour avec leur durée
+  // Récupérer les réservations existantes ce jour
   const existingBookings = await prisma.booking.findMany({
-    where: { businessId, date, status: { not: "CANCELLED" } },
+    where: {
+      businessId,
+      date,
+      status: { not: "CANCELLED" },
+      ...(staffId ? { staffId } : {}),
+    },
     include: { service: { select: { duration: true } } },
   })
 
-  // Calculer la limite de préavis minimum
+  // Préavis minimum
   const nowMin = new Date().getHours() * 60 + new Date().getMinutes()
   const isToday = daysAhead === 0
+
+  // Pour restaurant : capacité (covers)
+  const maxCovers = business.bookingMaxCovers ?? null
 
   const available = allSlots.filter(slot => {
     const slotMin = toMin(slot)
 
-    // Préavis minimum : si aujourd'hui, vérifier l'heure actuelle + minNotice
     if (isToday) {
       const minNoticeMin = settings.minNoticeHours * 60
       if (slotMin < nowMin + minNoticeMin) return false
     }
 
-    // Vérifier les conflits avec réservations existantes (en tenant compte du buffer)
+    if (isRestaurant && maxCovers !== null) {
+      // Compter le nombre de couverts déjà pris sur ce créneau
+      const coversAtSlot = existingBookings
+        .filter(b => b.timeSlot === slot)
+        .reduce((sum, b) => sum + (b.partySize ?? 1), 0)
+      return coversAtSlot < maxCovers
+    }
+
+    // Vérifier les conflits (durée + buffer)
     for (const b of existingBookings) {
       const bStart = toMin(b.timeSlot)
-      const bEnd   = bStart + b.service.duration + buffer
+      const bDur   = b.service?.duration ?? 0
+      const bEnd   = bStart + bDur + buffer
       const sEnd   = slotMin + duration + buffer
-      // Conflit si les plages (avec buffer) se chevauchent
       if (slotMin < bEnd && sEnd > bStart) return false
     }
 

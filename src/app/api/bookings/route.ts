@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sendBookingRequestClient, sendBookingRequestOwner } from "@/lib/email"
+import { randomUUID } from "crypto"
 
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://reputix.net"
 
@@ -22,7 +23,10 @@ export async function GET(req: NextRequest) {
 
   const bookings = await prisma.booking.findMany({
     where: { businessId: business.id },
-    include: { service: { select: { name: true, duration: true, price: true } } },
+    include: {
+      service: { select: { name: true, duration: true, price: true } },
+      staff: { select: { name: true, color: true } },
+    },
     orderBy: [{ date: "asc" }, { timeSlot: "asc" }],
   })
 
@@ -31,65 +35,104 @@ export async function GET(req: NextRequest) {
 
 // POST — public: créer une réservation
 export async function POST(req: NextRequest) {
-  const { businessId, serviceId, clientName, clientEmail, clientPhone, date, timeSlot, notes } = await req.json()
+  const { businessId, serviceId, staffId, clientName, clientEmail, clientPhone, date, timeSlot, notes, partySize } = await req.json()
 
-  if (!businessId || !serviceId || !clientName || !clientEmail || !date || !timeSlot) {
+  if (!businessId || !clientName || !clientEmail || !date || !timeSlot) {
     return NextResponse.json({ error: "Champs manquants" }, { status: 400 })
   }
 
-  // Vérifier service + business en une requête
-  const service = await prisma.service.findFirst({
-    where: { id: serviceId, businessId, active: true },
-    include: {
-      business: {
-        select: {
-          name: true,
-          user: { select: { email: true } },
-        },
-      },
-    },
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { name: true, bookingType: true, bookingMaxCovers: true, user: { select: { email: true } } },
   })
-  if (!service) return NextResponse.json({ error: "Service introuvable" }, { status: 404 })
+  if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
 
-  // Vérifier conflit (double-check côté serveur)
-  const conflict = await prisma.booking.findFirst({
-    where: { businessId, date, timeSlot, status: { not: "CANCELLED" } },
-  })
-  if (conflict) return NextResponse.json({ error: "Ce créneau n'est plus disponible" }, { status: 409 })
+  const isRestaurant = business.bookingType === "restaurant"
+
+  let service = null
+  if (!isRestaurant) {
+    if (!serviceId) return NextResponse.json({ error: "Service manquant" }, { status: 400 })
+    service = await prisma.service.findFirst({
+      where: { id: serviceId, businessId, active: true },
+      select: { name: true, duration: true, price: true },
+    })
+    if (!service) return NextResponse.json({ error: "Service introuvable" }, { status: 404 })
+  }
+
+  // Vérifier conflit côté serveur
+  if (isRestaurant) {
+    // Restaurant: vérifier capacité
+    if (business.bookingMaxCovers) {
+      const existingCovers = await prisma.booking.aggregate({
+        where: { businessId, date, timeSlot, status: { not: "CANCELLED" } },
+        _sum: { partySize: true },
+      })
+      const taken = existingCovers._sum.partySize ?? 0
+      const needed = partySize ?? 1
+      if (taken + needed > business.bookingMaxCovers) {
+        return NextResponse.json({ error: "Plus de places disponibles pour ce créneau" }, { status: 409 })
+      }
+    }
+  } else {
+    const conflict = await prisma.booking.findFirst({
+      where: {
+        businessId, date, timeSlot,
+        status: { not: "CANCELLED" },
+        ...(staffId ? { staffId } : {}),
+      },
+    })
+    if (conflict) return NextResponse.json({ error: "Ce créneau n'est plus disponible" }, { status: 409 })
+  }
+
+  const cancelToken = randomUUID()
 
   const booking = await prisma.booking.create({
-    data: { businessId, serviceId, clientName, clientEmail, clientPhone: clientPhone || null, date, timeSlot, notes: notes || null },
+    data: {
+      businessId,
+      serviceId: serviceId || null,
+      staffId: staffId || null,
+      clientName,
+      clientEmail,
+      clientPhone: clientPhone || null,
+      date,
+      timeSlot,
+      notes: notes || null,
+      partySize: partySize || null,
+      cancelToken,
+    },
   })
 
-  // Formatter la date lisible
   const dateLabel = new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+  const cancelUrl = `${APP_URL}/cancel/${cancelToken}`
 
   const emailParams = {
     clientEmail,
     clientName,
-    businessName: service.business.name,
-    serviceName: service.name,
+    businessName: business.name,
+    serviceName: isRestaurant ? `Table pour ${partySize ?? 1} personne(s)` : service!.name,
     date: dateLabel,
     timeSlot,
-    duration: service.duration,
-    price: service.price,
+    duration: service?.duration ?? 0,
+    price: service?.price ?? 0,
+    cancelUrl,
+    isRestaurant,
+    partySize: partySize ?? null,
   }
 
-  // Emails en parallèle, sans bloquer la réponse
   Promise.all([
     sendBookingRequestClient(emailParams).catch(console.error),
-    service.business.user?.email
+    business.user?.email
       ? sendBookingRequestOwner({
-          ownerEmail: service.business.user.email,
-          businessName: service.business.name,
+          ownerEmail: business.user.email,
+          businessName: business.name,
           clientName,
           clientEmail,
           clientPhone: clientPhone || null,
-          serviceName: service.name,
+          serviceName: emailParams.serviceName,
           date: dateLabel,
           timeSlot,
-          duration: service.duration,
-          price: service.price,
+          duration: service?.duration ?? 0,
+          price: service?.price ?? 0,
           dashboardUrl: `${APP_URL}/bookings`,
         }).catch(console.error)
       : Promise.resolve(),

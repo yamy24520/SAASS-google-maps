@@ -117,10 +117,13 @@ model Business {
   bookingEnabled       Boolean  @default(false)
   bookingHours         Json?
   bookingSettings      Json?
+  bookingType          String   @default("appointment") // "appointment" | "restaurant"
+  bookingMaxCovers     Int?
 
   pageEvents           PageEvent[]
   services             Service[]
   bookings             Booking[]
+  staffs               Staff[]
 
   reviews              Review[]
   reputationSnapshots  ReputationSnapshot[]
@@ -281,12 +284,29 @@ model Service {
   @@index([businessId])
 }
 
+model Staff {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name        String
+  color       String   @default("#0ea5e9")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  bookings    Booking[]
+
+  @@index([businessId])
+}
+
 model Booking {
   id          String   @id @default(cuid())
   businessId  String
   business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  serviceId   String
-  service     Service  @relation(fields: [serviceId], references: [id])
+  serviceId   String?
+  service     Service? @relation(fields: [serviceId], references: [id])
+  staffId     String?
+  staff       Staff?   @relation(fields: [staffId], references: [id])
 
   clientName  String
   clientEmail String
@@ -295,10 +315,14 @@ model Booking {
   timeSlot    String   // "09:00"
   status      BookingStatus @default(PENDING)
   notes       String?
-  createdAt   DateTime @default(now())
+  partySize   Int?
+  cancelToken    String?   @unique
+  reminderSentAt DateTime?
+  createdAt      DateTime  @default(now())
 
   @@index([businessId, date])
   @@index([businessId, status])
+  @@index([cancelToken])
 }
 
 enum BookingStatus {

@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sendBookingConfirmedClient, sendBookingCancelledClient } from "@/lib/email"
 
+const APP_URL = process.env.NEXTAUTH_URL ?? "https://reputix.net"
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -31,17 +33,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const dateLabel = new Date(booking.date + "T12:00:00").toLocaleDateString("fr-FR", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   })
+  const cancelUrl = updated.cancelToken ? `${APP_URL}/cancel/${updated.cancelToken}` : undefined
 
   if (status === "CONFIRMED") {
     sendBookingConfirmedClient({
       clientEmail: booking.clientEmail,
       clientName: booking.clientName,
       businessName: booking.business.name,
-      serviceName: booking.service.name,
+      serviceName: booking.service?.name ?? "Réservation",
       date: dateLabel,
       timeSlot: booking.timeSlot,
-      duration: booking.service.duration,
-      price: booking.service.price,
+      duration: booking.service?.duration ?? 0,
+      price: booking.service?.price ?? 0,
+      cancelUrl,
     }).catch(console.error)
   }
 
@@ -50,7 +54,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       clientEmail: booking.clientEmail,
       clientName: booking.clientName,
       businessName: booking.business.name,
-      serviceName: booking.service.name,
+      serviceName: booking.service?.name ?? "Réservation",
       date: dateLabel,
       timeSlot: booking.timeSlot,
     }).catch(console.error)
