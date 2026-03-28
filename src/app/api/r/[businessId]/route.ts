@@ -16,6 +16,9 @@ export async function GET(
       totalReviews: true,
       socialLinks: true,
       reputationPageEnabled: true,
+      logoDataUrl: true,
+      pageTheme: true,
+      pageTagline: true,
     },
   })
 
@@ -54,5 +57,8 @@ export async function GET(
     placeId,
     reviews,
     socialLinks: (business.socialLinks as Record<string, string>) ?? {},
+    logoDataUrl: business.logoDataUrl ?? null,
+    pageTheme: business.pageTheme ?? "dark",
+    pageTagline: business.pageTagline ?? null,
   })
 }

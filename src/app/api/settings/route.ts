@@ -29,6 +29,9 @@ const schema = z.object({
     website: z.string().optional(),
     tripadvisor: z.string().optional(),
   }).nullable().optional(),
+  logoDataUrl: z.string().nullable().optional(),
+  pageTheme: z.string().optional(),
+  pageTagline: z.string().nullable().optional(),
 })
 
 async function getBusinessForUser(userId: string, bizId: string | null) {

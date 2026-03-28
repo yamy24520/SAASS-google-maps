@@ -3,11 +3,95 @@
 import { use, useEffect, useState } from "react"
 import { ExternalLink, Star } from "lucide-react"
 
-function StarRow({ rating, size = 20 }: { rating: number; size?: number }) {
+// ── Themes ────────────────────────────────────────────────────────────────────
+
+const THEMES: Record<string, {
+  bg: string
+  card: string
+  border: string
+  text: string
+  sub: string
+  cta: string
+  accent: string
+  starFull: string
+  starEmpty: string
+  pill: string
+  pillText: string
+}> = {
+  dark: {
+    bg:        "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
+    card:      "rgba(255,255,255,0.06)",
+    border:    "rgba(255,255,255,0.1)",
+    text:      "#f1f5f9",
+    sub:       "#94a3b8",
+    cta:       "linear-gradient(135deg, #f59e0b, #ef4444)",
+    accent:    "#f59e0b",
+    starFull:  "#f59e0b",
+    starEmpty: "#334155",
+    pill:      "rgba(255,255,255,0.08)",
+    pillText:  "#94a3b8",
+  },
+  light: {
+    bg:        "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
+    card:      "#ffffff",
+    border:    "#e2e8f0",
+    text:      "#0f172a",
+    sub:       "#64748b",
+    cta:       "linear-gradient(135deg, #6366f1, #0ea5e9)",
+    accent:    "#6366f1",
+    starFull:  "#f59e0b",
+    starEmpty: "#e2e8f0",
+    pill:      "#f1f5f9",
+    pillText:  "#64748b",
+  },
+  warm: {
+    bg:        "linear-gradient(135deg, #431407 0%, #7c2d12 50%, #431407 100%)",
+    card:      "rgba(255,255,255,0.08)",
+    border:    "rgba(255,200,100,0.2)",
+    text:      "#fef3c7",
+    sub:       "#fcd34d",
+    cta:       "linear-gradient(135deg, #f59e0b, #d97706)",
+    accent:    "#fbbf24",
+    starFull:  "#fbbf24",
+    starEmpty: "#92400e",
+    pill:      "rgba(251,191,36,0.15)",
+    pillText:  "#fcd34d",
+  },
+  ocean: {
+    bg:        "linear-gradient(135deg, #0c4a6e 0%, #0e7490 50%, #0c4a6e 100%)",
+    card:      "rgba(255,255,255,0.08)",
+    border:    "rgba(125,211,252,0.2)",
+    text:      "#e0f2fe",
+    sub:       "#7dd3fc",
+    cta:       "linear-gradient(135deg, #0ea5e9, #06b6d4)",
+    accent:    "#38bdf8",
+    starFull:  "#fbbf24",
+    starEmpty: "#164e63",
+    pill:      "rgba(56,189,248,0.15)",
+    pillText:  "#7dd3fc",
+  },
+  forest: {
+    bg:        "linear-gradient(135deg, #052e16 0%, #14532d 50%, #052e16 100%)",
+    card:      "rgba(255,255,255,0.07)",
+    border:    "rgba(134,239,172,0.2)",
+    text:      "#dcfce7",
+    sub:       "#86efac",
+    cta:       "linear-gradient(135deg, #22c55e, #15803d)",
+    accent:    "#4ade80",
+    starFull:  "#fbbf24",
+    starEmpty: "#14532d",
+    pill:      "rgba(74,222,128,0.15)",
+    pillText:  "#86efac",
+  },
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function StarRow({ rating, full, empty, size = 20 }: { rating: number; full: string; empty: string; size?: number }) {
   return (
     <div className="flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map((s) => (
-        <svg key={s} width={size} height={size} viewBox="0 0 24 24" fill={s <= Math.round(rating) ? "#f59e0b" : "#e2e8f0"}>
+        <svg key={s} width={size} height={size} viewBox="0 0 24 24" fill={s <= Math.round(rating) ? full : empty}>
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>
       ))}
@@ -16,23 +100,23 @@ function StarRow({ rating, size = 20 }: { rating: number; size?: number }) {
 }
 
 function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const days = Math.floor(diff / 86400000)
-  if (days < 7) return `il y a ${days} jour${days > 1 ? "s" : ""}`
-  const weeks = Math.floor(days / 7)
-  if (weeks < 5) return `il y a ${weeks} semaine${weeks > 1 ? "s" : ""}`
-  const months = Math.floor(days / 30)
-  if (months < 12) return `il y a ${months} mois`
-  return `il y a ${Math.floor(months / 12)} an${Math.floor(months / 12) > 1 ? "s" : ""}`
+  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
+  if (days < 1) return "aujourd'hui"
+  if (days < 7) return `il y a ${days}j`
+  if (days < 30) return `il y a ${Math.floor(days / 7)}sem`
+  if (days < 365) return `il y a ${Math.floor(days / 30)}mois`
+  return `il y a ${Math.floor(days / 365)}an`
 }
 
-const SOCIAL_ICONS: Record<string, { label: string; color: string; icon: string }> = {
-  google:      { label: "Google",      color: "#4285F4", icon: "G" },
-  facebook:    { label: "Facebook",    color: "#1877F2", icon: "f" },
-  instagram:   { label: "Instagram",   color: "#E1306C", icon: "📷" },
-  tripadvisor: { label: "TripAdvisor", color: "#00AA6C", icon: "🦉" },
-  website:     { label: "Site web",    color: "#0ea5e9", icon: "🌐" },
+const SOCIALS: Record<string, { label: string; bg: string; icon: string }> = {
+  google:      { label: "Google Maps",  bg: "#4285F4", icon: "G" },
+  facebook:    { label: "Facebook",     bg: "#1877F2", icon: "f" },
+  instagram:   { label: "Instagram",    bg: "#E1306C", icon: "📷" },
+  tripadvisor: { label: "TripAdvisor",  bg: "#00AA6C", icon: "🦉" },
+  website:     { label: "Site web",     bg: "#475569", icon: "🌐" },
 }
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ReputationPage({
   params,
@@ -47,70 +131,81 @@ export default function ReputationPage({
   useEffect(() => {
     fetch(`/api/r/${businessId}`)
       .then((r) => r.json())
-      .then((d) => {
-        if (d.error) setError(d.error)
-        else setData(d)
-        setLoading(false)
-      })
+      .then((d) => { if (d.error) setError(d.error); else setData(d); setLoading(false) })
       .catch(() => { setError("Page introuvable"); setLoading(false) })
   }, [businessId])
 
   if (loading) return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "#0f172a" }}>
       <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
   if (error) return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-6">
-      <p className="text-slate-400">{error}</p>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "#0f172a" }}>
+      <p style={{ color: "#64748b" }}>{error}</p>
     </div>
   )
 
-  const reviewUrl = data.placeId
-    ? `https://search.google.com/local/writereview?placeid=${data.placeId}`
-    : null
-  const mapsUrl = data.placeId
-    ? `https://www.google.com/maps/place/?q=place_id:${data.placeId}`
-    : null
-
+  const theme = THEMES[data.pageTheme ?? "dark"] ?? THEMES.dark
+  const reviewUrl = data.placeId ? `https://search.google.com/local/writereview?placeid=${data.placeId}` : null
+  const mapsUrl   = data.placeId ? `https://www.google.com/maps/place/?q=place_id:${data.placeId}` : null
   const socialLinks: Record<string, string> = data.socialLinks ?? {}
-  const hasSocials = Object.keys(socialLinks).some((k) => socialLinks[k])
+  const hasSocials = mapsUrl || Object.values(socialLinks).some(Boolean)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-start py-10 px-4">
-      {/* Card */}
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col items-center justify-start py-10 px-4" style={{ background: theme.bg }}>
+      <div className="w-full max-w-md space-y-4">
 
-        {/* Hero */}
-        <div className="bg-white/5 backdrop-blur border border-white/10 rounded-3xl p-8 text-center mb-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-4 text-2xl font-black text-white shadow-lg">
-            {data.businessName.charAt(0).toUpperCase()}
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-1">{data.businessName}</h1>
+        {/* ── Hero card ── */}
+        <div
+          className="rounded-3xl p-8 text-center"
+          style={{ background: theme.card, border: `1px solid ${theme.border}` }}
+        >
+          {/* Logo */}
+          {data.logoDataUrl ? (
+            <img
+              src={data.logoDataUrl}
+              alt={data.businessName}
+              className="w-20 h-20 rounded-2xl object-cover mx-auto mb-4 shadow-lg"
+            />
+          ) : (
+            <div
+              className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl font-black text-white shadow-lg"
+              style={{ background: theme.cta }}
+            >
+              {data.businessName.charAt(0).toUpperCase()}
+            </div>
+          )}
+
+          <h1 className="text-2xl font-bold mb-1" style={{ color: theme.text }}>{data.businessName}</h1>
+
+          {data.pageTagline && (
+            <p className="text-sm mb-3" style={{ color: theme.sub }}>{data.pageTagline}</p>
+          )}
 
           {data.rating > 0 && (
             <div className="flex flex-col items-center gap-2 mt-3">
-              <StarRow rating={data.rating} size={28} />
+              <StarRow rating={data.rating} full={theme.starFull} empty={theme.starEmpty} size={26} />
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-amber-400">{data.rating.toFixed(1)}</span>
-                <span className="text-slate-400 text-sm">/ 5</span>
+                <span className="text-4xl font-black" style={{ color: theme.accent }}>{data.rating.toFixed(1)}</span>
+                <span className="text-sm" style={{ color: theme.sub }}>/ 5</span>
               </div>
               {data.reviewCount > 0 && (
-                <p className="text-slate-400 text-sm">{data.reviewCount} avis Google</p>
+                <p className="text-sm" style={{ color: theme.sub }}>{data.reviewCount} avis Google</p>
               )}
             </div>
           )}
         </div>
 
-        {/* Primary CTA */}
+        {/* ── CTA ── */}
         {reviewUrl && (
           <a
             href={reviewUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl font-bold text-white text-lg shadow-2xl mb-4 active:scale-95 transition-transform"
-            style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)" }}
+            className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl font-bold text-white text-lg shadow-2xl active:scale-95 transition-transform"
+            style={{ background: theme.cta }}
           >
             <Star className="w-5 h-5 fill-white" />
             Laisser un avis Google
@@ -118,52 +213,66 @@ export default function ReputationPage({
           </a>
         )}
 
-        {/* Recent reviews */}
+        {/* ── Recent reviews ── */}
         {data.reviews?.length > 0 && (
-          <div className="space-y-3 mb-4">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider px-1">Avis récents</p>
-            {data.reviews.map((review: any, i: number) => (
-              <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider px-1" style={{ color: theme.sub }}>
+              Avis récents
+            </p>
+            {data.reviews.map((r: any, i: number) => (
+              <div
+                key={i}
+                className="rounded-2xl p-4"
+                style={{ background: theme.card, border: `1px solid ${theme.border}` }}
+              >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-sky-500 flex items-center justify-center text-white text-xs font-bold">
-                      {review.reviewerName.charAt(0).toUpperCase()}
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                      style={{ background: "linear-gradient(135deg, #6366f1, #0ea5e9)" }}
+                    >
+                      {r.reviewerName.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-white text-sm font-medium">{review.reviewerName}</p>
-                      <p className="text-slate-500 text-xs">{timeAgo(review.reviewPublishedAt)}</p>
+                      <p className="text-sm font-semibold" style={{ color: theme.text }}>{r.reviewerName}</p>
+                      <p className="text-xs" style={{ color: theme.sub }}>{timeAgo(r.reviewPublishedAt)}</p>
                     </div>
                   </div>
-                  <StarRow rating={review.rating} size={13} />
+                  <StarRow rating={r.rating} full={theme.starFull} empty={theme.starEmpty} size={12} />
                 </div>
-                {review.comment && (
-                  <p className="text-slate-300 text-sm leading-relaxed line-clamp-3">{review.comment}</p>
+                {r.comment && (
+                  <p className="text-sm leading-relaxed line-clamp-3" style={{ color: theme.sub }}>{r.comment}</p>
                 )}
               </div>
             ))}
           </div>
         )}
 
-        {/* Social / other platforms */}
-        {(hasSocials || mapsUrl) && (
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-4">
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-3">Retrouvez-nous</p>
+        {/* ── Social / platforms ── */}
+        {hasSocials && (
+          <div
+            className="rounded-2xl p-4"
+            style={{ background: theme.card, border: `1px solid ${theme.border}` }}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: theme.sub }}>
+              Retrouvez-nous
+            </p>
             <div className="flex flex-wrap gap-2">
               {mapsUrl && (
                 <a
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-80"
-                  style={{ background: "#4285F4" }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-80 transition-opacity"
+                  style={{ background: SOCIALS.google.bg }}
                 >
-                  <span className="text-base font-black">G</span>
-                  Google Maps
+                  <span className="font-black">{SOCIALS.google.icon}</span>
+                  {SOCIALS.google.label}
                 </a>
               )}
               {Object.entries(socialLinks).map(([key, url]) => {
                 if (!url) return null
-                const meta = SOCIAL_ICONS[key]
+                const meta = SOCIALS[key]
                 if (!meta) return null
                 return (
                   <a
@@ -171,10 +280,10 @@ export default function ReputationPage({
                     href={url.startsWith("http") ? url : `https://${url}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-80"
-                    style={{ background: meta.color }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-80 transition-opacity"
+                    style={{ background: meta.bg }}
                   >
-                    <span className="text-base">{meta.icon}</span>
+                    <span>{meta.icon}</span>
                     {meta.label}
                   </a>
                 )
@@ -183,10 +292,9 @@ export default function ReputationPage({
           </div>
         )}
 
-        {/* Footer */}
-        <p className="text-center text-slate-600 text-xs">
-          Propulsé par{" "}
-          <span className="text-slate-500 font-semibold">Reputix</span>
+        {/* ── Footer ── */}
+        <p className="text-center text-xs" style={{ color: theme.sub }}>
+          Propulsé par <span className="font-semibold" style={{ color: theme.accent }}>Reputix</span>
         </p>
       </div>
     </div>

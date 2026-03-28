@@ -34,6 +34,9 @@ interface Business {
   spinPrizes: SpinPrize[] | null
   reputationPageEnabled: boolean
   socialLinks: { facebook?: string; instagram?: string; website?: string; tripadvisor?: string } | null
+  logoDataUrl: string | null
+  pageTheme: string
+  pageTagline: string | null
   id?: string
 }
 
@@ -66,6 +69,9 @@ export default function SettingsPage() {
     spinPrizes: null,
     reputationPageEnabled: false,
     socialLinks: null,
+    logoDataUrl: null,
+    pageTheme: "dark",
+    pageTagline: null,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -438,6 +444,106 @@ export default function SettingsPage() {
                   Prévisualiser ma page publique
                 </a>
               )}
+
+              {/* Logo */}
+              <div className="space-y-2">
+                <Label>Logo de l&apos;établissement</Label>
+                <div className="flex items-center gap-4">
+                  {form.logoDataUrl ? (
+                    <img src={form.logoDataUrl} alt="Logo" className="w-16 h-16 rounded-xl object-cover border border-slate-200" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-2xl font-bold">
+                      {form.name ? form.name.charAt(0).toUpperCase() : "?"}
+                    </div>
+                  )}
+                  <div className="flex-1 space-y-1.5">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="logo-upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        const reader = new FileReader()
+                        reader.onload = (ev) => {
+                          const img = new window.Image()
+                          img.onload = () => {
+                            const canvas = document.createElement("canvas")
+                            const size = 256
+                            canvas.width = size
+                            canvas.height = size
+                            const ctx = canvas.getContext("2d")!
+                            const scale = Math.max(size / img.width, size / img.height)
+                            const w = img.width * scale
+                            const h = img.height * scale
+                            ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)
+                            setForm({ ...form, logoDataUrl: canvas.toDataURL("image/jpeg", 0.85) })
+                          }
+                          img.src = ev.target?.result as string
+                        }
+                        reader.readAsDataURL(file)
+                        e.target.value = ""
+                      }}
+                    />
+                    <Label htmlFor="logo-upload" className="cursor-pointer inline-flex items-center gap-2 text-xs text-sky-600 border border-sky-300 rounded-lg px-3 py-1.5 hover:bg-sky-50 transition-colors">
+                      <Star className="w-3 h-3" />
+                      {form.logoDataUrl ? "Changer le logo" : "Uploader un logo"}
+                    </Label>
+                    {form.logoDataUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, logoDataUrl: null })}
+                        className="block text-xs text-red-400 hover:text-red-600"
+                      >
+                        Supprimer
+                      </button>
+                    )}
+                    <p className="text-xs text-slate-400">PNG, JPG — redimensionné à 256×256</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tagline */}
+              <div className="space-y-1.5">
+                <Label>Accroche / description courte</Label>
+                <Input
+                  value={form.pageTagline ?? ""}
+                  onChange={(e) => setForm({ ...form, pageTagline: e.target.value || null })}
+                  placeholder="Ex : Restaurant gastronomique au cœur de Bergerac"
+                />
+                <p className="text-xs text-slate-400">Affichée sous le nom de votre établissement</p>
+              </div>
+
+              {/* Theme */}
+              <div className="space-y-2">
+                <Label>Thème de la page</Label>
+                <div className="grid grid-cols-5 gap-2">
+                  {[
+                    { key: "dark",   label: "Sombre",   bg: "#1e293b", accent: "#f59e0b" },
+                    { key: "light",  label: "Clair",    bg: "#f1f5f9", accent: "#6366f1" },
+                    { key: "warm",   label: "Chaleur",  bg: "#7c2d12", accent: "#fbbf24" },
+                    { key: "ocean",  label: "Océan",    bg: "#0e7490", accent: "#38bdf8" },
+                    { key: "forest", label: "Forêt",    bg: "#14532d", accent: "#4ade80" },
+                  ].map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setForm({ ...form, pageTheme: t.key })}
+                      className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border-2 transition-all ${
+                        form.pageTheme === t.key ? "border-sky-500 scale-105" : "border-transparent hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: t.bg }}>
+                        <div className="w-3 h-3 rounded-full" style={{ background: t.accent }} />
+                      </div>
+                      <span className="text-xs text-slate-600">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Social links */}
               <div className="space-y-3 pt-1">
                 <p className="text-sm font-medium text-slate-700">Liens réseaux sociaux <span className="text-xs font-normal text-slate-400">(optionnels)</span></p>
                 {[

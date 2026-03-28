@@ -108,6 +108,9 @@ model Business {
   spinPrizes           Json?
   reputationPageEnabled Boolean @default(false)
   socialLinks          Json?
+  logoDataUrl          String? @db.Text
+  pageTheme            String  @default("dark")
+  pageTagline          String?
 
   reviews              Review[]
   reputationSnapshots  ReputationSnapshot[]
