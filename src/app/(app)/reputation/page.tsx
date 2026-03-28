@@ -34,6 +34,21 @@ export default function ReputationPage() {
     setSearching(false)
   }
 
+  async function handleRefresh() {
+    if (!data?.business?.placeId) {
+      await load()
+      return
+    }
+    setLinking(true)
+    await fetch("/api/reputation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ placeId: data.business.placeId }),
+    })
+    await load()
+    setLinking(false)
+  }
+
   async function handleLink(placeId: string) {
     setLinking(true)
     await fetch("/api/reputation", {
@@ -63,8 +78,8 @@ export default function ReputationPage() {
           <h1 className="text-2xl font-bold text-slate-900">Analyse de réputation</h1>
           <p className="text-slate-500 mt-1">Suivez l&apos;évolution de votre note dans le temps</p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} className="gap-2">
-          <RefreshCw className="w-4 h-4" />
+        <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+          <RefreshCw className={`w-4 h-4 ${linking ? "animate-spin" : ""}`} />
           Actualiser
         </Button>
       </div>

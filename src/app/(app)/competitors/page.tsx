@@ -21,7 +21,6 @@ export default function CompetitorsPage() {
 
   async function handleSync() {
     setSyncing(true)
-    // Get business location from reputation data
     const repRes = await fetch("/api/reputation")
     const repData = await repRes.json()
     if (!repData.business?.placeId) {
@@ -29,11 +28,15 @@ export default function CompetitorsPage() {
       setSyncing(false)
       return
     }
-    // We need lat/lng — for now use Places API search
+    if (!repData.business?.lat || !repData.business?.lng) {
+      alert("Coordonnées introuvables. Déliez et reliez votre fiche Google Maps dans la page Réputation.")
+      setSyncing(false)
+      return
+    }
     await fetch("/api/competitors", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lat: 48.8566, lng: 2.3522 }), // TODO: use real coords
+      body: JSON.stringify({ lat: repData.business.lat, lng: repData.business.lng }),
     })
     await load()
     setSyncing(false)

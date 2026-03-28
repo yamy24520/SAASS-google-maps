@@ -20,10 +20,23 @@ export async function GET() {
 
   if (!business) return NextResponse.json({ error: "Aucun établissement" }, { status: 404 })
 
-  // Fetch latest data from Places API if placeId is set
-  let liveData = null
-  if (business.gbpLocationId || business.reputationSnapshots.length === 0) {
-    // Use cached data if no placeId yet
+  // If placeId set but coords missing, fetch and save them
+  let placeLat = business.placeLat
+  let placeLng = business.placeLng
+  if (business.gbpLocationId && (placeLat == null || placeLng == null)) {
+    try {
+      const details = await getPlaceDetails(business.gbpLocationId)
+      if (details.lat != null && details.lng != null) {
+        await prisma.business.update({
+          where: { id: business.id },
+          data: { placeLat: details.lat, placeLng: details.lng },
+        })
+        placeLat = details.lat
+        placeLng = details.lng
+      }
+    } catch {
+      // non-blocking
+    }
   }
 
   return NextResponse.json({
@@ -34,13 +47,14 @@ export async function GET() {
       rating: business.averageRating,
       totalReviews: business.totalReviews,
       responseRate: business.responseRate,
+      lat: placeLat,
+      lng: placeLng,
     },
     snapshots: business.reputationSnapshots.map((s) => ({
       date: s.recordedAt.toISOString().split("T")[0],
       rating: s.rating,
       reviewCount: s.reviewCount,
     })),
-    liveData,
   })
 }
 
@@ -66,13 +80,15 @@ export async function POST(req: Request) {
       },
     })
 
-    // Update business with placeId and latest stats
+    // Update business with placeId, coords and latest stats
     await prisma.business.update({
       where: { id: business.id },
       data: {
         gbpLocationId: placeId,
         averageRating: details.rating,
         totalReviews: details.reviewCount,
+        ...(details.lat != null && { placeLat: details.lat }),
+        ...(details.lng != null && { placeLng: details.lng }),
       },
     })
 

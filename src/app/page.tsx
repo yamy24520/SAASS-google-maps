@@ -11,6 +11,9 @@ import {
   MessageSquare,
   TrendingUp,
   Clock,
+  Users,
+  Search,
+  Star,
 } from "lucide-react"
 
 export default function LandingPage() {
@@ -50,14 +53,14 @@ export default function LandingPage() {
           </Badge>
 
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold text-slate-900 leading-[1.1] tracking-tight mb-6">
-            Répondez à vos{" "}
-            <span className="gradient-text">avis Google</span>{" "}
-            automatiquement
+            Gérez votre{" "}
+            <span className="gradient-text">réputation Google</span>{" "}
+            en pilote automatique
           </h1>
 
           <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Reputix génère des réponses personnalisées à chaque avis grâce à l&apos;IA.
-            Améliorez votre réputation en ligne, votre SEO local et fidélisez vos clients.
+            Reputix répond à vos avis Google avec l&apos;IA, surveille vos concurrents et optimise votre SEO local.
+            Tout automatiquement, en moins de 2 minutes de configuration.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
@@ -73,8 +76,8 @@ export default function LandingPage() {
           <div className="grid grid-cols-3 gap-8 max-w-lg mx-auto">
             {[
               { value: "2min", label: "Temps de config" },
-              { value: "98%", label: "Taux de satisfaction" },
-              { value: "3x", label: "Plus de réponses" },
+              { value: "30€", label: "Par mois / établissement" },
+              { value: "14j", label: "Essai gratuit" },
             ].map((stat) => (
               <div key={stat.label} className="text-center">
                 <div className="text-2xl font-bold gradient-text">{stat.value}</div>
@@ -105,7 +108,7 @@ export default function LandingPage() {
                   { label: "Note moyenne", value: "4.7", icon: "⭐", trend: "+0.2" },
                   { label: "Avis ce mois", value: "47", icon: "💬", trend: "+12" },
                   { label: "Taux de réponse", value: "94%", icon: "✅", trend: "+28%" },
-                  { label: "En attente", value: "3", icon: "⏳", trend: "" },
+                  { label: "Score SEO local", value: "83/100", icon: "🚀", trend: "" },
                 ].map((card) => (
                   <div key={card.label} className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
                     <div className="text-2xl mb-1">{card.icon}</div>
@@ -150,17 +153,20 @@ export default function LandingPage() {
             <Badge variant="info" className="mb-4">Fonctionnalités</Badge>
             <h2 className="text-4xl font-bold text-slate-900 mb-4">Tout ce dont vous avez besoin</h2>
             <p className="text-lg text-slate-500 max-w-xl mx-auto">
-              Un outil complet pour gérer votre réputation, sans aucune compétence technique.
+              Un outil complet pour gérer votre réputation, surveiller vos concurrents et dominer le SEO local.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { icon: <Zap className="w-6 h-6" />, title: "Réponses IA instantanées", description: "Claude AI génère des réponses naturelles et personnalisées en quelques secondes. Choisissez le ton qui correspond à votre image." },
-              { icon: <MessageSquare className="w-6 h-6" />, title: "Auto-réponse intelligente", description: "Activez le pilote automatique pour les avis positifs. Vous gardez le contrôle sur les avis négatifs." },
-              { icon: <Bell className="w-6 h-6" />, title: "Alertes temps réel", description: "Recevez immédiatement un email lorsqu'un client laisse un avis négatif. Réagissez vite." },
-              { icon: <BarChart3 className="w-6 h-6" />, title: "Dashboard analytique", description: "Suivez l'évolution de votre note, votre taux de réponse et l'impact sur votre visibilité Google." },
-              { icon: <TrendingUp className="w-6 h-6" />, title: "Boost SEO local", description: "Les réponses régulières aux avis améliorent votre positionnement dans Google Maps et Google Search." },
-              { icon: <Clock className="w-6 h-6" />, title: "Synchronisation automatique", description: "Vos nouveaux avis Google sont synchronisés toutes les 2 heures. Rien ne vous échappe." },
+              { icon: <Zap className="w-6 h-6" />, title: "Réponses IA instantanées", description: "Claude AI génère des réponses naturelles et personnalisées en quelques secondes. 4 tons disponibles : professionnel, chaleureux, dynamique ou élégant." },
+              { icon: <MessageSquare className="w-6 h-6" />, title: "Auto-réponse intelligente", description: "Activez le pilote automatique pour les avis positifs. Vous gardez le contrôle total sur les avis négatifs." },
+              { icon: <Bell className="w-6 h-6" />, title: "Alertes temps réel", description: "Recevez immédiatement un email lorsqu'un client laisse un avis négatif. Réagissez avant que ça nuise." },
+              { icon: <TrendingUp className="w-6 h-6" />, title: "Analyse de réputation", description: "Suivez l'évolution de votre note dans le temps avec des graphiques clairs. Identifiez les tendances et mesurez l'impact de vos actions." },
+              { icon: <Users className="w-6 h-6" />, title: "Benchmark concurrents", description: "Comparez-vous automatiquement aux établissements similaires de votre zone. Sachez exactement où vous vous situez dans votre marché local." },
+              { icon: <Search className="w-6 h-6" />, title: "Score SEO Local", description: "Un score sur 100 avec une liste d'actions prioritaires pour améliorer votre visibilité dans Google Maps et Google Search." },
+              { icon: <BarChart3 className="w-6 h-6" />, title: "Dashboard analytique", description: "Taux de réponse, avis par période, historique complet. Tout ce qu'il faut pour piloter votre réputation efficacement." },
+              { icon: <Clock className="w-6 h-6" />, title: "Synchronisation automatique", description: "Vos nouveaux avis Google sont synchronisés chaque jour automatiquement. Rien ne vous échappe." },
+              { icon: <Star className="w-6 h-6" />, title: "Rapport mensuel", description: "Un bilan complet chaque mois : nouveaux avis, taux de réponse, classement concurrentiel, score SEO. Directement dans votre boîte mail." },
             ].map((feature) => (
               <div key={feature.title} className="group p-6 rounded-2xl border border-slate-200 hover:border-sky-200 hover:shadow-lg hover:shadow-sky-500/5 transition-all duration-300">
                 <div className="w-12 h-12 rounded-2xl gradient-bg flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform">{feature.icon}</div>
@@ -177,12 +183,13 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-slate-900 mb-4">Opérationnel en 3 étapes</h2>
+            <p className="text-lg text-slate-500">Pas besoin de technicien. Pas besoin d&apos;agence.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { step: "1", title: "Connectez Google", desc: "Liez votre compte Google Business Profile en un clic." },
-              { step: "2", title: "Configurez votre ton", desc: "Choisissez le style de réponse qui correspond à votre établissement." },
-              { step: "3", title: "Laissez l'IA travailler", desc: "Reputix répond automatiquement à vos avis, 24h/24." },
+              { step: "1", title: "Créez votre compte", desc: "Inscrivez-vous en 30 secondes. 14 jours d'essai gratuit, sans carte bancaire." },
+              { step: "2", title: "Ajoutez votre établissement", desc: "Recherchez votre établissement sur Google et liez-le en un clic. Vos avis apparaissent immédiatement." },
+              { step: "3", title: "L'IA prend le relais", desc: "Reputix répond à vos avis, vous alerte, analyse vos concurrents et suit votre SEO — 24h/24, 7j/7." },
             ].map((item) => (
               <div key={item.step} className="text-center">
                 <div className="w-14 h-14 rounded-2xl gradient-bg flex items-center justify-center text-white text-xl font-bold mx-auto mb-4 shadow-lg shadow-sky-500/25">{item.step}</div>
@@ -199,9 +206,9 @@ export default function LandingPage() {
         <div className="max-w-2xl mx-auto text-center">
           <Badge variant="info" className="mb-4">Tarification</Badge>
           <h2 className="text-4xl font-bold text-slate-900 mb-4">Simple et transparent</h2>
-          <p className="text-lg text-slate-500 mb-12">Un seul abonnement. Toutes les fonctionnalités.</p>
+          <p className="text-lg text-slate-500 mb-12">Un seul abonnement. Toutes les fonctionnalités incluses.</p>
           <div className="relative rounded-3xl border-2 border-sky-500 bg-white shadow-2xl shadow-sky-500/15 p-8 overflow-hidden">
-            <div className="absolute top-0 right-0 gradient-bg text-white text-xs font-bold px-4 py-2 rounded-bl-2xl">POPULAIRE</div>
+            <div className="absolute top-0 right-0 gradient-bg text-white text-xs font-bold px-4 py-2 rounded-bl-2xl">TOUT INCLUS</div>
             <div className="mb-6">
               <div className="flex items-end gap-2 justify-center mb-2">
                 <span className="text-6xl font-bold text-slate-900">30€</span>
@@ -212,11 +219,14 @@ export default function LandingPage() {
             <div className="space-y-3 mb-8 text-left">
               {[
                 "Réponses IA illimitées (Claude AI)",
-                "Synchronisation Google Maps automatique",
+                "Synchronisation Google Maps quotidienne",
                 "Alertes avis négatifs par email",
                 "Auto-réponse configurable",
+                "Analyse de réputation & graphiques",
+                "Benchmark concurrents automatique",
+                "Score SEO Local avec plan d'action",
+                "Rapport mensuel par email",
                 "Dashboard analytique complet",
-                "Historique illimité des avis",
                 "Support par email prioritaire",
               ].map((feature) => (
                 <div key={feature} className="flex items-center gap-3">
@@ -228,7 +238,7 @@ export default function LandingPage() {
             <Link href="/register" className="block">
               <Button size="lg" className="w-full gap-2">Commencer maintenant <ArrowRight className="w-4 h-4" /></Button>
             </Link>
-            <p className="text-xs text-slate-400 mt-4">14 jours d&apos;essai gratuit · Sans engagement</p>
+            <p className="text-xs text-slate-400 mt-4">14 jours d&apos;essai gratuit · Sans engagement · Sans carte bancaire</p>
           </div>
         </div>
       </section>
@@ -241,11 +251,12 @@ export default function LandingPage() {
           </div>
           <div className="space-y-4">
             {[
+              { q: "Comment connecter mon établissement Google ?", a: "Recherchez votre établissement directement depuis votre tableau de bord Reputix. Vos avis s'importent automatiquement en quelques secondes, sans aucune configuration technique." },
+              { q: "Les réponses sont-elles vraiment naturelles ?", a: "Oui. Reputix utilise Claude, l'IA d'Anthropic, reconnue pour la qualité de son français. 4 tons disponibles (professionnel, chaleureux, dynamique, élégant) et signature personnalisée." },
+              { q: "Puis-je relire les réponses avant publication ?", a: "Absolument. Vous pouvez valider chaque réponse manuellement, ou activer l'auto-réponse pour les avis positifs uniquement. Vous gardez toujours le contrôle." },
               { q: "Est-ce que ça fonctionne pour TripAdvisor ?", a: "Actuellement, Reputix prend en charge Google Maps. TripAdvisor et d'autres plateformes arrivent prochainement." },
-              { q: "Les réponses sont-elles vraiment naturelles ?", a: "Oui. Reputix utilise Claude, l'IA d'Anthropic, reconnue pour la qualité de son français. 4 tons disponibles et signature personnalisée." },
-              { q: "Puis-je relire les réponses avant publication ?", a: "Absolument. Validation manuelle ou auto-réponse pour les avis positifs — vous gardez toujours le contrôle." },
-              { q: "Comment connecter mon compte Google ?", a: "En un clic via OAuth2 sécurisé. Vous pouvez déconnecter à tout moment depuis les paramètres." },
-              { q: "Que se passe-t-il si j'annule ?", a: "Accès immédiatement coupé aux fonctionnalités premium. Données conservées 30 jours puis supprimées. Aucun frais caché." },
+              { q: "Que se passe-t-il si j'annule ?", a: "Accès immédiatement coupé aux fonctionnalités premium. Données conservées 30 jours puis supprimées. Aucun frais caché, aucun engagement." },
+              { q: "Puis-je gérer plusieurs établissements ?", a: "Oui. Chaque établissement est un abonnement indépendant à 30€/mois. Vous pouvez en ajouter autant que vous souhaitez depuis votre tableau de bord." },
             ].map((item, i) => (
               <details key={i} className="group bg-white rounded-2xl border border-slate-200 overflow-hidden">
                 <summary className="flex items-center justify-between px-6 py-4 cursor-pointer font-medium text-slate-900 list-none hover:text-sky-600 transition-colors">
@@ -263,8 +274,8 @@ export default function LandingPage() {
       <section className="py-24 px-6">
         <div className="max-w-3xl mx-auto text-center">
           <div className="rounded-3xl gradient-bg p-12 shadow-2xl shadow-sky-500/30">
-            <h2 className="text-4xl font-bold text-white mb-4">Prêt à automatiser votre réputation ?</h2>
-            <p className="text-sky-100 mb-8 text-lg">Rejoignez les établissements qui font confiance à Reputix.</p>
+            <h2 className="text-4xl font-bold text-white mb-4">Prêt à dominer votre réputation locale ?</h2>
+            <p className="text-sky-100 mb-8 text-lg">14 jours gratuits. Aucune carte bancaire. Résultats immédiats.</p>
             <Link href="/register">
               <Button size="xl" variant="outline" className="gap-2 border-white/30 text-slate-900 hover:bg-white bg-white">
                 Démarrer gratuitement <ArrowRight className="w-5 h-5" />

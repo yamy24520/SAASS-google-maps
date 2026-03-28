@@ -99,6 +99,8 @@ model Business {
   totalReviews         Int          @default(0)
   averageRating        Float        @default(0)
   responseRate         Float        @default(0)
+  placeLat             Float?
+  placeLng             Float?
 
   reviews              Review[]
   reputationSnapshots  ReputationSnapshot[]
