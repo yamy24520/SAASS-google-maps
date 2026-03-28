@@ -29,10 +29,11 @@ export async function POST(req: NextRequest) {
           text: `Extrait tous les plats de cette carte de restaurant.
 Réponds UNIQUEMENT avec ce JSON, sans markdown ni texte autour:
 {"categories":[{"name":"string","items":[{"name":"string","description":"string","price":"string"}]}]}
-Règles:
+Règles STRICTES:
 - Inclure TOUTES les catégories visibles (Entrées, Plats, Desserts, Boissons...)
 - description: max 70 caractères, "" si absente
-- price: inclure le symbole (€, $...) ou "" si absent
+- price: OBLIGATOIRE — cherche attentivement TOUS les nombres suivis de €, $, £ ou précédés de ces symboles. Format exact tel qu'écrit sur la carte (ex: "12,50 €", "9€", "$8.00"). "" SEULEMENT si vraiment aucun prix visible.
+- Lis chaque ligne soigneusement, les prix sont souvent alignés à droite ou après des points de suite (............)
 - Ne rien inventer, utiliser uniquement ce qui est lisible sur l'image`,
         },
       ],
