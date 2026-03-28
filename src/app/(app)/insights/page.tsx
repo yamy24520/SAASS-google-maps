@@ -109,6 +109,9 @@ export default function InsightsPage() {
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-sm font-semibold text-sky-900">Résumé IA</p>
                     <Badge variant="info" className="text-xs">{reviewCount} avis analysés</Badge>
+                    {reviewCount <= 5 && (
+                      <span className="text-xs text-slate-400">(limité à 5 sans connexion GBP)</span>
+                    )}
                   </div>
                   <p className="text-sm text-slate-700 leading-relaxed">{analysis.summary}</p>
                 </div>
