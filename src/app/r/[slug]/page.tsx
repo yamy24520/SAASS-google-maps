@@ -1,7 +1,7 @@
 "use client"
 
 import { use, useEffect, useRef, useState } from "react"
-import { Camera, ChevronRight, GripVertical, MapPin, Pencil, Plus, Save, Trash2, X, Quote } from "lucide-react"
+import { Camera, ChevronRight, Clock, GripVertical, Globe, Images, MapPin, Pencil, Plus, Save, Star, Trash2, UtensilsCrossed, X } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -121,10 +121,39 @@ function uid() { return Math.random().toString(36).slice(2, 9) }
 
 // ── Section: Menu ─────────────────────────────────────────────────────────────
 
+function MenuCategoryTabs({ categories, activeCatId, t, isEditing, onSelect, onAdd }: { categories: MenuCategory[]; activeCatId: string | null; t: Theme; isEditing: boolean; onSelect: (id: string) => void; onAdd?: () => void }) {
+  if (!categories.length && !isEditing) return null
+  return (
+    <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, scrollbarWidth: "none", marginBottom: 16 }}>
+      {categories.map(cat => {
+        const active = cat.id === activeCatId
+        return (
+          <button key={cat.id} onClick={() => onSelect(cat.id)} style={{ flexShrink: 0, padding: "8px 18px", borderRadius: 50, border: `1.5px solid ${active ? t.accent : t.border}`, background: active ? t.accent : "transparent", color: active ? t.btnText : t.secondary, fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s" }}>
+            {cat.name}
+          </button>
+        )
+      })}
+      {isEditing && (
+        <button onClick={onAdd} style={{ flexShrink: 0, padding: "8px 14px", borderRadius: 50, border: `1.5px dashed ${t.border}`, background: "transparent", color: t.muted, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
+          <Plus size={13} /> Ajouter
+        </button>
+      )}
+    </div>
+  )
+}
+
 function MenuSection({ categories, t, isEditing, onChange }: { categories: MenuCategory[]; t: Theme; isEditing: boolean; onChange?: (c: MenuCategory[]) => void }) {
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState("")
-  const [editingItem, setEditingItem] = useState<string | null>(null)
+  const [activeCatId, setActiveCatId] = useState<string | null>(categories[0]?.id ?? null)
+
+  const activeCat = categories.find(c => c.id === activeCatId) ?? categories[0] ?? null
+
+  useEffect(() => {
+    if (!activeCatId || !categories.find(c => c.id === activeCatId)) {
+      setActiveCatId(categories[0]?.id ?? null)
+    }
+  }, [categories, activeCatId])
 
   async function handleScan(file: File) {
     setScanning(true)
@@ -144,45 +173,54 @@ function MenuSection({ categories, t, isEditing, onChange }: { categories: MenuC
         id: uid(), name: c.name,
         items: (c.items ?? []).map((item: { name: string; description: string; price: string }) => ({ id: uid(), name: item.name, description: item.description ?? "", price: item.price ?? "" })),
       }))
-      onChange?.([...categories, ...newCats])
+      const merged = [...categories, ...newCats]
+      onChange?.(merged)
+      setActiveCatId(newCats[0]?.id ?? activeCatId)
       setScanning(false)
     }
     reader.readAsDataURL(file)
+  }
+
+  function addCategory() {
+    const cat = { id: uid(), name: "Nouvelle carte", items: [] }
+    onChange?.([...categories, cat])
+    setActiveCatId(cat.id)
   }
 
   // Public view
   if (!isEditing) {
     if (!categories.length) return null
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        {categories.map(cat => (
-          <div key={cat.id}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: t.muted, marginBottom: 10, paddingLeft: 2 }}>{cat.name}</p>
-            <div style={{ background: t.surface, borderRadius: 16, overflow: "hidden" }}>
-              {cat.items.map((item, i) => (
-                <div key={item.id} style={{ display: "flex", gap: 12, padding: "14px 16px", borderBottom: i < cat.items.length - 1 ? `1px solid ${t.border}` : "none", alignItems: "flex-start" }}>
-                  {item.photo && (
-                    <img src={item.photo} alt={item.name} style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                      <p style={{ color: t.text, fontWeight: 600, fontSize: 15, margin: 0, lineHeight: 1.3 }}>{item.name}</p>
-                      {item.price && <span style={{ color: t.accent, fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{item.price}</span>}
-                    </div>
-                    {item.description && <p style={{ color: t.secondary, fontSize: 13, margin: "4px 0 0", lineHeight: 1.4 }}>{item.description}</p>}
+      <div>
+        <MenuCategoryTabs categories={categories} activeCatId={activeCat?.id ?? null} t={t} isEditing={false} onSelect={setActiveCatId} />
+        {activeCat && (
+          <div style={{ background: t.surface, borderRadius: 16, overflow: "hidden" }}>
+            {activeCat.items.map((item, i) => (
+              <div key={item.id} style={{ display: "flex", gap: 12, padding: "14px 16px", borderBottom: i < activeCat.items.length - 1 ? `1px solid ${t.border}` : "none", alignItems: "flex-start" }}>
+                {item.photo && (
+                  <img src={item.photo} alt={item.name} style={{ width: 64, height: 64, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                    <p style={{ color: t.text, fontWeight: 600, fontSize: 15, margin: 0, lineHeight: 1.3 }}>{item.name}</p>
+                    {item.price && <span style={{ color: t.accent, fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{item.price}</span>}
                   </div>
+                  {item.description && <p style={{ color: t.secondary, fontSize: 13, margin: "4px 0 0", lineHeight: 1.4 }}>{item.description}</p>}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
+            {activeCat.items.length === 0 && (
+              <p style={{ padding: "20px", textAlign: "center", color: t.muted, fontSize: 13 }}>Aucun plat dans cette carte</p>
+            )}
           </div>
-        ))}
+        )}
       </div>
     )
   }
 
   // Edit view
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Scan button */}
       <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "14px", borderRadius: 14, border: `1.5px dashed ${t.border}`, cursor: scanning ? "default" : "pointer", background: t.surface, opacity: scanning ? 0.7 : 1 }}>
         {scanning ? (
@@ -200,69 +238,73 @@ function MenuSection({ categories, t, isEditing, onChange }: { categories: MenuC
         <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} disabled={scanning}
           onChange={e => { const f = e.target.files?.[0]; if (f) handleScan(f); e.target.value = "" }} />
       </label>
-      {scanError && <p style={{ color: "#f87171", fontSize: 13, textAlign: "center", margin: "-12px 0 0" }}>{scanError}</p>}
+      {scanError && <p style={{ color: "#f87171", fontSize: 13, textAlign: "center", margin: "-8px 0 0" }}>{scanError}</p>}
 
-      {/* Categories */}
-      {categories.map((cat, ci) => (
-        <div key={cat.id} style={{ background: t.surface, borderRadius: 16, overflow: "hidden" }}>
-          {/* Category header */}
+      {/* Category tabs */}
+      <MenuCategoryTabs categories={categories} activeCatId={activeCat?.id ?? null} t={t} isEditing onSelect={setActiveCatId} onAdd={addCategory} />
+
+      {/* Active category edit */}
+      {activeCat && (
+        <div style={{ background: t.surface, borderRadius: 16, overflow: "hidden" }}>
+          {/* Category name + delete */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderBottom: `1px solid ${t.border}`, background: t.elevated }}>
-            <input value={cat.name} onChange={e => onChange?.(categories.map((c, i) => i === ci ? { ...c, name: e.target.value } : c))}
-              style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontWeight: 700, fontSize: 13, outline: "none", letterSpacing: "0.05em", textTransform: "uppercase" }} />
-            <button onClick={() => onChange?.(categories.filter((_, i) => i !== ci))} style={{ background: "none", border: "none", cursor: "pointer", color: "#f87171", padding: 4 }}><Trash2 size={14} /></button>
+            <input value={activeCat.name}
+              onChange={e => onChange?.(categories.map(c => c.id === activeCat.id ? { ...c, name: e.target.value } : c))}
+              style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontWeight: 700, fontSize: 13, outline: "none", letterSpacing: "0.04em" }} />
+            <button onClick={() => { onChange?.(categories.filter(c => c.id !== activeCat.id)) }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#f87171", padding: 4 }}><Trash2 size={14} /></button>
           </div>
 
           {/* Items */}
-          {cat.items.map((item, ii) => (
-            <div key={item.id} style={{ borderBottom: `1px solid ${t.border}` }}>
-              <div style={{ display: "flex", gap: 10, padding: "12px 14px", alignItems: "flex-start" }}>
-                {/* Dish photo */}
-                <label style={{ width: 52, height: 52, borderRadius: 10, overflow: "hidden", flexShrink: 0, cursor: "pointer", background: t.elevated, display: "flex", alignItems: "center", justifyContent: "center", border: `1px dashed ${t.border}` }}>
-                  {item.photo ? (
-                    <img src={item.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  ) : (
-                    <Camera size={16} style={{ color: t.muted }} />
-                  )}
-                  <input type="file" accept="image/*" style={{ display: "none" }}
-                    onChange={async e => {
-                      const f = e.target.files?.[0]; if (!f) return
-                      const photo = await compressDish(f)
-                      const updated = categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, photo } : it) } : c)
-                      onChange?.(updated); e.target.value = ""
-                    }} />
-                </label>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input value={item.name} placeholder="Nom du plat"
-                      onChange={e => { const u = categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, name: e.target.value } : it) } : c); onChange?.(u) }}
-                      style={{ flex: 1, background: t.elevated, border: "none", borderRadius: 8, padding: "6px 10px", color: t.text, fontSize: 14, fontWeight: 600, outline: "none" }} />
-                    <input value={item.price} placeholder="Prix"
-                      onChange={e => { const u = categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, price: e.target.value } : it) } : c); onChange?.(u) }}
-                      style={{ width: 72, background: t.elevated, border: "none", borderRadius: 8, padding: "6px 10px", color: t.accent, fontSize: 14, fontWeight: 700, outline: "none", textAlign: "right" }} />
+          {activeCat.items.map((item, ii) => {
+            const ci = categories.findIndex(c => c.id === activeCat.id)
+            return (
+              <div key={item.id} style={{ borderBottom: `1px solid ${t.border}` }}>
+                <div style={{ display: "flex", gap: 10, padding: "12px 14px", alignItems: "flex-start" }}>
+                  <label style={{ width: 52, height: 52, borderRadius: 10, overflow: "hidden", flexShrink: 0, cursor: "pointer", background: t.elevated, display: "flex", alignItems: "center", justifyContent: "center", border: `1px dashed ${t.border}` }}>
+                    {item.photo ? (
+                      <img src={item.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <Camera size={16} style={{ color: t.muted }} />
+                    )}
+                    <input type="file" accept="image/*" style={{ display: "none" }}
+                      onChange={async e => {
+                        const f = e.target.files?.[0]; if (!f) return
+                        const photo = await compressDish(f)
+                        onChange?.(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, photo } : it) } : c))
+                        e.target.value = ""
+                      }} />
+                  </label>
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input value={item.name} placeholder="Nom du plat"
+                        onChange={e => onChange?.(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, name: e.target.value } : it) } : c))}
+                        style={{ flex: 1, background: t.elevated, border: "none", borderRadius: 8, padding: "6px 10px", color: t.text, fontSize: 14, fontWeight: 600, outline: "none" }} />
+                      <input value={item.price} placeholder="Prix"
+                        onChange={e => onChange?.(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, price: e.target.value } : it) } : c))}
+                        style={{ width: 72, background: t.elevated, border: "none", borderRadius: 8, padding: "6px 10px", color: t.accent, fontSize: 14, fontWeight: 700, outline: "none", textAlign: "right" }} />
+                    </div>
+                    <input value={item.description} placeholder="Description (optionnel)"
+                      onChange={e => onChange?.(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, description: e.target.value } : it) } : c))}
+                      style={{ background: t.elevated, border: "none", borderRadius: 8, padding: "6px 10px", color: t.secondary, fontSize: 13, outline: "none" }} />
                   </div>
-                  <input value={item.description} placeholder="Description (optionnel)"
-                    onChange={e => { const u = categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, description: e.target.value } : it) } : c); onChange?.(u) }}
-                    style={{ background: t.elevated, border: "none", borderRadius: 8, padding: "6px 10px", color: t.secondary, fontSize: 13, outline: "none" }} />
+                  <button onClick={() => onChange?.(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.filter((_, ii2) => ii2 !== ii) } : c))}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "#f87171", padding: "4px", flexShrink: 0 }}><X size={14} /></button>
                 </div>
-                <button onClick={() => { const u = categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.filter((_, ii2) => ii2 !== ii) } : c); onChange?.(u) }}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "#f87171", padding: "4px", flexShrink: 0 }}><X size={14} /></button>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
-          {/* Add item */}
-          <button onClick={() => { const u = categories.map((c, ci2) => ci2 === ci ? { ...c, items: [...c.items, { id: uid(), name: "", description: "", price: "" }] } : c); onChange?.(u) }}
+          <button onClick={() => { const ci = categories.findIndex(c => c.id === activeCat.id); onChange?.(categories.map((c, ci2) => ci2 === ci ? { ...c, items: [...c.items, { id: uid(), name: "", description: "", price: "" }] } : c)) }}
             style={{ width: "100%", padding: "10px 14px", background: "none", border: "none", cursor: "pointer", color: t.accent, fontSize: 13, fontWeight: 600, textAlign: "left", display: "flex", alignItems: "center", gap: 6 }}>
             <Plus size={14} /> Ajouter un plat
           </button>
         </div>
-      ))}
+      )}
 
-      {/* Add category */}
-      <button onClick={() => onChange?.([...categories, { id: uid(), name: "Nouvelle catégorie", items: [] }])}
-        style={{ padding: "10px 14px", background: t.surface, border: `1px solid ${t.border}`, borderRadius: 12, cursor: "pointer", color: t.secondary, fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
-        <Plus size={14} /> Ajouter une catégorie
-      </button>
+      {!categories.length && (
+        <p style={{ textAlign: "center", color: t.muted, fontSize: 13 }}>Scannez une carte ou ajoutez une catégorie pour commencer</p>
+      )}
     </div>
   )
 }
@@ -449,7 +491,15 @@ function PhotosSection({ images, t, isEditing, onChange }: { images: PhotoItem[]
 
 // ── Edit section wrapper ──────────────────────────────────────────────────────
 
-const SECTION_LABELS: Record<string, string> = { reviews: "Avis clients", menu: "Carte & Menu", social: "Réseaux sociaux", hours: "Horaires", location: "Adresse", photos: "Photos" }
+const SECTION_LABELS: Record<string, string> = { reviews: "Avis", menu: "Carte", social: "Réseaux", hours: "Horaires", location: "Adresse", photos: "Photos" }
+const SECTION_ICONS: Record<string, React.ReactNode> = {
+  reviews:  <Star size={17} />,
+  menu:     <UtensilsCrossed size={17} />,
+  social:   <Globe size={17} />,
+  hours:    <Clock size={17} />,
+  location: <MapPin size={17} />,
+  photos:   <Images size={17} />,
+}
 
 function EditWrapper({ section, t, onToggle, dragIdx, myIdx, onDragStart, onDrop, children }: { section: Section; t: Theme; onToggle: () => void; dragIdx: number | null; myIdx: number; onDragStart: () => void; onDrop: () => void; children: React.ReactNode }) {
   return (
@@ -484,6 +534,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
   const [tagline, setTagline]   = useState<string | null>(null)
   const [theme, setTheme]       = useState("dark")
   const [dragIdx, setDragIdx]   = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<string>("")
   const tracked                 = useRef(false)
 
   useEffect(() => {
@@ -503,6 +554,8 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
       setLogo(d.logoDataUrl)
       setTagline(d.pageTagline)
       setTheme(d.pageTheme ?? "dark")
+      const firstEnabled = merged.find((s: Section) => s.enabled)
+      if (firstEnabled) setActiveTab(firstEnabled.type)
       setLoading(false)
     }).catch(() => { setError("Page introuvable"); setLoading(false) })
   }, [slug])
@@ -634,30 +687,49 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
         </div>
 
         {/* Separator */}
-        <div style={{ height: 1, background: t.border, margin: "0 24px 32px" }} />
+        <div style={{ height: 1, background: t.border, margin: "0 24px 0" }} />
+
+        {/* ── Tab bar (public view only) ── */}
+        {!isEditing && (() => {
+          const enabledSections = sections.filter(s => s.enabled)
+          if (enabledSections.length < 2) return null
+          return (
+            <div style={{ position: "sticky", top: 0, zIndex: 20, background: t.bg, backdropFilter: "blur(16px)", borderBottom: `1px solid ${t.border}` }}>
+              <div style={{ display: "flex", overflowX: "auto", scrollbarWidth: "none", padding: "0 8px" }}>
+                {enabledSections.map(section => {
+                  const active = activeTab === section.type
+                  return (
+                    <button key={section.type} onClick={() => setActiveTab(section.type)} style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "12px 16px", background: "none", border: "none", cursor: "pointer", borderBottom: active ? `2px solid ${t.accent}` : "2px solid transparent", transition: "border-color 0.15s" }}>
+                      <span style={{ color: active ? t.accent : t.muted, transition: "color 0.15s" }}>{SECTION_ICONS[section.type]}</span>
+                      <span style={{ fontSize: 10, fontWeight: active ? 700 : 500, color: active ? t.text : t.muted, whiteSpace: "nowrap", letterSpacing: "0.02em" }}>{SECTION_LABELS[section.type]}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ── Sections ── */}
-        <div style={{ padding: "0 20px", display: "flex", flexDirection: "column", gap: 32 }}>
-          {sections.map((section, i) => {
-            const content = renderSection(section)
-            if (!content) return null
-            if (isEditing) return (
-              <EditWrapper key={section.id} section={section} t={t} onToggle={() => updateSection(section.id, { enabled: !section.enabled })} dragIdx={dragIdx} myIdx={i} onDragStart={() => setDragIdx(i)} onDrop={() => drop(i)}>
-                {content}
-              </EditWrapper>
-            )
-            return section.enabled ? (
-              <div key={section.id}>
-                {section.type !== "reviews" && (
-                  <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: t.muted, marginBottom: 12, paddingLeft: 2 }}>
-                    {SECTION_LABELS[section.type]}
-                  </p>
-                )}
-                {content}
-              </div>
-            ) : null
-          })}
-        </div>
+        {isEditing ? (
+          <div style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: 32 }}>
+            {sections.map((section, i) => {
+              const content = renderSection(section)
+              if (!content) return null
+              return (
+                <EditWrapper key={section.id} section={section} t={t} onToggle={() => updateSection(section.id, { enabled: !section.enabled })} dragIdx={dragIdx} myIdx={i} onDragStart={() => setDragIdx(i)} onDrop={() => drop(i)}>
+                  {content}
+                </EditWrapper>
+              )
+            })}
+          </div>
+        ) : (
+          <div style={{ padding: "24px 20px 0" }}>
+            {sections.filter(s => s.enabled && s.type === activeTab).map(section => (
+              <div key={section.id}>{renderSection(section)}</div>
+            ))}
+          </div>
+        )}
 
         {/* Footer */}
         {!isEditing && (
