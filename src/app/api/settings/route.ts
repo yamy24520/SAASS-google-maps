@@ -13,6 +13,8 @@ const schema = z.object({
   customSignature: z.string().nullable().optional(),
   alertEmailEnabled: z.boolean().optional(),
   language: z.string().optional(),
+  offerEnabled: z.boolean().optional(),
+  offerText: z.string().nullable().optional(),
 })
 
 async function getBusinessForUser(userId: string, bizId: string | null) {

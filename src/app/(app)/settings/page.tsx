@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Save, Loader2, Globe, Unlink } from "lucide-react"
+import { Save, Loader2, Globe, Unlink, Gift } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,6 +22,8 @@ interface Business {
   language: string
   gbpConnectedAt: string | null
   gbpLocationName: string | null
+  offerEnabled: boolean
+  offerText: string | null
 }
 
 export default function SettingsPage() {
@@ -40,6 +42,8 @@ export default function SettingsPage() {
     language: "fr",
     gbpConnectedAt: null,
     gbpLocationName: null,
+    offerEnabled: false,
+    offerText: null,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -58,7 +62,7 @@ export default function SettingsPage() {
     const res = await fetch(`/api/settings${bizParam}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, customSignature: form.customSignature || null }),
+      body: JSON.stringify({ ...form, customSignature: form.customSignature || null, offerText: form.offerText || null }),
     })
     if (res.ok) {
       toast({ title: "Sauvegardé", description: "Vos paramètres ont été mis à jour.", variant: "success" })
@@ -211,6 +215,40 @@ export default function SettingsPage() {
               onCheckedChange={(v) => setForm({ ...form, alertEmailEnabled: v })}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Offer */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gift className="w-4 h-4 text-sky-500" />
+            Offre client
+          </CardTitle>
+          <CardDescription>Proposez une offre pour inciter vos clients à laisser un avis</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-slate-900 text-sm">Activer l&apos;offre</p>
+              <p className="text-xs text-slate-500 mt-0.5">Vos clients reçoivent l&apos;offre par email et sont invités à laisser un avis</p>
+            </div>
+            <Switch
+              checked={form.offerEnabled}
+              onCheckedChange={(v) => setForm({ ...form, offerEnabled: v })}
+            />
+          </div>
+          {form.offerEnabled && (
+            <div className="space-y-1.5">
+              <Label>Texte de l&apos;offre</Label>
+              <Input
+                value={form.offerText ?? ""}
+                onChange={(e) => setForm({ ...form, offerText: e.target.value })}
+                placeholder="Ex: Un verre offert à votre prochaine visite"
+              />
+              <p className="text-xs text-slate-400">Ce texte sera affiché dans l&apos;email envoyé à vos clients</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -102,10 +102,13 @@ model Business {
   placeLat             Float?
   placeLng             Float?
   placeType            String?
+  offerEnabled         Boolean  @default(false)
+  offerText            String?
 
   reviews              Review[]
   reputationSnapshots  ReputationSnapshot[]
   competitors          Competitor[]
+  reviewRequests       ReviewRequest[]
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -206,6 +209,24 @@ model Competitor {
 
   @@unique([businessId, placeId])
   @@index([businessId])
+}
+
+model ReviewRequest {
+  id         String              @id @default(cuid())
+  businessId String
+  business   Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  email      String
+  status     ReviewRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+  sentAt     DateTime?
+
+  @@index([businessId])
+  @@index([status])
+}
+
+enum ReviewRequestStatus {
+  PENDING
+  SENT
 }
 
 // ─── SUBSCRIPTIONS ────────────────────────────────────────────────────────────
