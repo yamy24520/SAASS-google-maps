@@ -114,7 +114,12 @@ model Business {
   pageSlug             String? @unique
   pageConfig           Json?
 
+  bookingEnabled       Boolean  @default(false)
+  bookingHours         Json?
+
   pageEvents           PageEvent[]
+  services             Service[]
+  bookings             Booking[]
 
   reviews              Review[]
   reputationSnapshots  ReputationSnapshot[]
@@ -133,6 +138,8 @@ enum BusinessCategory {
   BAR
   CAFE
   SPA
+  HAIR_SALON
+  BEAUTY
   RETAIL
   SERVICE
   OTHER
@@ -252,6 +259,51 @@ enum OfferType {
 enum ClaimStatus {
   WAITING_REVIEW
   CLAIMED
+}
+
+// ─── BOOKING ──────────────────────────────────────────────────────────────────
+
+model Service {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  duration    Int      // minutes
+  price       Float
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  bookings    Booking[]
+
+  @@index([businessId])
+}
+
+model Booking {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id])
+
+  clientName  String
+  clientEmail String
+  clientPhone String?
+  date        String   // "2026-03-28"
+  timeSlot    String   // "09:00"
+  status      BookingStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([businessId, date])
+  @@index([businessId, status])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
 }
 
 // ─── PAGE EVENTS ──────────────────────────────────────────────────────────────
