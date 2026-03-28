@@ -18,6 +18,7 @@ export interface PlaceDetails extends PlaceResult {
   phone?: string
   openingHours?: string[]
   photos?: string[]
+  primaryType?: string
 }
 
 // Search a business by name + city to get its Place ID
@@ -53,7 +54,7 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceDetails> {
   const res = await fetch(`${BASE}/places/${placeId}`, {
     headers: {
       "X-Goog-Api-Key": PLACES_API_KEY,
-      "X-Goog-FieldMask": "id,displayName,rating,userRatingCount,formattedAddress,primaryTypeDisplayName,websiteUri,nationalPhoneNumber,regularOpeningHours,photos,location",
+      "X-Goog-FieldMask": "id,displayName,rating,userRatingCount,formattedAddress,primaryType,primaryTypeDisplayName,websiteUri,nationalPhoneNumber,regularOpeningHours,photos,location",
       "Accept-Language": "fr",
     },
   })
@@ -68,6 +69,7 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceDetails> {
     reviewCount: p.userRatingCount ?? 0,
     address: p.formattedAddress ?? "",
     category: p.primaryTypeDisplayName?.text ?? "",
+    primaryType: p.primaryType,
     website: p.websiteUri,
     phone: p.nationalPhoneNumber,
     openingHours: p.regularOpeningHours?.weekdayDescriptions ?? [],
@@ -83,8 +85,10 @@ export async function findNearbyCompetitors(
   lat: number,
   lng: number,
   category: string,
-  excludePlaceId: string
+  excludePlaceId: string,
+  placeType?: string
 ): Promise<PlaceResult[]> {
+  const type = placeType ?? mapCategoryToType(category)
   const res = await fetch(`${BASE}/places:searchNearby`, {
     method: "POST",
     headers: {
@@ -93,7 +97,7 @@ export async function findNearbyCompetitors(
       "X-Goog-FieldMask": "places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.primaryTypeDisplayName,places.photos",
     },
     body: JSON.stringify({
-      includedTypes: [mapCategoryToType(category)],
+      includedTypes: [type],
       maxResultCount: 10,
       locationRestriction: {
         circle: { center: { latitude: lat, longitude: lng }, radius: 1000 },

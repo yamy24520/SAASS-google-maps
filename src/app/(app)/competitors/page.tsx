@@ -36,7 +36,7 @@ export default function CompetitorsPage() {
     await fetch("/api/competitors", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lat: repData.business.lat, lng: repData.business.lng }),
+      body: JSON.stringify({ lat: repData.business.lat, lng: repData.business.lng, placeType: repData.business.placeType }),
     })
     await load()
     setSyncing(false)

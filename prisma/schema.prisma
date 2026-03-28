@@ -101,6 +101,7 @@ model Business {
   responseRate         Float        @default(0)
   placeLat             Float?
   placeLng             Float?
+  placeType            String?
 
   reviews              Review[]
   reputationSnapshots  ReputationSnapshot[]

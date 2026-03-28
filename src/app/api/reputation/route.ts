@@ -20,19 +20,19 @@ export async function GET() {
 
   if (!business) return NextResponse.json({ error: "Aucun établissement" }, { status: 404 })
 
-  // If placeId set but coords missing, fetch and save them
+  // If placeId set but coords or type missing, fetch and save them
   let placeLat = business.placeLat
   let placeLng = business.placeLng
-  if (business.gbpLocationId && (placeLat == null || placeLng == null)) {
+  let placeType = business.placeType
+  if (business.gbpLocationId && (placeLat == null || placeLng == null || placeType == null)) {
     try {
       const details = await getPlaceDetails(business.gbpLocationId)
-      if (details.lat != null && details.lng != null) {
-        await prisma.business.update({
-          where: { id: business.id },
-          data: { placeLat: details.lat, placeLng: details.lng },
-        })
-        placeLat = details.lat
-        placeLng = details.lng
+      const updates: Record<string, unknown> = {}
+      if (details.lat != null) { updates.placeLat = details.lat; placeLat = details.lat }
+      if (details.lng != null) { updates.placeLng = details.lng; placeLng = details.lng }
+      if (details.primaryType) { updates.placeType = details.primaryType; placeType = details.primaryType }
+      if (Object.keys(updates).length > 0) {
+        await prisma.business.update({ where: { id: business.id }, data: updates })
       }
     } catch {
       // non-blocking
@@ -49,6 +49,7 @@ export async function GET() {
       responseRate: business.responseRate,
       lat: placeLat,
       lng: placeLng,
+      placeType,
     },
     snapshots: business.reputationSnapshots.map((s) => ({
       date: s.recordedAt.toISOString().split("T")[0],
@@ -80,7 +81,7 @@ export async function POST(req: Request) {
       },
     })
 
-    // Update business with placeId, coords and latest stats
+    // Update business with placeId, coords, type and latest stats
     await prisma.business.update({
       where: { id: business.id },
       data: {
@@ -89,6 +90,7 @@ export async function POST(req: Request) {
         totalReviews: details.reviewCount,
         ...(details.lat != null && { placeLat: details.lat }),
         ...(details.lng != null && { placeLng: details.lng }),
+        ...(details.primaryType && { placeType: details.primaryType }),
       },
     })
 

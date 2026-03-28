@@ -40,14 +40,15 @@ export async function POST(req: Request) {
       lat,
       lng,
       business.category,
-      business.gbpLocationId ?? ""
+      business.gbpLocationId ?? "",
+      business.placeType ?? undefined
     )
 
-    // Upsert competitors
+    // Delete stale competitors, then insert fresh results
+    await prisma.competitor.deleteMany({ where: { businessId: business.id } })
     for (const c of nearby) {
-      await prisma.competitor.upsert({
-        where: { businessId_placeId: { businessId: business.id, placeId: c.placeId } },
-        create: {
+      await prisma.competitor.create({
+        data: {
           businessId: business.id,
           placeId: c.placeId,
           name: c.name,
@@ -56,11 +57,6 @@ export async function POST(req: Request) {
           address: c.address,
           category: c.category,
           photoUrl: c.photoUrl,
-        },
-        update: {
-          rating: c.rating,
-          reviewCount: c.reviewCount,
-          lastSyncAt: new Date(),
         },
       })
     }
