@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { QRCodeSVG } from "qrcode.react"
-import { Copy, CheckCircle2, Users, Send, TrendingUp, Gift, ExternalLink } from "lucide-react"
+import { Copy, CheckCircle2, Users, Send, TrendingUp, Gift, ExternalLink, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -12,12 +12,22 @@ export default function CampaignsPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
     fetch("/api/campaigns")
       .then((r) => r.json())
       .then((d) => { setData(d); setLoading(false) })
   }, [])
+
+  async function handleReset() {
+    if (!confirm("Réinitialiser la campagne ? Toutes les inscriptions seront supprimées.")) return
+    setResetting(true)
+    await fetch("/api/campaigns", { method: "DELETE" })
+    const res = await fetch("/api/campaigns")
+    setData(await res.json())
+    setResetting(false)
+  }
 
   function handleCopy() {
     if (!data?.business?.collectUrl) return
@@ -64,9 +74,17 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Campagne d&apos;avis</h1>
-        <p className="text-slate-500 mt-1">Suivez vos inscriptions et partagez votre lien</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Campagne d&apos;avis</h1>
+          <p className="text-slate-500 mt-1">Suivez vos inscriptions et partagez votre lien</p>
+        </div>
+        {(stats?.total ?? 0) > 0 && (
+          <Button variant="outline" size="sm" onClick={handleReset} disabled={resetting} className="gap-2 text-red-600 border-red-200 hover:bg-red-50">
+            <Trash2 className="w-4 h-4" />
+            {resetting ? "Réinitialisation..." : "Réinitialiser"}
+          </Button>
+        )}
       </div>
 
       {/* Active offer banner */}
