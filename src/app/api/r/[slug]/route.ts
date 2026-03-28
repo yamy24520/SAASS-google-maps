@@ -42,16 +42,21 @@ export async function GET(
   const rating = snapshot?.rating ?? business.averageRating ?? 0
   const reviewCount = snapshot?.reviewCount ?? business.totalReviews ?? 0
 
-  const DEFAULT_CONFIG = {
-    sections: [
-      { id: "reviews",  type: "reviews",  enabled: true,  order: 0 },
-      { id: "menu",     type: "menu",     enabled: false, order: 1, categories: [] },
-      { id: "social",   type: "social",   enabled: true,  order: 2, links: [] },
-      { id: "hours",    type: "hours",    enabled: false, order: 3, schedule: {} },
-      { id: "location", type: "location", enabled: false, order: 4, address: "" },
-      { id: "photos",   type: "photos",   enabled: false, order: 5, images: [] },
-    ],
-  }
+  const DEFAULT_SECTIONS = [
+    { id: "reviews",  type: "reviews",  enabled: true,  order: 0 },
+    { id: "menu",     type: "menu",     enabled: false, order: 1, categories: [] },
+    { id: "social",   type: "social",   enabled: true,  order: 2, links: [] },
+    { id: "hours",    type: "hours",    enabled: false, order: 3, schedule: {} },
+    { id: "location", type: "location", enabled: false, order: 4, address: "" },
+    { id: "photos",   type: "photos",   enabled: false, order: 5, images: [] },
+  ]
+
+  const savedConfig = business.pageConfig as { sections?: { type: string }[] } | null
+  const savedSections = savedConfig?.sections ?? []
+  const savedTypes = new Set(savedSections.map((s) => s.type))
+  const missingSections = DEFAULT_SECTIONS.filter((s) => !savedTypes.has(s.type))
+  const mergedSections = [...savedSections, ...missingSections]
+  const pageConfig = { sections: mergedSections }
 
   return NextResponse.json({
     businessId: business.id,
@@ -63,7 +68,7 @@ export async function GET(
     logoDataUrl: business.logoDataUrl ?? null,
     pageTheme: business.pageTheme ?? "dark",
     pageTagline: business.pageTagline ?? null,
-    pageConfig: (business.pageConfig as object) ?? DEFAULT_CONFIG,
+    pageConfig,
     socialLinks: (business.socialLinks as Record<string, string>) ?? {},
     isOwner,
     reputationPageEnabled: business.reputationPageEnabled,
