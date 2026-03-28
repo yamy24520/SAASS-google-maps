@@ -80,6 +80,32 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceDetails> {
   }
 }
 
+export interface PlaceReview {
+  authorName: string
+  rating: number
+  text: string
+  publishTime: string
+}
+
+// Get public reviews for a Place ID (up to 5 via Places API)
+export async function getPlaceReviews(placeId: string): Promise<PlaceReview[]> {
+  const res = await fetch(`${BASE}/places/${placeId}`, {
+    headers: {
+      "X-Goog-Api-Key": PLACES_API_KEY,
+      "X-Goog-FieldMask": "reviews",
+      "Accept-Language": "fr",
+    },
+  })
+  if (!res.ok) return []
+  const p = await res.json()
+  return (p.reviews ?? []).map((r: any) => ({
+    authorName: r.authorAttribution?.displayName ?? "Anonyme",
+    rating: r.rating ?? 0,
+    text: r.text?.text ?? "",
+    publishTime: r.publishTime ?? "",
+  }))
+}
+
 // Find nearby competitors (same category, within radius)
 export async function findNearbyCompetitors(
   lat: number,
