@@ -1,17 +1,14 @@
 import { PrismaClient } from "@prisma/client"
 import { PrismaPg } from "@prisma/adapter-pg"
-
-function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL
-  if (!connectionString) {
-    // During build time without DB, return a minimal client
-    return new PrismaClient({ adapter: null as never })
-  }
-  const adapter = new PrismaPg({ connectionString })
-  return new PrismaClient({ adapter })
-}
+import { Pool } from "pg"
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+
+function createPrismaClient(): PrismaClient {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+  const adapter = new PrismaPg(pool)
+  return new PrismaClient({ adapter })
+}
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
