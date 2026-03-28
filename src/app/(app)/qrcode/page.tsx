@@ -2,27 +2,45 @@
 
 import { useEffect, useState, useRef } from "react"
 import { QRCodeSVG } from "qrcode.react"
-import { Copy, Download, ExternalLink, QrCode, CheckCircle2, MapPin } from "lucide-react"
+import { Copy, Download, ExternalLink, QrCode, CheckCircle2, MapPin, Sparkles, Settings } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
+
+type QRData = {
+  reviewUrl: string
+  mapsUrl: string
+  reputationPageUrl: string
+  reputationPageEnabled: boolean
+  businessName: string
+  businessId: string
+}
 
 export default function QRCodePage() {
-  const [data, setData] = useState<{ reviewUrl: string; mapsUrl: string; businessName: string } | null>(null)
+  const [data, setData] = useState<QRData | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [mode, setMode] = useState<"direct" | "page">("direct")
   const qrRef = useRef<SVGSVGElement>(null)
 
   useEffect(() => {
     fetch("/api/qrcode")
       .then((r) => r.json())
-      .then((d) => { setData(d.reviewUrl ? d : null); setLoading(false) })
+      .then((d) => {
+        if (d.reviewUrl) {
+          setData(d)
+          if (d.reputationPageEnabled) setMode("page")
+        }
+        setLoading(false)
+      })
       .catch(() => setLoading(false))
   }, [])
 
+  const activeUrl = mode === "page" ? data?.reputationPageUrl : data?.reviewUrl
+
   function handleCopy() {
-    if (!data) return
-    navigator.clipboard.writeText(data.reviewUrl)
+    if (!activeUrl) return
+    navigator.clipboard.writeText(activeUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -46,7 +64,7 @@ export default function QRCodePage() {
       a.href = canvas.toDataURL("image/png")
       a.click()
     }
-    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgStr)))
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgStr)
   }
 
   if (loading) return (
@@ -65,7 +83,9 @@ export default function QRCodePage() {
         <CardContent className="pt-6 text-center py-12">
           <QrCode className="w-12 h-12 mx-auto mb-3 text-sky-300" />
           <p className="font-semibold text-sky-900 mb-1">Aucune fiche Google liée</p>
-          <p className="text-sm text-sky-700">Liez votre fiche dans la page <strong>Réputation</strong> pour générer votre QR code.</p>
+          <p className="text-sm text-sky-700">
+            Liez votre fiche dans la page <strong>Réputation</strong> pour générer votre QR code.
+          </p>
         </CardContent>
       </Card>
     </div>
@@ -77,6 +97,77 @@ export default function QRCodePage() {
         <h1 className="text-2xl font-bold text-slate-900">QR Code & Lien d&apos;avis</h1>
         <p className="text-slate-500 mt-1">Invitez vos clients à laisser un avis Google en un scan</p>
       </div>
+
+      {/* Mode selector */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Mode de redirection</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setMode("direct")}
+              className={`p-4 rounded-xl border-2 text-left transition-all ${
+                mode === "direct" ? "border-sky-500 bg-sky-50" : "border-slate-200 hover:border-sky-200"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <MapPin className="w-4 h-4 text-sky-500" />
+                <span className="text-sm font-semibold text-slate-900">Direct Google</span>
+              </div>
+              <p className="text-xs text-slate-500">Ouvre directement le formulaire d&apos;avis Google</p>
+            </button>
+            <button
+              onClick={() => setMode("page")}
+              className={`p-4 rounded-xl border-2 text-left transition-all ${
+                mode === "page" ? "border-indigo-500 bg-indigo-50" : "border-slate-200 hover:border-indigo-200"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles className="w-4 h-4 text-indigo-500" />
+                <span className="text-sm font-semibold text-slate-900">Page de réputation</span>
+              </div>
+              <p className="text-xs text-slate-500">Belle page avec avis, note et réseaux sociaux</p>
+            </button>
+          </div>
+
+          {mode === "page" && !data.reputationPageEnabled && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+              <span className="text-amber-500 text-base mt-0.5">⚠️</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-amber-800">Page de réputation désactivée</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Activez-la dans les{" "}
+                  <Link href="/settings" className="underline font-semibold">Paramètres</Link>
+                  {" "}pour que vos clients puissent y accéder.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {mode === "page" && data.reputationPageEnabled && (
+            <div className="mt-3 flex gap-2">
+              <a
+                href={data.reputationPageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1"
+              >
+                <Button variant="outline" size="sm" className="w-full gap-2 text-xs">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Prévisualiser la page
+                </Button>
+              </a>
+              <Link href="/settings">
+                <Button variant="outline" size="sm" className="gap-2 text-xs">
+                  <Settings className="w-3.5 h-3.5" />
+                  Configurer
+                </Button>
+              </Link>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* QR Code */}
@@ -91,7 +182,7 @@ export default function QRCodePage() {
             <div className="p-6 bg-white rounded-2xl border-2 border-slate-100 shadow-sm">
               <QRCodeSVG
                 ref={qrRef}
-                value={data.reviewUrl}
+                value={activeUrl ?? ""}
                 size={200}
                 bgColor="#ffffff"
                 fgColor="#0f172a"
@@ -99,7 +190,10 @@ export default function QRCodePage() {
               />
             </div>
             <p className="text-xs text-slate-500 text-center">
-              Scannez pour laisser un avis sur <strong>{data.businessName}</strong>
+              {mode === "page"
+                ? <>Scannez pour voir la page de <strong>{data.businessName}</strong></>
+                : <>Scannez pour laisser un avis sur <strong>{data.businessName}</strong></>
+              }
             </p>
             <Button onClick={handleDownload} className="w-full gap-2">
               <Download className="w-4 h-4" />
@@ -113,24 +207,24 @@ export default function QRCodePage() {
 
         {/* Links */}
         <div className="space-y-4">
-          {/* Review link */}
+          {/* Active URL */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                Lien direct vers le formulaire d&apos;avis
+                {mode === "page" ? "Lien de votre page de réputation" : "Lien direct vers le formulaire d'avis"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-                <p className="text-xs text-slate-500 font-mono break-all leading-relaxed">{data.reviewUrl}</p>
+                <p className="text-xs text-slate-500 font-mono break-all leading-relaxed">{activeUrl}</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1 gap-2" onClick={handleCopy}>
                   {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
                   {copied ? "Copié !" : "Copier le lien"}
                 </Button>
-                <a href={data.reviewUrl} target="_blank" rel="noopener noreferrer">
+                <a href={activeUrl} target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="icon">
                     <ExternalLink className="w-4 h-4" />
                   </Button>
@@ -144,13 +238,10 @@ export default function QRCodePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <MapPin className="w-4 h-4 text-sky-500" />
-                Lien vers votre fiche Google Maps
+                Fiche Google Maps
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-                <p className="text-xs text-slate-500 font-mono break-all leading-relaxed">{data.mapsUrl}</p>
-              </div>
               <a href={data.mapsUrl} target="_blank" rel="noopener noreferrer" className="block">
                 <Button variant="outline" className="w-full gap-2">
                   <ExternalLink className="w-4 h-4" />

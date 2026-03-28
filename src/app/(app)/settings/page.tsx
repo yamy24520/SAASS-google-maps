@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Save, Loader2, Globe, Unlink, Gift, Plus, Trash2 } from "lucide-react"
+import { Save, Loader2, Globe, Unlink, Gift, Plus, Trash2, ExternalLink, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -32,6 +32,9 @@ interface Business {
   offerText: string | null
   offerType: "FIXED" | "SPIN_WHEEL"
   spinPrizes: SpinPrize[] | null
+  reputationPageEnabled: boolean
+  socialLinks: { facebook?: string; instagram?: string; website?: string; tripadvisor?: string } | null
+  id?: string
 }
 
 const DEFAULT_SPIN_PRIZES: SpinPrize[] = [
@@ -61,6 +64,8 @@ export default function SettingsPage() {
     offerText: null,
     offerType: "FIXED",
     spinPrizes: null,
+    reputationPageEnabled: false,
+    socialLinks: null,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -69,7 +74,13 @@ export default function SettingsPage() {
     fetch(`/api/settings${bizParam}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.business) setForm({ ...data.business, customSignature: data.business.customSignature ?? "" })
+        if (data.business) setForm({
+          ...data.business,
+          id: data.business.id,
+          customSignature: data.business.customSignature ?? "",
+          reputationPageEnabled: data.business.reputationPageEnabled ?? false,
+          socialLinks: data.business.socialLinks ?? null,
+        })
         setLoading(false)
       })
   }, [bizParam])
@@ -84,6 +95,8 @@ export default function SettingsPage() {
         customSignature: form.customSignature || null,
         offerText: form.offerText || null,
         spinPrizes: form.offerType === "SPIN_WHEEL" ? (form.spinPrizes ?? DEFAULT_SPIN_PRIZES) : null,
+        socialLinks: form.socialLinks,
+        reputationPageEnabled: form.reputationPageEnabled,
       }),
     })
     if (res.ok) {
@@ -387,6 +400,66 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Reputation page */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Star className="w-4 h-4 text-amber-500" />
+            Page de réputation publique
+          </CardTitle>
+          <CardDescription>Une belle page partageable avec votre note, vos avis et vos réseaux sociaux</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-slate-900 text-sm">Activer la page publique</p>
+              <p className="text-xs text-slate-500 mt-0.5">Vos clients peuvent la voir via le QR code ou le lien partageable</p>
+            </div>
+            <Switch
+              checked={form.reputationPageEnabled}
+              onCheckedChange={(v) => setForm({ ...form, reputationPageEnabled: v })}
+            />
+          </div>
+
+          {form.reputationPageEnabled && (
+            <>
+              {form.id && (
+                <a
+                  href={`/r/${form.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-xs text-sky-600 hover:underline"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Prévisualiser ma page publique
+                </a>
+              )}
+              <div className="space-y-3 pt-1">
+                <p className="text-sm font-medium text-slate-700">Liens réseaux sociaux <span className="text-xs font-normal text-slate-400">(optionnels)</span></p>
+                {[
+                  { key: "facebook",    label: "Facebook",    placeholder: "https://facebook.com/votretablissement" },
+                  { key: "instagram",   label: "Instagram",   placeholder: "https://instagram.com/votretablissement" },
+                  { key: "tripadvisor", label: "TripAdvisor", placeholder: "https://tripadvisor.fr/..." },
+                  { key: "website",     label: "Site web",    placeholder: "https://votresite.fr" },
+                ].map(({ key, label, placeholder }) => (
+                  <div key={key} className="space-y-1">
+                    <Label className="text-xs">{label}</Label>
+                    <Input
+                      value={(form.socialLinks as Record<string, string> | null)?.[key] ?? ""}
+                      onChange={(e) => setForm({
+                        ...form,
+                        socialLinks: { ...(form.socialLinks ?? {}), [key]: e.target.value },
+                      })}
+                      placeholder={placeholder}
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -106,6 +106,8 @@ model Business {
   offerText            String?
   offerType            OfferType        @default(FIXED)
   spinPrizes           Json?
+  reputationPageEnabled Boolean @default(false)
+  socialLinks          Json?
 
   reviews              Review[]
   reputationSnapshots  ReputationSnapshot[]

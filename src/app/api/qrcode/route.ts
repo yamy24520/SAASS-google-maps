@@ -9,14 +9,23 @@ export async function GET() {
 
   const business = await prisma.business.findFirst({
     where: { userId: session.user.id },
-    select: { name: true, gbpLocationId: true },
+    select: { id: true, name: true, gbpLocationId: true, reputationPageEnabled: true },
   })
 
   if (!business) return NextResponse.json({ error: "Aucun établissement" }, { status: 404 })
   if (!business.gbpLocationId) return NextResponse.json({ error: "Aucune fiche liée" }, { status: 400 })
 
+  const base = process.env.NEXTAUTH_URL ?? ""
   const reviewUrl = `https://search.google.com/local/writereview?placeid=${business.gbpLocationId}`
   const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${business.gbpLocationId}`
+  const reputationPageUrl = `${base}/r/${business.id}`
 
-  return NextResponse.json({ reviewUrl, mapsUrl, businessName: business.name })
+  return NextResponse.json({
+    reviewUrl,
+    mapsUrl,
+    reputationPageUrl,
+    reputationPageEnabled: business.reputationPageEnabled,
+    businessName: business.name,
+    businessId: business.id,
+  })
 }

@@ -22,6 +22,13 @@ const schema = z.object({
     label: z.string(),
     probability: z.number().min(0).max(100),
   })).nullable().optional(),
+  reputationPageEnabled: z.boolean().optional(),
+  socialLinks: z.object({
+    facebook: z.string().optional(),
+    instagram: z.string().optional(),
+    website: z.string().optional(),
+    tripadvisor: z.string().optional(),
+  }).nullable().optional(),
 })
 
 async function getBusinessForUser(userId: string, bizId: string | null) {
@@ -59,13 +66,18 @@ export async function PUT(req: NextRequest) {
     let business = await getBusinessForUser(session.user.id, bizId)
 
     // Prisma requires Prisma.JsonNull (not JS null) for nullable JSON fields
-    const { spinPrizes, ...restData } = data
+    const { spinPrizes, socialLinks, ...restData } = data
     const prismaData = {
       ...restData,
       spinPrizes: spinPrizes === null
         ? Prisma.JsonNull
         : spinPrizes !== undefined
           ? (spinPrizes as Prisma.InputJsonValue)
+          : undefined,
+      socialLinks: socialLinks === null
+        ? Prisma.JsonNull
+        : socialLinks !== undefined
+          ? (socialLinks as Prisma.InputJsonValue)
           : undefined,
     }
 
