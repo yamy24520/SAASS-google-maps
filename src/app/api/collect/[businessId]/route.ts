@@ -32,8 +32,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bus
     select: { name: true, offerEnabled: true, offerText: true, offerType: true, spinPrizes: true, gbpLocationId: true },
   })
 
-  if (!business || !business.offerEnabled || !business.offerText) {
+  if (!business || !business.offerEnabled) {
     return NextResponse.json({ error: "Offre non disponible" }, { status: 404 })
+  }
+  if (business.offerType === "FIXED" && !business.offerText) {
+    return NextResponse.json({ error: "Offre non configurée" }, { status: 404 })
+  }
+  if (business.offerType === "SPIN_WHEEL" && !business.spinPrizes) {
+    return NextResponse.json({ error: "Roulette non configurée" }, { status: 404 })
   }
 
   const existing = await prisma.reviewRequest.findFirst({
@@ -63,7 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bus
     await sendReviewRequestWithOffer({
       customerEmail: email,
       businessName: business.name,
-      offerText: business.offerText,
+      offerText: business.offerText ?? "Tentez votre chance à la roulette !",
       offerType: business.offerType as "FIXED" | "SPIN_WHEEL",
       reviewUrl,
       claimUrl,
