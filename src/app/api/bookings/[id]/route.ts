@@ -23,19 +23,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Introuvable" }, { status: 404 })
   }
 
-  const { status } = await req.json()
-  if (!["PENDING", "CONFIRMED", "CANCELLED"].includes(status)) {
+  const body = await req.json()
+  const { status, date, timeSlot, notes, clientName, clientPhone } = body
+
+  if (status && !["PENDING", "CONFIRMED", "CANCELLED"].includes(status)) {
     return NextResponse.json({ error: "Statut invalide" }, { status: 400 })
   }
 
-  const updated = await prisma.booking.update({ where: { id }, data: { status } })
+  const updated = await prisma.booking.update({
+    where: { id },
+    data: {
+      ...(status && { status }),
+      ...(date && { date }),
+      ...(timeSlot && { timeSlot }),
+      ...(notes !== undefined && { notes: notes || null }),
+      ...(clientName && { clientName }),
+      ...(clientPhone !== undefined && { clientPhone: clientPhone || null }),
+    },
+  })
 
   const dateLabel = new Date(booking.date + "T12:00:00").toLocaleDateString("fr-FR", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   })
   const cancelUrl = updated.cancelToken ? `${APP_URL}/cancel/${updated.cancelToken}` : undefined
 
-  if (status === "CONFIRMED") {
+  if (status && status === "CONFIRMED") {
     sendBookingConfirmedClient({
       clientEmail: booking.clientEmail,
       clientName: booking.clientName,
@@ -49,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }).catch(console.error)
   }
 
-  if (status === "CANCELLED") {
+  if (status && status === "CANCELLED") {
     sendBookingCancelledClient({
       clientEmail: booking.clientEmail,
       clientName: booking.clientName,

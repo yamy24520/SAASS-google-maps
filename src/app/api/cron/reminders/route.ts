@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendBookingReminderClient } from "@/lib/email"
+import { sendBookingReminderSms } from "@/lib/sms"
 
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://reputix.net"
 
@@ -46,6 +47,17 @@ export async function GET(req: NextRequest) {
         price: booking.service?.price ?? 0,
         cancelUrl: booking.cancelToken ? `${APP_URL}/cancel/${booking.cancelToken}` : undefined,
       })
+
+      // SMS si numéro disponible
+      if (booking.clientPhone) {
+        await sendBookingReminderSms({
+          to: booking.clientPhone,
+          clientName: booking.clientName,
+          businessName: booking.business.name,
+          date: dateLabel,
+          timeSlot: booking.timeSlot,
+        }).catch(() => null)
+      }
 
       await prisma.booking.update({
         where: { id: booking.id },

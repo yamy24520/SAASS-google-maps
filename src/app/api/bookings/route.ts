@@ -33,73 +33,107 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ bookings })
 }
 
-// POST — public: créer une réservation
+// POST — public ou dashboard (manuelle): créer une réservation
 export async function POST(req: NextRequest) {
-  const { businessId, serviceId, staffId, clientName, clientEmail, clientPhone, date, timeSlot, notes, partySize } = await req.json()
+  const { businessId, serviceId, staffId, clientName, clientEmail, clientPhone, date, timeSlot, notes, partySize, manualStatus, recurrence, recurrenceEnd } = await req.json()
 
-  if (!businessId || !clientName || !clientEmail || !date || !timeSlot) {
+  if (!clientName || !date || !timeSlot) {
     return NextResponse.json({ error: "Champs manquants" }, { status: 400 })
   }
 
+  // businessId "auto" = création manuelle depuis le dashboard (session requise)
+  let resolvedBusinessId = businessId
+  if (businessId === "auto" || !businessId) {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+    const bizId = new URL(req.url).searchParams.get("biz")
+    const biz = bizId
+      ? await prisma.business.findFirst({ where: { id: bizId, userId: session.user.id } })
+      : await prisma.business.findFirst({ where: { userId: session.user.id }, orderBy: { createdAt: "asc" } })
+    if (!biz) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
+    resolvedBusinessId = biz.id
+  }
+
   const business = await prisma.business.findUnique({
-    where: { id: businessId },
-    select: { name: true, bookingType: true, bookingMaxCovers: true, user: { select: { email: true } } },
+    where: { id: resolvedBusinessId },
+    select: { id: true, name: true, bookingType: true, bookingMaxCovers: true, user: { select: { email: true } } },
   })
   if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
+  const businessId2 = business.id
 
   const isRestaurant = business.bookingType === "restaurant"
 
   let service = null
-  if (!isRestaurant) {
-    if (!serviceId) return NextResponse.json({ error: "Service manquant" }, { status: 400 })
+  if (!isRestaurant && serviceId) {
     service = await prisma.service.findFirst({
-      where: { id: serviceId, businessId, active: true },
+      where: { id: serviceId, businessId: businessId2, active: true },
       select: { name: true, duration: true, price: true },
     })
-    if (!service) return NextResponse.json({ error: "Service introuvable" }, { status: 404 })
   }
 
-  // Vérifier conflit côté serveur
-  if (isRestaurant) {
-    // Restaurant: vérifier capacité
-    if (business.bookingMaxCovers) {
-      const existingCovers = await prisma.booking.aggregate({
-        where: { businessId, date, timeSlot, status: { not: "CANCELLED" } },
-        _sum: { partySize: true },
-      })
-      const taken = existingCovers._sum.partySize ?? 0
-      const needed = partySize ?? 1
-      if (taken + needed > business.bookingMaxCovers) {
-        return NextResponse.json({ error: "Plus de places disponibles pour ce créneau" }, { status: 409 })
+  // Vérifier conflit côté serveur (seulement si pas manualStatus, i.e. réservation publique)
+  if (!manualStatus) {
+    if (isRestaurant) {
+      if (business.bookingMaxCovers) {
+        const existingCovers = await prisma.booking.aggregate({
+          where: { businessId: businessId2, date, timeSlot, status: { not: "CANCELLED" } },
+          _sum: { partySize: true },
+        })
+        const taken = existingCovers._sum.partySize ?? 0
+        const needed = partySize ?? 1
+        if (taken + needed > business.bookingMaxCovers) {
+          return NextResponse.json({ error: "Plus de places disponibles pour ce créneau" }, { status: 409 })
+        }
       }
+    } else {
+      const conflict = await prisma.booking.findFirst({
+        where: { businessId: businessId2, date, timeSlot, status: { not: "CANCELLED" }, ...(staffId ? { staffId } : {}) },
+      })
+      if (conflict) return NextResponse.json({ error: "Ce créneau n'est plus disponible" }, { status: 409 })
     }
-  } else {
-    const conflict = await prisma.booking.findFirst({
-      where: {
-        businessId, date, timeSlot,
-        status: { not: "CANCELLED" },
-        ...(staffId ? { staffId } : {}),
-      },
-    })
-    if (conflict) return NextResponse.json({ error: "Ce créneau n'est plus disponible" }, { status: 409 })
   }
 
+  // Récurrence : générer toutes les dates
+  const dates: string[] = [date]
+  if (recurrence && recurrenceEnd) {
+    const endDate = new Date(recurrenceEnd + "T00:00:00")
+    let cur = new Date(date + "T00:00:00")
+    const step = recurrence === "weekly" ? 7 : recurrence === "biweekly" ? 14 : 30
+    while (true) {
+      cur = new Date(cur)
+      if (recurrence === "monthly") {
+        cur.setMonth(cur.getMonth() + 1)
+      } else {
+        cur.setDate(cur.getDate() + step)
+      }
+      if (cur > endDate) break
+      dates.push(cur.toISOString().split("T")[0])
+    }
+  }
+
+  const recurrenceGroupId = dates.length > 1 ? randomUUID() : null
   const cancelToken = randomUUID()
 
-  const booking = await prisma.booking.create({
-    data: {
-      businessId,
-      serviceId: serviceId || null,
-      staffId: staffId || null,
-      clientName,
-      clientEmail,
-      clientPhone: clientPhone || null,
-      date,
-      timeSlot,
-      notes: notes || null,
-      partySize: partySize || null,
-      cancelToken,
-    },
+  // Créer tous les RDV (récurrence ou single)
+  const bookingsData = dates.map((d, i) => ({
+    businessId: businessId2,
+    serviceId: serviceId || null,
+    staffId: staffId || null,
+    clientName,
+    clientEmail,
+    clientPhone: clientPhone || null,
+    date: d,
+    timeSlot,
+    notes: notes || null,
+    partySize: partySize || null,
+    cancelToken: i === 0 ? cancelToken : randomUUID(),
+    recurrenceGroupId,
+    status: (manualStatus ?? "PENDING") as "PENDING" | "CONFIRMED" | "CANCELLED",
+  }))
+
+  await prisma.booking.createMany({ data: bookingsData })
+  const booking = await prisma.booking.findFirst({
+    where: { cancelToken },
   })
 
   const dateLabel = new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })

@@ -124,6 +124,8 @@ model Business {
   services             Service[]
   bookings             Booking[]
   staffs               Staff[]
+  closedDates          ClosedDate[]
+  waitlistEntries      WaitlistEntry[]
 
   reviews              Review[]
   reputationSnapshots  ReputationSnapshot[]
@@ -279,7 +281,8 @@ model Service {
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  bookings    Booking[]
+  bookings         Booking[]
+  waitlistEntries  WaitlistEntry[]
 
   @@index([businessId])
 }
@@ -316,13 +319,44 @@ model Booking {
   status      BookingStatus @default(PENDING)
   notes       String?
   partySize   Int?
-  cancelToken    String?   @unique
-  reminderSentAt DateTime?
-  createdAt      DateTime  @default(now())
+  cancelToken      String?   @unique
+  reminderSentAt   DateTime?
+  recurrenceGroupId String?  // lie les RDV récurrents entre eux
+  createdAt        DateTime  @default(now())
 
   @@index([businessId, date])
   @@index([businessId, status])
   @@index([cancelToken])
+  @@index([recurrenceGroupId])
+}
+
+model ClosedDate {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  date       String   // "2026-12-25"
+  reason     String?  // "Noël", "Congés"
+  createdAt  DateTime @default(now())
+
+  @@unique([businessId, date])
+  @@index([businessId])
+}
+
+model WaitlistEntry {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  serviceId   String?
+  service     Service? @relation(fields: [serviceId], references: [id])
+
+  clientName  String
+  clientEmail String
+  clientPhone String?
+  preferredDate String?   // date souhaitée ou null = "n'importe quand"
+  notifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([businessId])
 }
 
 enum BookingStatus {

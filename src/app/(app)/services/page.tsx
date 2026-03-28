@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Plus, Trash2, Clock, Euro, Scissors, ToggleLeft, ToggleRight, Link as LinkIcon, Settings2, Users } from "lucide-react"
+import { Plus, Trash2, Clock, Euro, Scissors, ToggleLeft, ToggleRight, Link as LinkIcon, Settings2, CalendarOff } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/toaster"
 
 interface Service { id: string; name: string; description: string | null; duration: number; price: number; active: boolean }
-interface Staff { id: string; name: string; color: string; active: boolean }
+interface ClosedDate { id: string; date: string; reason: string | null }
 type HourEntry = { open: string; close: string; closed: boolean }
 interface BookingSettings {
   bufferMinutes: number; minNoticeHours: number; maxDaysAhead: number
@@ -27,7 +27,8 @@ export default function ServicesPage() {
   const bizParam = searchParams.get("biz") ? `?biz=${searchParams.get("biz")}` : ""
 
   const [services, setServices] = useState<Service[]>([])
-  const [staffs, setStaffs] = useState<Staff[]>([])
+  const [closedDates, setClosedDates] = useState<ClosedDate[]>([])
+  const [newClosed, setNewClosed] = useState({ date: "", reason: "" })
   const [bookingEnabled, setBookingEnabled] = useState(false)
   const [bookingType, setBookingType] = useState<"appointment" | "restaurant">("appointment")
   const [bookingMaxCovers, setBookingMaxCovers] = useState<number>(20)
@@ -38,25 +39,23 @@ export default function ServicesPage() {
   const [pageSlug, setPageSlug] = useState<string | null>(null)
   const [form, setForm] = useState({ name: "", description: "", duration: "60", price: "" })
   const [adding, setAdding] = useState(false)
-  const [staffForm, setStaffForm] = useState({ name: "", color: "#0ea5e9" })
-  const [addingStaff, setAddingStaff] = useState(false)
 
   async function fetchData() {
-    const [svcRes, pageRes, staffRes] = await Promise.all([
+    const [svcRes, pageRes, cdRes] = await Promise.all([
       fetch(`/api/services${bizParam}`),
       fetch(`/api/page${bizParam}`),
-      fetch(`/api/staff${bizParam}`),
+      fetch(`/api/closed-dates${bizParam}`),
     ])
     const svcData = await svcRes.json()
     const pageData = await pageRes.json()
-    const staffData = await staffRes.json()
+    const cdData = await cdRes.json()
     setServices(svcData.services ?? [])
     setBookingEnabled(!!svcData.bookingEnabled)
     setBookingType(svcData.bookingType ?? "appointment")
     setBookingMaxCovers(svcData.bookingMaxCovers ?? 20)
     if (svcData.bookingHours) setHours({ ...DEFAULT_HOURS, ...svcData.bookingHours })
     if (svcData.bookingSettings) setSettings({ ...DEFAULT_SETTINGS, ...svcData.bookingSettings })
-    setStaffs(staffData.staffs ?? [])
+    setClosedDates(cdData.closedDates ?? [])
     setPageSlug(pageData.pageSlug ?? null)
     setLoading(false)
   }
@@ -101,31 +100,25 @@ export default function ServicesPage() {
     setServices(prev => prev.map(s => s.id === id ? { ...s, active: !active } : s))
   }
 
-  async function addStaff() {
-    if (!staffForm.name) return
-    setAddingStaff(true)
-    const res = await fetch(`/api/staff${bizParam}`, {
+  async function addClosedDate() {
+    if (!newClosed.date) return
+    const res = await fetch(`/api/closed-dates${bizParam}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(staffForm),
+      body: JSON.stringify(newClosed),
     })
     const data = await res.json()
     if (res.ok) {
-      setStaffs(prev => [...prev, data.staff])
-      setStaffForm({ name: "", color: "#0ea5e9" })
-      toast({ title: "Prestataire ajouté", variant: "success" })
+      setClosedDates(prev => [...prev.filter(c => c.date !== newClosed.date), data.closedDate].sort((a, b) => a.date.localeCompare(b.date)))
+      setNewClosed({ date: "", reason: "" })
+      toast({ title: "Fermeture ajoutée", variant: "success" })
     }
-    setAddingStaff(false)
   }
 
-  async function deleteStaff(id: string) {
-    const res = await fetch(`/api/staff/${id}`, { method: "DELETE" })
-    if (res.ok) { setStaffs(prev => prev.filter(s => s.id !== id)); toast({ title: "Prestataire supprimé", variant: "success" }) }
-  }
-
-  async function toggleStaffActive(id: string, active: boolean) {
-    await fetch(`/api/staff/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active: !active }) })
-    setStaffs(prev => prev.map(s => s.id === id ? { ...s, active: !active } : s))
+  async function removeClosedDate(date: string) {
+    await fetch(`/api/closed-dates${bizParam}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ date }) })
+    setClosedDates(prev => prev.filter(c => c.date !== date))
+    toast({ title: "Fermeture supprimée", variant: "success" })
   }
 
   function setSetting<K extends keyof BookingSettings>(key: K, value: BookingSettings[K]) {
@@ -253,39 +246,41 @@ export default function ServicesPage() {
         </Card>
       )}
 
-      {/* Prestataires / Staff */}
+      {/* Fermetures exceptionnelles */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Users className="w-4 h-4 text-sky-500" /> Prestataires
-            <span className="text-xs font-normal text-slate-400">(multi-coiffeurs, multi-serveurs…)</span>
+            <CalendarOff className="w-4 h-4 text-sky-500" /> Fermetures exceptionnelles
+            <span className="text-xs font-normal text-slate-400">Congés, jours fériés…</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {staffs.length === 0 && <p className="text-sm text-slate-400 text-center py-2">Aucun prestataire. Laissez vide si vous travaillez seul(e).</p>}
-          {staffs.map(s => (
-            <div key={s.id} className={`flex items-center gap-3 p-3 rounded-xl border ${s.active ? "border-slate-200" : "border-slate-100 opacity-60"}`}>
-              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: s.color }} />
-              <span className="flex-1 text-sm font-medium text-slate-900">{s.name}</span>
-              <button onClick={() => toggleStaffActive(s.id, s.active)}>
-                {s.active ? <ToggleRight className="w-6 h-6 text-sky-500" /> : <ToggleLeft className="w-6 h-6 text-slate-300" />}
-              </button>
-              <button onClick={() => deleteStaff(s.id)} className="text-slate-300 hover:text-red-400 transition-colors">
+          {closedDates.filter(c => c.date >= new Date().toISOString().split("T")[0]).map(c => (
+            <div key={c.date} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-900">
+                  {new Date(c.date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                </p>
+                {c.reason && <p className="text-xs text-slate-400 mt-0.5">{c.reason}</p>}
+              </div>
+              <button onClick={() => removeClosedDate(c.date)} className="text-slate-300 hover:text-red-400 transition-colors">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
           ))}
-          <div className="border border-dashed border-slate-300 rounded-xl p-3 space-y-2 mt-2">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nouveau prestataire</p>
+          {closedDates.filter(c => c.date >= new Date().toISOString().split("T")[0]).length === 0 && (
+            <p className="text-sm text-slate-400 text-center py-2">Aucune fermeture planifiée</p>
+          )}
+          <div className="border border-dashed border-slate-300 rounded-xl p-3 space-y-2">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Ajouter une fermeture</p>
             <div className="flex gap-2">
-              <input value={staffForm.name} onChange={e => setStaffForm(f => ({ ...f, name: e.target.value }))} placeholder="Prénom (ex: Marie)"
+              <input type="date" value={newClosed.date} onChange={e => setNewClosed(f => ({ ...f, date: e.target.value }))}
+                min={new Date().toISOString().split("T")[0]}
                 className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
-              <div className="flex items-center gap-2">
-                <input type="color" value={staffForm.color} onChange={e => setStaffForm(f => ({ ...f, color: e.target.value }))}
-                  className="w-10 h-9 rounded-lg border border-slate-200 cursor-pointer p-1" />
-              </div>
+              <input value={newClosed.reason} onChange={e => setNewClosed(f => ({ ...f, reason: e.target.value }))} placeholder="Motif (optionnel)"
+                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
             </div>
-            <Button size="sm" className="gap-2 w-full" onClick={addStaff} disabled={addingStaff || !staffForm.name}>
+            <Button size="sm" className="gap-2 w-full" onClick={addClosedDate} disabled={!newClosed.date}>
               <Plus className="w-3.5 h-3.5" /> Ajouter
             </Button>
           </div>

@@ -74,6 +74,12 @@ export async function GET(req: NextRequest) {
 
   if (!dayHours || dayHours.closed) return NextResponse.json({ slots: [], reason: "closed" })
 
+  // Vérifier les fermetures exceptionnelles
+  const closedDate = await prisma.closedDate.findUnique({
+    where: { businessId_date: { businessId, date } },
+  })
+  if (closedDate) return NextResponse.json({ slots: [], reason: "closed_exceptional", label: closedDate.reason })
+
   const buffer   = settings.bufferMinutes
   // step = slotInterval si configuré, sinon duration + buffer (ancien comportement)
   const step     = settings.slotInterval ?? (duration + buffer)

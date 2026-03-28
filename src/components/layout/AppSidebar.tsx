@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { LayoutDashboard, MessageSquare, Settings, CreditCard, ChevronRight, Building2, Plus, ChevronDown, TrendingUp, Users, Search, QrCode, Sparkles, Gift, CalendarDays, Scissors, LayoutGrid } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Settings, CreditCard, ChevronRight, Building2, Plus, ChevronDown, TrendingUp, Users, Search, QrCode, Sparkles, Gift, CalendarDays, Scissors, LayoutGrid, UserRound } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 
@@ -18,6 +18,7 @@ const navItems = [
   { href: "/campaigns", label: "Campagne avis", icon: Gift },
   { href: "/bookings", label: "Réservations", icon: CalendarDays },
   { href: "/agenda", label: "Agenda", icon: LayoutGrid },
+  { href: "/clients", label: "Clients", icon: UserRound },
   { href: "/services", label: "Services & Horaires", icon: Scissors },
   { href: "/settings", label: "Paramètres", icon: Settings },
 ]
