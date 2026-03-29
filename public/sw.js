@@ -1,11 +1,12 @@
 self.addEventListener("push", (event) => {
   if (!event.data) return
-  const data = event.data.json()
+  let data
+  try { data = event.data.json() } catch { return }
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: data.icon || "/icon-192.png",
-      badge: "/icon-192.png",
+    self.registration.showNotification(data.title || "Reputix", {
+      body: data.body || "",
+      icon: "/logo.png",
+      badge: "/logo.png",
       data: { url: data.url || "/" },
       vibrate: [200, 100, 200],
     })

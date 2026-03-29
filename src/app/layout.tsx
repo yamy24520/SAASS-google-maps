@@ -17,6 +17,12 @@ export const metadata: Metadata = {
   description:
     "Répondez automatiquement à vos avis Google grâce à l'IA. Améliorez votre SEO local et fidélisez vos clients. Pour restaurants, hôtels et commerces.",
   keywords: ["avis google", "réputation en ligne", "réponse automatique", "SEO local", "restaurant", "hôtel"],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Reputix",
+  },
   icons: {
     icon: "/favicon.png",
     apple: "/logo.png",

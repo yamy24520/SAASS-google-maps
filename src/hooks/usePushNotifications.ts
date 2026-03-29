@@ -28,23 +28,26 @@ export function usePushNotifications() {
   async function subscribe() {
     setState("loading")
     try {
-      const reg = await navigator.serviceWorker.register("/sw.js")
-      await navigator.serviceWorker.ready
-
+      // Demande la permission AVANT d'enregistrer le SW pour une meilleure UX
       const permission = await Notification.requestPermission()
       if (permission !== "granted") { setState("denied"); return }
+
+      // Enregistre le SW et attend qu'il soit actif
+      await navigator.serviceWorker.register("/sw.js")
+      const reg = await navigator.serviceWorker.ready
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
       })
 
-      await fetch("/api/push", {
+      const res = await fetch("/api/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(sub.toJSON()),
       })
 
+      if (!res.ok) throw new Error("Enregistrement échoué")
       setState("subscribed")
     } catch {
       setState("unsubscribed")
