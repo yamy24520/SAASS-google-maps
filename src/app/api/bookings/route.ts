@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sendBookingRequestClient, sendBookingRequestOwner } from "@/lib/email"
+import { sendPushNotification } from "@/lib/push"
 import { randomUUID } from "crypto"
 
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://reputix.net"
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   const business = await prisma.business.findUnique({
     where: { id: resolvedBusinessId },
-    select: { id: true, name: true, bookingType: true, bookingMaxCovers: true, user: { select: { email: true } } },
+    select: { id: true, name: true, bookingType: true, bookingMaxCovers: true, user: { select: { id: true, email: true } } },
   })
   if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
   const businessId2 = business.id
@@ -156,6 +157,24 @@ export async function POST(req: NextRequest) {
     cancelUrl,
     isRestaurant,
     partySize: partySize ?? null,
+  }
+
+  // Notifications push au propriétaire
+  if (business.user?.id) {
+    prisma.pushSubscription.findMany({ where: { userId: business.user.id } }).then(subs => {
+      const serviceName = isRestaurant ? `Table pour ${partySize ?? 1}` : (service?.name ?? "RDV")
+      subs.forEach(sub => {
+        sendPushNotification(sub, {
+          title: `📅 Nouveau RDV — ${clientName}`,
+          body: `${serviceName} · ${new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })} à ${timeSlot}`,
+          url: "/bookings",
+        }).then(result => {
+          if (result === "expired") {
+            prisma.pushSubscription.delete({ where: { endpoint: sub.endpoint } }).catch(() => null)
+          }
+        })
+      })
+    }).catch(() => null)
   }
 
   Promise.all([

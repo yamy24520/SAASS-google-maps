@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { AppSidebar } from "@/components/layout/AppSidebar"
 import { AppTopbar } from "@/components/layout/AppTopbar"
+import { PushNotificationBanner } from "@/components/PushNotificationBanner"
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions)
@@ -42,7 +43,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </div>
             </div>
           ) : (
-            children
+            <>
+              <PushNotificationBanner />
+              {children}
+            </>
           )}
         </main>
       </div>

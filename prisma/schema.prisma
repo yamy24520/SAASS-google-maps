@@ -22,6 +22,7 @@ model User {
   businesses        Business[]
   subscription      Subscription?
   passwordResetTokens PasswordResetToken[]
+  pushSubscriptions PushSubscription[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -315,6 +316,18 @@ model Staff {
   absences    StaffAbsence[]
 
   @@index([businessId])
+}
+
+model PushSubscription {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
 }
 
 model StaffAbsence {
