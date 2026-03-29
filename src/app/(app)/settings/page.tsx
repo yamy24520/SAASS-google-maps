@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import {
   Save, Loader2, Globe, Unlink, ExternalLink,
-  CreditCard, CheckCircle2, AlertCircle, Phone, Mic, MicOff, Building2, Star
+  CreditCard, CheckCircle2, AlertCircle, Phone, Mic, MicOff, Building2, Star, Upload, X
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,7 +54,7 @@ const DEFAULT_SPIN_PRIZES: SpinPrize[] = [
 const TABS = [
   { id: "general",   label: "Général",   icon: Building2 },
   { id: "reviews",   label: "Avis & IA", icon: Star },
-  { id: "advanced",  label: "Avancé",    icon: CreditCard },
+  { id: "advanced",  label: "Paiements", icon: CreditCard },
 ]
 
 export default function SettingsPage() {
@@ -206,6 +206,46 @@ export default function SettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label>Logo</Label>
+                <div className="flex items-center gap-4">
+                  {form.logoDataUrl ? (
+                    <div className="relative">
+                      <img src={form.logoDataUrl} alt="Logo" className="w-16 h-16 rounded-xl object-cover border border-slate-200" />
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, logoDataUrl: null })}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center bg-slate-50">
+                      <Upload className="w-5 h-5 text-slate-400" />
+                    </div>
+                  )}
+                  <label className="cursor-pointer">
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      {form.logoDataUrl ? "Changer" : "Importer"}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        const reader = new FileReader()
+                        reader.onload = ev => setForm({ ...form, logoDataUrl: ev.target?.result as string })
+                        reader.readAsDataURL(file)
+                      }}
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-slate-400">Affiché sur votre page réputation publique</p>
+              </div>
             </CardContent>
           </Card>
 
@@ -345,101 +385,10 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* IA Vocale */}
-          <Card className="border-violet-100">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center">
-                  <Mic className="w-4 h-4 text-violet-600" />
-                </div>
-                IA Vocale
-              </CardTitle>
-              <CardDescription>Un assistant IA répond à vos appels et prend les rendez-vous automatiquement</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!vapiStatus ? (
-                <div className="flex items-center gap-2 text-slate-400 text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Chargement…
-                </div>
-              ) : vapiStatus.enabled ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-violet-50 rounded-xl border border-violet-200">
-                    <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
-                      <Phone className="w-5 h-5 text-violet-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-violet-900 text-sm">IA Vocale active ✓</p>
-                      <p className="text-violet-700 text-sm font-mono mt-0.5">
-                        {vapiStatus.phoneNumber ?? "Numéro en cours d'attribution…"}
-                      </p>
-                    </div>
-                  </div>
-                  {vapiStatus.phoneNumber && (
-                    <div className="bg-slate-50 rounded-xl p-3 space-y-1.5">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Où mettre ce numéro</p>
-                      {["Fiche Google My Business", "Bio Instagram et Facebook", "Votre site web"].map(item => (
-                        <div key={item} className="flex items-center gap-2 text-sm text-slate-600">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" /> {item}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <Button variant="outline" className="gap-2 text-red-500 border-red-200 hover:bg-red-50" disabled={vapiLoading}
-                    onClick={async () => {
-                      if (!bizId) return
-                      setVapiLoading(true)
-                      await fetch(`/api/vapi/setup?biz=${bizId}`, { method: "DELETE" })
-                      setVapiStatus(v => v ? { ...v, enabled: false } : null)
-                      setVapiLoading(false)
-                      toast({ title: "IA Vocale désactivée", variant: "success" })
-                    }}>
-                    {vapiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MicOff className="w-4 h-4" />}
-                    Désactiver l&apos;IA Vocale
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-2 text-sm">
-                    {[
-                      { icon: "📞", title: "Répond à vos appels", desc: "Même quand vous êtes occupé" },
-                      { icon: "📅", title: "Vérifie vos dispos", desc: "En temps réel depuis votre agenda" },
-                      { icon: "✅", title: "Confirme le RDV", desc: "Directement dans votre dashboard" },
-                    ].map(item => (
-                      <div key={item.title} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                        <span className="text-xl">{item.icon}</span>
-                        <div>
-                          <p className="font-medium text-slate-900">{item.title}</p>
-                          <p className="text-slate-500 text-xs">{item.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <Button className="gap-2 bg-violet-600 hover:bg-violet-700 text-white w-full" disabled={vapiLoading || !bizId}
-                    onClick={async () => {
-                      if (!bizId) return
-                      setVapiLoading(true)
-                      const res = await fetch(`/api/vapi/setup?biz=${bizId}`, { method: "POST" })
-                      const data = await res.json()
-                      if (res.ok) {
-                        setVapiStatus({ enabled: true, phoneNumber: null, assistantId: data.assistantId })
-                        toast({ title: "IA Vocale activée !", description: "Votre assistant IA est prêt.", variant: "success" })
-                      } else {
-                        toast({ title: data.error ?? "Erreur", variant: "destructive" })
-                      }
-                      setVapiLoading(false)
-                    }}>
-                    {vapiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
-                    {vapiLoading ? "Configuration en cours…" : "Activer l'IA Vocale"}
-                  </Button>
-                  <p className="text-xs text-slate-400 text-center">Nécessite une clé Vapi.ai configurée</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
       )}
 
-      {/* ─── TAB: AVANCÉ ─── */}
+      {/* ─── TAB: PAIEMENTS ─── */}
       {tab === "advanced" && (
         <div className="space-y-5">
 
