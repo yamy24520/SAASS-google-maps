@@ -1,11 +1,5 @@
 import webpush from "web-push"
 
-webpush.setVapidDetails(
-  "mailto:contact@reputix.net",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!,
-)
-
 export interface PushPayload {
   title: string
   body: string
@@ -17,6 +11,12 @@ export async function sendPushNotification(
   subscription: { endpoint: string; p256dh: string; auth: string },
   payload: PushPayload,
 ) {
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+  const privateKey = process.env.VAPID_PRIVATE_KEY
+  if (!publicKey || !privateKey) return false
+
+  webpush.setVapidDetails("mailto:contact@reputix.net", publicKey, privateKey)
+
   try {
     await webpush.sendNotification(
       {
