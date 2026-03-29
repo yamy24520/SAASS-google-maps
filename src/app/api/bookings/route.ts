@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     where: { businessId: business.id },
     include: {
       service: { select: { name: true, duration: true, price: true } },
-      staff: { select: { name: true, color: true } },
+      staff: { select: { id: true, name: true, color: true } },
     },
     orderBy: [{ date: "asc" }, { timeSlot: "asc" }],
   })

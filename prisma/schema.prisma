@@ -130,6 +130,9 @@ model Business {
   stripeAccountId      String?  // compte Stripe connecté du propriétaire
   stripeAccountStatus  String?  // "pending" | "active" | "restricted"
 
+  // Sync calendrier
+  calendarToken        String?  @unique
+
   pageEvents           PageEvent[]
   services             Service[]
   bookings             Booking[]
@@ -309,8 +312,28 @@ model Staff {
   createdAt   DateTime @default(now())
 
   bookings    Booking[]
+  absences    StaffAbsence[]
 
   @@index([businessId])
+}
+
+model StaffAbsence {
+  id        String      @id @default(cuid())
+  staffId   String
+  staff     Staff       @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  startDate String      // "2026-04-01"
+  endDate   String      // "2026-04-07"
+  reason    String?
+  type      AbsenceType @default(VACATION)
+  createdAt DateTime    @default(now())
+
+  @@index([staffId])
+}
+
+enum AbsenceType {
+  VACATION
+  SICK
+  OTHER
 }
 
 model Booking {

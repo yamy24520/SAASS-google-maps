@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Plus, Trash2, Clock, Euro, Scissors, ToggleLeft, ToggleRight, Link as LinkIcon, Settings2, CalendarOff, CreditCard } from "lucide-react"
+import { Plus, Trash2, Clock, Euro, Scissors, ToggleLeft, ToggleRight, Link as LinkIcon, Settings2, CalendarOff, CreditCard, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/toaster"
 
 interface Service { id: string; name: string; description: string | null; duration: number; price: number; active: boolean }
 interface ClosedDate { id: string; date: string; reason: string | null }
+interface Staff { id: string; name: string; color: string }
+interface StaffAbsence { id: string; staffId: string; startDate: string; endDate: string; reason: string | null; type: string }
 type HourEntry = { open: string; close: string; closed: boolean }
 interface BookingSettings {
   bufferMinutes: number; minNoticeHours: number; maxDaysAhead: number
@@ -40,16 +42,24 @@ export default function ServicesPage() {
   const [pageSlug, setPageSlug] = useState<string | null>(null)
   const [form, setForm] = useState({ name: "", description: "", duration: "60", price: "" })
   const [adding, setAdding] = useState(false)
+  const [staffs, setStaffs] = useState<Staff[]>([])
+  const [absences, setAbsences] = useState<StaffAbsence[]>([])
+  const [newAbsence, setNewAbsence] = useState({ staffId: "", startDate: "", endDate: "", reason: "", type: "VACATION" })
+  const [addingAbsence, setAddingAbsence] = useState(false)
 
   async function fetchData() {
-    const [svcRes, pageRes, cdRes] = await Promise.all([
+    const [svcRes, pageRes, cdRes, staffRes, absRes] = await Promise.all([
       fetch(`/api/services${bizParam}`),
       fetch(`/api/page${bizParam}`),
       fetch(`/api/closed-dates${bizParam}`),
+      fetch(`/api/staff${bizParam}`),
+      fetch(`/api/staff/absences${bizParam}`),
     ])
     const svcData = await svcRes.json()
     const pageData = await pageRes.json()
     const cdData = await cdRes.json()
+    const staffData = await staffRes.json()
+    const absData = await absRes.json()
     setServices(svcData.services ?? [])
     setBookingEnabled(!!svcData.bookingEnabled)
     setBookingType(svcData.bookingType ?? "appointment")
@@ -58,6 +68,8 @@ export default function ServicesPage() {
     if (svcData.bookingSettings) setSettings({ ...DEFAULT_SETTINGS, ...svcData.bookingSettings })
     setClosedDates(cdData.closedDates ?? [])
     setPageSlug(pageData.pageSlug ?? null)
+    setStaffs(staffData.staffs ?? [])
+    setAbsences(absData.absences ?? [])
     setLoading(false)
   }
 
@@ -124,6 +136,29 @@ export default function ServicesPage() {
 
   function setSetting<K extends keyof BookingSettings>(key: K, value: BookingSettings[K]) {
     setSettings(s => ({ ...s, [key]: value }))
+  }
+
+  async function addAbsence() {
+    if (!newAbsence.staffId || !newAbsence.startDate || !newAbsence.endDate) return
+    setAddingAbsence(true)
+    const res = await fetch(`/api/staff/absences${bizParam}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newAbsence),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setAbsences(prev => [...prev, data.absence])
+      setNewAbsence({ staffId: "", startDate: "", endDate: "", reason: "", type: "VACATION" })
+      toast({ title: "Absence ajoutée", variant: "success" })
+    }
+    setAddingAbsence(false)
+  }
+
+  async function removeAbsence(id: string) {
+    await fetch(`/api/staff/absences${bizParam}`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
+    setAbsences(prev => prev.filter(a => a.id !== id))
+    toast({ title: "Absence supprimée", variant: "success" })
   }
 
   useEffect(() => {
@@ -287,6 +322,83 @@ export default function ServicesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Congés & absences équipe */}
+      {staffs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="w-4 h-4 text-sky-500" /> Congés & absences équipe
+              <span className="text-xs font-normal text-slate-400">Bloque automatiquement les créneaux</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Absences existantes par employé */}
+            {staffs.map(s => {
+              const staffAbsences = absences.filter(a => a.staffId === s.id && a.endDate >= new Date().toISOString().split("T")[0])
+              return (
+                <div key={s.id}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.color, display: "inline-block" }} />
+                    <p className="text-sm font-semibold text-slate-800">{s.name}</p>
+                  </div>
+                  {staffAbsences.length === 0 && <p className="text-xs text-slate-400 ml-5 mb-1">Aucune absence planifiée</p>}
+                  {staffAbsences.map(ab => {
+                    const typeLabels: Record<string, string> = { VACATION: "🏖️ Congés", SICK: "🤒 Maladie", OTHER: "📌 Autre" }
+                    const start = new Date(ab.startDate + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+                    const end   = new Date(ab.endDate   + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+                    return (
+                      <div key={ab.id} className="flex items-center gap-3 p-2.5 ml-4 rounded-xl border border-slate-200 bg-slate-50 mb-2">
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-slate-700">{typeLabels[ab.type]} · {start} → {end}</p>
+                          {ab.reason && <p className="text-xs text-slate-400 mt-0.5">{ab.reason}</p>}
+                        </div>
+                        <button onClick={() => removeAbsence(ab.id)} className="text-slate-300 hover:text-red-400 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
+
+            {/* Formulaire nouvelle absence */}
+            <div className="border border-dashed border-slate-300 rounded-xl p-3 space-y-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Planifier une absence</p>
+              <div className="grid grid-cols-2 gap-2">
+                <select value={newAbsence.staffId} onChange={e => setNewAbsence(f => ({ ...f, staffId: e.target.value }))}
+                  className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white">
+                  <option value="">Choisir un employé</option>
+                  {staffs.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <div className="col-span-2 flex gap-1">
+                  {(["VACATION", "SICK", "OTHER"] as const).map(t => {
+                    const labels = { VACATION: "🏖️ Congés", SICK: "🤒 Maladie", OTHER: "📌 Autre" }
+                    return (
+                      <button key={t} onClick={() => setNewAbsence(f => ({ ...f, type: t }))}
+                        className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border transition-all ${newAbsence.type === t ? "bg-sky-500 text-white border-sky-500" : "bg-white text-slate-600 border-slate-200 hover:border-sky-300"}`}>
+                        {labels[t]}
+                      </button>
+                    )
+                  })}
+                </div>
+                <input type="date" value={newAbsence.startDate} onChange={e => setNewAbsence(f => ({ ...f, startDate: e.target.value }))}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                <input type="date" value={newAbsence.endDate} onChange={e => setNewAbsence(f => ({ ...f, endDate: e.target.value }))}
+                  min={newAbsence.startDate || new Date().toISOString().split("T")[0]}
+                  className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                <input value={newAbsence.reason} onChange={e => setNewAbsence(f => ({ ...f, reason: e.target.value }))} placeholder="Motif (optionnel)"
+                  className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+              </div>
+              <Button size="sm" className="gap-2 w-full" onClick={addAbsence} disabled={addingAbsence || !newAbsence.staffId || !newAbsence.startDate || !newAbsence.endDate}>
+                <Plus className="w-3.5 h-3.5" /> Planifier l&apos;absence
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Horaires */}
       <Card>
@@ -468,7 +580,7 @@ export default function ServicesPage() {
                 )}
 
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-                  💡 Le RDV est automatiquement confirmé après paiement. Une commission de 1,5% est prélevée par Reputix.
+                  💡 Le RDV est automatiquement confirmé après paiement. Frais Stripe : 1,4% + 0,10 € par transaction (directs, aucune commission Reputix).
                 </div>
               </div>
             )}

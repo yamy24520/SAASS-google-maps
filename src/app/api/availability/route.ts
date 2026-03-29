@@ -80,6 +80,23 @@ export async function GET(req: NextRequest) {
   })
   if (closedDate) return NextResponse.json({ slots: [], reason: "closed_exceptional", label: closedDate.reason })
 
+  // Vérifier les absences du staff
+  if (staffId) {
+    const absent = await prisma.staffAbsence.findFirst({
+      where: { staffId, startDate: { lte: date }, endDate: { gte: date } },
+    })
+    if (absent) return NextResponse.json({ slots: [], reason: "staff_absent" })
+  } else {
+    // Sans staff spécifié : vérifier si TOUS les staff actifs sont absents
+    const allStaffs = await prisma.staff.findMany({ where: { businessId, active: true }, select: { id: true } })
+    if (allStaffs.length > 0) {
+      const presentStaff = await Promise.all(
+        allStaffs.map(s => prisma.staffAbsence.findFirst({ where: { staffId: s.id, startDate: { lte: date }, endDate: { gte: date } } }))
+      )
+      if (presentStaff.every(a => a !== null)) return NextResponse.json({ slots: [], reason: "all_staff_absent" })
+    }
+  }
+
   const buffer   = settings.bufferMinutes
   // step = slotInterval si configuré, sinon duration + buffer (ancien comportement)
   const step     = settings.slotInterval ?? (duration + buffer)
