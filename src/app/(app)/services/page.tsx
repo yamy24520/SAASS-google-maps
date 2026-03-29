@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Plus, Trash2, Clock, Euro, Scissors, ToggleLeft, ToggleRight, Link as LinkIcon, Settings2, CalendarOff } from "lucide-react"
+import { Plus, Trash2, Clock, Euro, Scissors, ToggleLeft, ToggleRight, Link as LinkIcon, Settings2, CalendarOff, CreditCard } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/toaster"
@@ -14,11 +14,12 @@ interface BookingSettings {
   bufferMinutes: number; minNoticeHours: number; maxDaysAhead: number
   breakStart: string; breakEnd: string; breakEnabled: boolean
   slotInterval: number
+  paymentEnabled: boolean; depositType: "full" | "percent" | "fixed"; depositValue: number
 }
 
 const DAYS: [string, string][] = [["monday","Lundi"],["tuesday","Mardi"],["wednesday","Mercredi"],["thursday","Jeudi"],["friday","Vendredi"],["saturday","Samedi"],["sunday","Dimanche"]]
 const DEFAULT_HOURS: Record<string, HourEntry> = Object.fromEntries(DAYS.map(([k]) => [k, { open: "09:00", close: "18:00", closed: k === "sunday" }]))
-const DEFAULT_SETTINGS: BookingSettings = { bufferMinutes: 0, minNoticeHours: 1, maxDaysAhead: 60, breakStart: "12:00", breakEnd: "13:00", breakEnabled: false, slotInterval: 30 }
+const DEFAULT_SETTINGS: BookingSettings = { bufferMinutes: 0, minNoticeHours: 1, maxDaysAhead: 60, breakStart: "12:00", breakEnd: "13:00", breakEnabled: false, slotInterval: 30, paymentEnabled: false, depositType: "full", depositValue: 100 }
 
 const SLOT_INTERVALS = [{ value: 15, label: "15 min" }, { value: 30, label: "30 min" }, { value: 60, label: "1 h" }]
 
@@ -412,6 +413,68 @@ export default function ServicesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Paiement en ligne */}
+      {bookingType === "appointment" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CreditCard className="w-4 h-4 text-sky-500" /> Paiement en ligne
+              <span className="text-xs font-normal text-slate-400">Stripe Connect requis dans Paramètres</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-900">Activer le paiement à la réservation</p>
+                <p className="text-xs text-slate-500 mt-0.5">Le client paie lors de la réservation en ligne</p>
+              </div>
+              <button onClick={() => setSetting("paymentEnabled", !settings.paymentEnabled)}>
+                {settings.paymentEnabled ? <ToggleRight className="w-7 h-7 text-sky-500" /> : <ToggleLeft className="w-7 h-7 text-slate-300" />}
+              </button>
+            </div>
+
+            {settings.paymentEnabled && (
+              <div className="border-t border-slate-100 pt-4 space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-700 mb-2">Type de paiement</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { value: "full", label: "Total", desc: "100% du prix" },
+                      { value: "percent", label: "Acompte %", desc: `${settings.depositValue}% du prix` },
+                      { value: "fixed", label: "Acompte fixe", desc: `${settings.depositValue} €` },
+                    ] as const).map(opt => (
+                      <button key={opt.value} onClick={() => setSetting("depositType", opt.value)}
+                        className={`p-3 rounded-xl border text-left transition-all ${settings.depositType === opt.value ? "border-sky-500 bg-sky-50" : "border-slate-200 hover:border-slate-300"}`}>
+                        <p className={`text-sm font-semibold ${settings.depositType === opt.value ? "text-sky-700" : "text-slate-700"}`}>{opt.label}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{opt.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {settings.depositType !== "full" && (
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm text-slate-700 flex-1">
+                      {settings.depositType === "percent" ? "Pourcentage de l'acompte" : "Montant fixe de l'acompte"}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <input type="number" min="1" max={settings.depositType === "percent" ? 100 : 9999}
+                        value={settings.depositValue} onChange={e => setSetting("depositValue", Number(e.target.value))}
+                        className="w-20 px-2 py-1.5 text-sm border border-slate-200 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                      <span className="text-sm text-slate-500">{settings.depositType === "percent" ? "%" : "€"}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+                  💡 Le RDV est automatiquement confirmé après paiement. Une commission de 1,5% est prélevée par Reputix.
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Button onClick={saveSettings} disabled={saving} className="w-full">
         {saving ? "Sauvegarde..." : "Sauvegarder tous les paramètres"}

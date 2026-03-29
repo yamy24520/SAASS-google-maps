@@ -21,6 +21,8 @@ interface Booking {
   staff: { name: string; color: string } | null
   partySize: number | null
   recurrenceGroupId: string | null
+  paymentStatus: "NOT_REQUIRED" | "PENDING" | "PAID" | "REFUNDED" | "FAILED"
+  depositAmount: number | null
   createdAt: string
 }
 
@@ -340,9 +342,22 @@ export default function BookingsPage() {
                                     {booking.staff && <span className="ml-1 text-slate-400 text-xs">· {booking.staff.name}</span>}
                                   </p>
                                 </div>
-                                <Badge variant={cfg.variant} className="flex items-center gap-1 shrink-0">
-                                  <Icon className="w-3 h-3" />{cfg.label}
-                                </Badge>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {booking.paymentStatus === "PAID" && (
+                                    <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
+                                      💳 {booking.depositAmount ? `${booking.depositAmount.toFixed(0)} €` : "Payé"}
+                                    </span>
+                                  )}
+                                  {booking.paymentStatus === "PENDING" && (
+                                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">⏳ En attente</span>
+                                  )}
+                                  {booking.paymentStatus === "FAILED" && (
+                                    <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">❌ Échec</span>
+                                  )}
+                                  <Badge variant={cfg.variant} className="flex items-center gap-1">
+                                    <Icon className="w-3 h-3" />{cfg.label}
+                                  </Badge>
+                                </div>
                               </div>
                               <div className="flex flex-wrap gap-3 text-xs text-slate-500 mt-2">
                                 <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{booking.clientEmail}</span>

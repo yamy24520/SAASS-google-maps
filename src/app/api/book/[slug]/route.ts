@@ -6,7 +6,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
 
   const business = await prisma.business.findFirst({
     where: { OR: [{ pageSlug: slug }, { id: slug }] },
-    select: { id: true, bookingEnabled: true, bookingType: true, bookingMaxCovers: true, bookingSettings: true },
+    select: { id: true, bookingEnabled: true, bookingType: true, bookingMaxCovers: true, bookingSettings: true, stripeAccountStatus: true },
   })
 
   if (!business) return NextResponse.json({ error: "Introuvable" }, { status: 404 })
@@ -30,6 +30,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     bookingType: business.bookingType,
     bookingMaxCovers: business.bookingMaxCovers,
     bookingSettings: business.bookingSettings,
+    stripeAccountStatus: business.stripeAccountStatus,
     services,
     staffs,
   })

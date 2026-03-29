@@ -8,6 +8,7 @@ interface Staff   { id: string; name: string; color: string }
 interface BusinessInfo {
   businessId: string; businessName: string; logoDataUrl: string | null
   pageTheme: string; maxDaysAhead: number; bookingType: string; bookingMaxCovers: number | null
+  paymentEnabled: boolean; depositType: string; depositValue: number; stripeReady: boolean
 }
 
 type Step = "service" | "staff" | "datetime" | "form" | "done"
@@ -69,6 +70,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
     ]).then(([pageData, bookData]) => {
       if (pageData.error || !bookData.bookingEnabled) { setNotFound(true); setLoading(false); return }
       const maxDaysAhead = (bookData.bookingSettings as { maxDaysAhead?: number } | null)?.maxDaysAhead ?? 60
+      const bSettings = (bookData.bookingSettings ?? {}) as Record<string, unknown>
       setInfo({
         businessId: pageData.businessId,
         businessName: pageData.businessName,
@@ -77,6 +79,10 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         maxDaysAhead,
         bookingType: bookData.bookingType ?? "appointment",
         bookingMaxCovers: bookData.bookingMaxCovers ?? null,
+        paymentEnabled: !!(bSettings.paymentEnabled) && !!(bookData.stripeAccountStatus === "active"),
+        depositType: (bSettings.depositType as string) ?? "full",
+        depositValue: (bSettings.depositValue as number) ?? 100,
+        stripeReady: bookData.stripeAccountStatus === "active",
       })
       setServices(bookData.services ?? [])
       setStaffs(bookData.staffs ?? [])
@@ -123,6 +129,16 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
     })
     const data = await res.json()
     if (res.ok) {
+      // Paiement en ligne activé → rediriger vers Stripe Checkout
+      if (info?.paymentEnabled && data.booking?.id) {
+        const checkoutRes = await fetch("/api/bookings/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookingId: data.booking.id }),
+        })
+        const checkoutData = await checkoutRes.json()
+        if (checkoutData.url) { window.location.href = checkoutData.url; return }
+      }
       setStep("done")
     } else {
       setSubmitError(data.error ?? "Une erreur est survenue")

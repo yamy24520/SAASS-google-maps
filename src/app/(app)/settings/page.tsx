@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Save, Loader2, Globe, Unlink, Gift, Plus, Trash2, ExternalLink, Star } from "lucide-react"
+import { Save, Loader2, Globe, Unlink, Gift, Plus, Trash2, ExternalLink, Star, CreditCard, CheckCircle2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -75,8 +75,11 @@ export default function SettingsPage() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [stripeConnect, setStripeConnect] = useState<{ connected: boolean; active?: boolean; chargesEnabled?: boolean; payoutsEnabled?: boolean } | null>(null)
+  const [connectLoading, setConnectLoading] = useState(false)
 
   useEffect(() => {
+    if (bizId) fetch(`/api/stripe/connect?biz=${bizId}`).then(r => r.json()).then(setStripeConnect)
     fetch(`/api/settings${bizParam}`)
       .then((r) => r.json())
       .then((data) => {
@@ -602,6 +605,75 @@ export default function SettingsPage() {
                   <Globe className="w-3.5 h-3.5" />
                   Connecter
                 </a>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Stripe Connect */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-violet-500" /> Paiement en ligne (Stripe Connect)
+          </CardTitle>
+          <CardDescription>Connectez votre compte Stripe pour recevoir les paiements de réservations directement.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!stripeConnect ? (
+            <p className="text-sm text-slate-400 animate-pulse">Chargement…</p>
+          ) : stripeConnect.connected && stripeConnect.active ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Compte Stripe actif</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Paiements et virements activés</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={async () => {
+                setConnectLoading(true)
+                const res = await fetch("/api/stripe/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bizId }) })
+                const data = await res.json()
+                if (data.url) window.location.href = data.url
+                setConnectLoading(false)
+              }} disabled={connectLoading}>
+                {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                Gérer le compte
+              </Button>
+            </div>
+          ) : stripeConnect.connected && !stripeConnect.active ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500" />
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Compte en attente de vérification</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Finalisez votre inscription Stripe pour activer les paiements</p>
+                </div>
+              </div>
+              <Button size="sm" className="gap-2" onClick={async () => {
+                setConnectLoading(true)
+                const res = await fetch("/api/stripe/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bizId }) })
+                const data = await res.json()
+                if (data.url) window.location.href = data.url
+                setConnectLoading(false)
+              }} disabled={connectLoading}>
+                {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                Finaliser l&apos;inscription
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">Aucun compte Stripe connecté</p>
+              <Button size="sm" className="gap-2 bg-violet-600 hover:bg-violet-500" onClick={async () => {
+                setConnectLoading(true)
+                const res = await fetch("/api/stripe/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bizId }) })
+                const data = await res.json()
+                if (data.url) window.location.href = data.url
+                setConnectLoading(false)
+              }} disabled={connectLoading}>
+                {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+                Connecter Stripe
               </Button>
             </div>
           )}

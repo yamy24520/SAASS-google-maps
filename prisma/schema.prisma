@@ -126,6 +126,10 @@ model Business {
   bookingType          String   @default("appointment") // "appointment" | "restaurant"
   bookingMaxCovers     Int?
 
+  // Stripe Connect
+  stripeAccountId      String?  // compte Stripe connecté du propriétaire
+  stripeAccountStatus  String?  // "pending" | "active" | "restricted"
+
   pageEvents           PageEvent[]
   services             Service[]
   bookings             Booking[]
@@ -328,7 +332,13 @@ model Booking {
   partySize   Int?
   cancelToken      String?   @unique
   reminderSentAt   DateTime?
-  recurrenceGroupId String?  // lie les RDV récurrents entre eux
+  recurrenceGroupId String?
+
+  // Paiement
+  paymentStatus    PaymentStatus @default(NOT_REQUIRED)
+  paymentIntentId  String?       // Stripe Checkout Session ID
+  depositAmount    Float?        // montant réellement débité
+
   createdAt        DateTime  @default(now())
 
   @@index([businessId, date])
@@ -370,6 +380,14 @@ enum BookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
+}
+
+enum PaymentStatus {
+  NOT_REQUIRED   // paiement non activé
+  PENDING        // en attente de paiement
+  PAID           // payé
+  REFUNDED       // remboursé
+  FAILED         // échec
 }
 
 model LeadEmail {
