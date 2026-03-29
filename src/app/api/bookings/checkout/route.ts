@@ -40,8 +40,8 @@ export async function POST(req: NextRequest) {
     weekday: "long", day: "numeric", month: "long",
   })
 
-  // Commission plateforme Reputix : 1.5%
-  const platformFee = Math.round(amount * 0.015)
+  // Commission plateforme Reputix : 0%
+  const platformFee = 0
 
   const checkoutSession = await stripe.checkout.sessions.create(
     {
