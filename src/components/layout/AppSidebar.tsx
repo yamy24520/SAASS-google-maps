@@ -3,9 +3,10 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { LayoutDashboard, MessageSquare, Settings, CreditCard, ChevronRight, Building2, Plus, ChevronDown, TrendingUp, Users, Search, QrCode, Sparkles, Gift, CalendarDays, Scissors, LayoutGrid, UserRound } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Settings, CreditCard, ChevronRight, Building2, Plus, ChevronDown, TrendingUp, Users, Search, QrCode, Sparkles, Gift, CalendarDays, Scissors, LayoutGrid, UserRound, ShieldCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
+import { useSession } from "next-auth/react"
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -38,6 +39,8 @@ export function AppSidebar({ isSubscribed, businesses }: AppSidebarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [showBusinessMenu, setShowBusinessMenu] = useState(false)
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === "ADMIN"
 
   const activeBizId = searchParams.get("biz") ?? businesses[0]?.id ?? null
   const activeBiz = businesses.find((b) => b.id === activeBizId) ?? businesses[0]
@@ -126,6 +129,23 @@ export function AppSidebar({ isSubscribed, businesses }: AppSidebarProps) {
             </Link>
           )
         })}
+
+        {/* Lien Admin — visible seulement pour les admins */}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 mt-2",
+              pathname.startsWith("/admin")
+                ? "bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-violet-500/20"
+                : "text-violet-600 hover:bg-violet-50"
+            )}
+          >
+            <ShieldCheck className="w-4 h-4 flex-shrink-0" />
+            Admin
+            {pathname.startsWith("/admin") && <ChevronRight className="w-3 h-3 ml-auto" />}
+          </Link>
+        )}
 
         {/* Billing séparé */}
         {!isSubscribed && (
