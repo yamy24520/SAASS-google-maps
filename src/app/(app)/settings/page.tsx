@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import {
-  Save, Loader2, Globe, Unlink, Gift, Plus, Trash2, ExternalLink,
-  CreditCard, CheckCircle2, AlertCircle, Phone, Mic, MicOff, Building2, Star, Bell
+  Save, Loader2, Globe, Unlink, ExternalLink,
+  CreditCard, CheckCircle2, AlertCircle, Phone, Mic, MicOff, Building2, Star
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,9 +52,9 @@ const DEFAULT_SPIN_PRIZES: SpinPrize[] = [
 ]
 
 const TABS = [
-  { id: "general",   label: "Général",     icon: Building2 },
-  { id: "reviews",   label: "Avis & IA",   icon: Star },
-  { id: "page",      label: "Page & Offres", icon: Bell },
+  { id: "general",   label: "Général",   icon: Building2 },
+  { id: "reviews",   label: "Avis & IA", icon: Star },
+  { id: "advanced",  label: "Avancé",    icon: CreditCard },
 ]
 
 export default function SettingsPage() {
@@ -439,227 +439,9 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ─── TAB: PAGE & OFFRES ─── */}
-      {tab === "page" && (
+      {/* ─── TAB: AVANCÉ ─── */}
+      {tab === "advanced" && (
         <div className="space-y-5">
-          {/* Page réputation */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="w-4 h-4 text-amber-500" />
-                Page de réputation publique
-              </CardTitle>
-              <CardDescription>Une page partageable avec vos avis, photos et réseaux sociaux</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Activer la page publique</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Accessible via QR code ou lien partageable</p>
-                </div>
-                <Switch checked={form.reputationPageEnabled} onCheckedChange={v => setForm({ ...form, reputationPageEnabled: v })} />
-              </div>
-
-              {form.reputationPageEnabled && (
-                <>
-                  {form.id && (
-                    <a href={`/r/${form.id}`} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-xs text-sky-600 hover:underline">
-                      <ExternalLink className="w-3.5 h-3.5" /> Prévisualiser ma page
-                    </a>
-                  )}
-
-                  {/* Logo */}
-                  <div className="space-y-2">
-                    <Label>Logo</Label>
-                    <div className="flex items-center gap-4">
-                      {form.logoDataUrl ? (
-                        <img src={form.logoDataUrl} alt="Logo" className="w-16 h-16 rounded-xl object-cover border border-slate-200" />
-                      ) : (
-                        <div className="w-16 h-16 rounded-xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-2xl font-bold">
-                          {form.name ? form.name.charAt(0).toUpperCase() : "?"}
-                        </div>
-                      )}
-                      <div className="space-y-1.5">
-                        <input type="file" accept="image/*" className="hidden" id="logo-upload"
-                          onChange={e => {
-                            const file = e.target.files?.[0]
-                            if (!file) return
-                            const reader = new FileReader()
-                            reader.onload = ev => {
-                              const img = new window.Image()
-                              img.onload = () => {
-                                const canvas = document.createElement("canvas")
-                                const size = 256
-                                canvas.width = size; canvas.height = size
-                                const ctx = canvas.getContext("2d")!
-                                const scale = Math.max(size / img.width, size / img.height)
-                                const w = img.width * scale; const h = img.height * scale
-                                ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)
-                                setForm({ ...form, logoDataUrl: canvas.toDataURL("image/jpeg", 0.85) })
-                              }
-                              img.src = ev.target?.result as string
-                            }
-                            reader.readAsDataURL(file)
-                            e.target.value = ""
-                          }}
-                        />
-                        <Label htmlFor="logo-upload" className="cursor-pointer inline-flex items-center gap-2 text-xs text-sky-600 border border-sky-300 rounded-lg px-3 py-1.5 hover:bg-sky-50 transition-colors">
-                          {form.logoDataUrl ? "Changer" : "Uploader un logo"}
-                        </Label>
-                        {form.logoDataUrl && (
-                          <button type="button" onClick={() => setForm({ ...form, logoDataUrl: null })}
-                            className="block text-xs text-red-400 hover:text-red-600">Supprimer</button>
-                        )}
-                        <p className="text-xs text-slate-400">PNG, JPG — 256×256px</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Tagline */}
-                  <div className="space-y-1.5">
-                    <Label>Accroche <span className="text-slate-400 font-normal">(optionnelle)</span></Label>
-                    <Input
-                      value={form.pageTagline ?? ""}
-                      onChange={e => setForm({ ...form, pageTagline: e.target.value || null })}
-                      placeholder="Restaurant gastronomique au cœur de Paris"
-                    />
-                  </div>
-
-                  {/* Thème */}
-                  <div className="space-y-2">
-                    <Label>Thème</Label>
-                    <div className="flex gap-2">
-                      {[
-                        { key: "dark",   label: "Sombre",  bg: "#1e293b", accent: "#f59e0b" },
-                        { key: "light",  label: "Clair",   bg: "#f1f5f9", accent: "#6366f1" },
-                        { key: "warm",   label: "Chaleur", bg: "#7c2d12", accent: "#fbbf24" },
-                        { key: "ocean",  label: "Océan",   bg: "#0e7490", accent: "#38bdf8" },
-                        { key: "forest", label: "Forêt",   bg: "#14532d", accent: "#4ade80" },
-                      ].map(t => (
-                        <button key={t.key} type="button" onClick={() => setForm({ ...form, pageTheme: t.key })}
-                          className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all ${
-                            form.pageTheme === t.key ? "border-sky-500 scale-105" : "border-transparent hover:border-slate-200"
-                          }`}>
-                          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: t.bg }}>
-                            <div className="w-3 h-3 rounded-full" style={{ background: t.accent }} />
-                          </div>
-                          <span className="text-xs text-slate-600">{t.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Réseaux sociaux */}
-                  <div className="space-y-2 pt-1">
-                    <p className="text-sm font-medium text-slate-700">Réseaux sociaux <span className="text-xs font-normal text-slate-400">(optionnels)</span></p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { key: "facebook",    label: "Facebook",    placeholder: "https://facebook.com/..." },
-                        { key: "instagram",   label: "Instagram",   placeholder: "https://instagram.com/..." },
-                        { key: "tripadvisor", label: "TripAdvisor", placeholder: "https://tripadvisor.fr/..." },
-                        { key: "website",     label: "Site web",    placeholder: "https://votresite.fr" },
-                      ].map(({ key, label, placeholder }) => (
-                        <div key={key} className="space-y-1">
-                          <Label className="text-xs">{label}</Label>
-                          <Input
-                            value={(form.socialLinks as Record<string, string> | null)?.[key] ?? ""}
-                            onChange={e => setForm({ ...form, socialLinks: { ...(form.socialLinks ?? {}), [key]: e.target.value } })}
-                            placeholder={placeholder}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Offre */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Gift className="w-4 h-4 text-sky-500" /> Offre client
-              </CardTitle>
-              <CardDescription>Proposez un cadeau pour inciter vos clients à laisser un avis</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Activer l&apos;offre</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Envoyée par email après collecte</p>
-                </div>
-                <Switch checked={form.offerEnabled} onCheckedChange={v => setForm({ ...form, offerEnabled: v })} />
-              </div>
-
-              {form.offerEnabled && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { value: "FIXED",      label: "Offre fixe",          desc: "Un cadeau défini à l'avance" },
-                      { value: "SPIN_WHEEL", label: "Roulette des cadeaux", desc: "Le client tourne une roue" },
-                    ].map(t => (
-                      <button key={t.value} type="button" onClick={() => setForm({ ...form, offerType: t.value as "FIXED" | "SPIN_WHEEL" })}
-                        className={`p-3 rounded-xl border-2 text-left transition-all ${
-                          form.offerType === t.value ? "border-sky-500 bg-sky-50" : "border-slate-200 hover:border-sky-200"
-                        }`}>
-                        <div className="text-sm font-medium text-slate-900">{t.label}</div>
-                        <div className="text-xs text-slate-500">{t.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label>{form.offerType === "SPIN_WHEEL" ? "Texte de présentation" : "Texte de l'offre"}</Label>
-                    <Input
-                      value={form.offerText ?? ""}
-                      onChange={e => setForm({ ...form, offerText: e.target.value })}
-                      placeholder={form.offerType === "SPIN_WHEEL" ? "Tentez votre chance !" : "Un verre offert à votre prochaine visite"}
-                    />
-                  </div>
-
-                  {form.offerType === "SPIN_WHEEL" && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label>Prix de la roulette</Label>
-                        <Button type="button" variant="outline" size="sm" className="gap-1 h-7 text-xs"
-                          onClick={() => {
-                            const prizes = form.spinPrizes ?? DEFAULT_SPIN_PRIZES
-                            setForm({ ...form, spinPrizes: [...prizes, { emoji: "🎁", label: "Surprise", probability: 10 }] })
-                          }}>
-                          <Plus className="w-3 h-3" /> Ajouter
-                        </Button>
-                      </div>
-                      <div className="space-y-2">
-                        {(form.spinPrizes ?? DEFAULT_SPIN_PRIZES).map((prize, i) => {
-                          const prizes = form.spinPrizes ?? DEFAULT_SPIN_PRIZES
-                          return (
-                            <div key={i} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
-                              <Input value={prize.emoji} className="w-12 text-center px-1"
-                                onChange={e => { const u = [...prizes]; u[i] = { ...u[i], emoji: e.target.value }; setForm({ ...form, spinPrizes: u }) }} />
-                              <Input value={prize.label} className="flex-1"
-                                onChange={e => { const u = [...prizes]; u[i] = { ...u[i], label: e.target.value }; setForm({ ...form, spinPrizes: u }) }} />
-                              <div className="flex items-center gap-1">
-                                <Input type="number" min={1} max={100} value={prize.probability} className="w-14 text-center px-1"
-                                  onChange={e => { const u = [...prizes]; u[i] = { ...u[i], probability: parseInt(e.target.value) || 1 }; setForm({ ...form, spinPrizes: u }) }} />
-                                <span className="text-xs text-slate-400">%</span>
-                              </div>
-                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-600"
-                                onClick={() => { const u = prizes.filter((_, idx) => idx !== i); setForm({ ...form, spinPrizes: u.length > 0 ? u : null }) }}>
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          )
-                        })}
-                      </div>
-                      <p className="text-xs text-slate-400">Les probabilités sont relatives — pas besoin de totaliser 100.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
           {/* Stripe Connect */}
           <Card>
@@ -711,6 +493,99 @@ export default function SettingsPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* IA Vocale */}
+          <Card className="border-violet-100">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center">
+                  <Mic className="w-4 h-4 text-violet-600" />
+                </div>
+                IA Vocale
+              </CardTitle>
+              <CardDescription>Un assistant IA répond à vos appels et prend les rendez-vous automatiquement</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!vapiStatus ? (
+                <div className="flex items-center gap-2 text-slate-400 text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Chargement…
+                </div>
+              ) : vapiStatus.enabled ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-4 bg-violet-50 rounded-xl border border-violet-200">
+                    <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
+                      <Phone className="w-5 h-5 text-violet-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-violet-900 text-sm">IA Vocale active ✓</p>
+                      <p className="text-violet-700 text-sm font-mono mt-0.5">
+                        {vapiStatus.phoneNumber ?? "Numéro en cours d'attribution…"}
+                      </p>
+                    </div>
+                  </div>
+                  {vapiStatus.phoneNumber && (
+                    <div className="bg-slate-50 rounded-xl p-3 space-y-1.5">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Où mettre ce numéro</p>
+                      {["Fiche Google My Business", "Bio Instagram et Facebook", "Votre site web"].map(item => (
+                        <div key={item} className="flex items-center gap-2 text-sm text-slate-600">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" /> {item}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button variant="outline" className="gap-2 text-red-500 border-red-200 hover:bg-red-50" disabled={vapiLoading}
+                    onClick={async () => {
+                      if (!bizId) return
+                      setVapiLoading(true)
+                      await fetch(`/api/vapi/setup?biz=${bizId}`, { method: "DELETE" })
+                      setVapiStatus(v => v ? { ...v, enabled: false } : null)
+                      setVapiLoading(false)
+                      toast({ title: "IA Vocale désactivée", variant: "success" })
+                    }}>
+                    {vapiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MicOff className="w-4 h-4" />}
+                    Désactiver l&apos;IA Vocale
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { icon: "📞", title: "Répond à vos appels", desc: "Même quand vous êtes occupé" },
+                      { icon: "📅", title: "Vérifie vos dispos", desc: "En temps réel depuis votre agenda" },
+                      { icon: "✅", title: "Confirme le RDV", desc: "Directement dans votre dashboard" },
+                    ].map(item => (
+                      <div key={item.title} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                        <span className="text-xl">{item.icon}</span>
+                        <div>
+                          <p className="font-medium text-slate-900 text-sm">{item.title}</p>
+                          <p className="text-slate-500 text-xs">{item.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <Button className="gap-2 bg-violet-600 hover:bg-violet-700 text-white w-full" disabled={vapiLoading || !bizId}
+                    onClick={async () => {
+                      if (!bizId) return
+                      setVapiLoading(true)
+                      const res = await fetch(`/api/vapi/setup?biz=${bizId}`, { method: "POST" })
+                      const data = await res.json()
+                      if (res.ok) {
+                        setVapiStatus({ enabled: true, phoneNumber: null, assistantId: data.assistantId })
+                        toast({ title: "IA Vocale activée !", description: "Votre assistant IA est prêt.", variant: "success" })
+                      } else {
+                        toast({ title: data.error ?? "Erreur", variant: "destructive" })
+                      }
+                      setVapiLoading(false)
+                    }}>
+                    {vapiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+                    {vapiLoading ? "Configuration en cours…" : "Activer l'IA Vocale"}
+                  </Button>
+                  <p className="text-xs text-slate-400 text-center">Nécessite une clé Vapi.ai configurée</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
         </div>
       )}
 
