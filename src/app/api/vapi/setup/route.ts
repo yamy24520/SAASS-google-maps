@@ -68,11 +68,11 @@ Sois concise et naturelle.`
                 serviceId: { type: "string", description: "ID du service (optionnel)" }
               },
               required: ["date"]
-            },
-            server: {
-              url: `${baseUrl}/api/vapi/availability?businessId=${business.id}`,
-              headers: { "x-vapi-secret": webhookSecret }
             }
+          },
+          server: {
+            url: `${baseUrl}/api/vapi/availability?businessId=${business.id}`,
+            secret: webhookSecret
           }
         },
         {
@@ -91,11 +91,11 @@ Sois concise et naturelle.`
                 notes: { type: "string", description: "Notes supplémentaires (optionnel)" }
               },
               required: ["date", "timeSlot", "clientName"]
-            },
-            server: {
-              url: `${baseUrl}/api/vapi/book`,
-              headers: { "x-vapi-secret": webhookSecret }
             }
+          },
+          server: {
+            url: `${baseUrl}/api/vapi/book`,
+            secret: webhookSecret
           }
         }
       ]
@@ -133,6 +133,10 @@ Sois concise et naturelle.`
         body: JSON.stringify(assistantConfig)
       })
       const created = await createRes.json()
+      console.log("[vapi/setup] Réponse Vapi:", JSON.stringify(created).slice(0, 500))
+      if (!createRes.ok) {
+        return NextResponse.json({ error: `Vapi API error: ${created.message ?? JSON.stringify(created)}` }, { status: 500 })
+      }
       assistantId = created.id
     }
 
