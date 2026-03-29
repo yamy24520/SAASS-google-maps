@@ -1,12 +1,11 @@
 "use client"
 
+import { Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { XCircle } from "lucide-react"
-import Link from "next/link"
 
-export default function BookingCancelPage() {
-  const searchParams = useSearchParams()
-  const bookingId = searchParams.get("booking")
+function CancelContent() {
+  useSearchParams() // conservé si besoin futur
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
@@ -18,7 +17,6 @@ export default function BookingCancelPage() {
           <h1 className="text-2xl font-bold text-white">Paiement annulé</h1>
           <p className="text-slate-200 mt-2 text-sm">Votre réservation n&apos;a pas été confirmée</p>
         </div>
-
         <div className="p-8 text-center space-y-4">
           <p className="text-slate-600 text-sm">
             Aucun montant n&apos;a été débité. Vous pouvez réessayer en reprenant votre réservation.
@@ -32,5 +30,13 @@ export default function BookingCancelPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function BookingCancelPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50" />}>
+      <CancelContent />
+    </Suspense>
   )
 }

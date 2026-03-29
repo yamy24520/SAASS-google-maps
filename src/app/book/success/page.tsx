@@ -1,9 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { CheckCircle2, CalendarDays, Clock, User } from "lucide-react"
-import Link from "next/link"
 
 interface Booking {
   clientName: string; date: string; timeSlot: string
@@ -11,7 +10,7 @@ interface Booking {
   service: { name: string; duration: number } | null
 }
 
-export default function BookingSuccessPage() {
+function SuccessContent() {
   const searchParams = useSearchParams()
   const bookingId = searchParams.get("booking")
   const [booking, setBooking] = useState<Booking | null>(null)
@@ -37,7 +36,6 @@ export default function BookingSuccessPage() {
           <h1 className="text-2xl font-bold text-white">Réservation confirmée !</h1>
           <p className="text-emerald-100 mt-2 text-sm">Votre paiement a bien été reçu</p>
         </div>
-
         <div className="p-8">
           {booking ? (
             <div className="space-y-4">
@@ -63,12 +61,19 @@ export default function BookingSuccessPage() {
           ) : (
             <div className="text-center text-slate-400 text-sm animate-pulse">Chargement…</div>
           )}
-
           <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-700 text-center">
             Un email de confirmation vous a été envoyé.
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function BookingSuccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50" />}>
+      <SuccessContent />
+    </Suspense>
   )
 }
