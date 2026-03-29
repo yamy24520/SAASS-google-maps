@@ -26,6 +26,13 @@ export async function GET(req: NextRequest) {
   try {
     const account = await stripe.accounts.retrieve(business.stripeAccountId)
     const active = account.charges_enabled && account.payouts_enabled
+    const newStatus = active ? "active" : "pending"
+    if (business.stripeAccountStatus !== newStatus) {
+      await prisma.business.update({
+        where: { id: business.id },
+        data: { stripeAccountStatus: newStatus },
+      })
+    }
     return NextResponse.json({
       connected: true,
       active,
