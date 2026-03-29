@@ -1,5 +1,3 @@
-import webpush from "web-push"
-
 export interface PushPayload {
   title: string
   body: string
@@ -19,6 +17,8 @@ export async function sendPushNotification(
   }
 
   try {
+    // Import dynamique pour éviter le crash à l'import sur Vercel
+    const webpush = (await import("web-push")).default
     webpush.setVapidDetails("mailto:contact@reputix.net", publicKey, privateKey)
     await webpush.sendNotification(
       {
