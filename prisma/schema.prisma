@@ -134,6 +134,11 @@ model Business {
   // Sync calendrier
   calendarToken        String?  @unique
 
+  // IA Vocale (Vapi)
+  vapiAssistantId  String?
+  vapiPhoneNumber  String?
+  vapiEnabled      Boolean @default(false)
+
   pageEvents           PageEvent[]
   services             Service[]
   bookings             Booking[]

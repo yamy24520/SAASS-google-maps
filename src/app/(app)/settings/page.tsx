@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Save, Loader2, Globe, Unlink, Gift, Plus, Trash2, ExternalLink, Star, CreditCard, CheckCircle2, AlertCircle } from "lucide-react"
+import { Save, Loader2, Globe, Unlink, Gift, Plus, Trash2, ExternalLink, Star, CreditCard, CheckCircle2, AlertCircle, Phone, Mic, MicOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -78,9 +78,16 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [stripeConnect, setStripeConnect] = useState<{ connected: boolean; active?: boolean; chargesEnabled?: boolean; payoutsEnabled?: boolean } | null>(null)
   const [connectLoading, setConnectLoading] = useState(false)
+  const [vapiStatus, setVapiStatus] = useState<{ enabled: boolean; phoneNumber: string | null; assistantId: string | null } | null>(null)
+  const [vapiLoading, setVapiLoading] = useState(false)
 
   useEffect(() => {
-    if (bizId) fetch(`/api/stripe/connect?biz=${bizId}`).then(r => r.json()).then(setStripeConnect)
+    if (bizId) {
+      fetch(`/api/stripe/connect?biz=${bizId}`).then(r => r.json()).then(setStripeConnect)
+      fetch(`/api/vapi/status?biz=${bizId}`).then(r => r.json()).then(d => {
+        setVapiStatus({ enabled: d.vapiEnabled ?? false, phoneNumber: d.vapiPhoneNumber ?? null, assistantId: d.vapiAssistantId ?? null })
+      }).catch(() => {})
+    }
     fetch(`/api/settings${bizParam}`)
       .then((r) => r.json())
       .then((data) => {
@@ -691,6 +698,116 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <PushNotificationToggle />
+        </CardContent>
+      </Card>
+
+      {/* IA Vocale */}
+      <Card className="border-violet-100">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center">
+              <Mic className="w-4 h-4 text-violet-600" />
+            </div>
+            IA Vocale — Répondeur automatique
+          </CardTitle>
+          <CardDescription>
+            Un assistant IA répond à vos appels, vérifie vos disponibilités et prend les rendez-vous automatiquement — même quand vous êtes occupé.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!vapiStatus ? (
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" /> Chargement…
+            </div>
+          ) : vapiStatus.enabled ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-violet-50 rounded-xl border border-violet-200">
+                <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
+                  <Phone className="w-5 h-5 text-violet-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-violet-900 text-sm">IA Vocale active ✓</p>
+                  {vapiStatus.phoneNumber ? (
+                    <p className="text-violet-700 text-sm font-mono mt-0.5">{vapiStatus.phoneNumber}</p>
+                  ) : (
+                    <p className="text-violet-600 text-xs mt-0.5">Numéro en cours d&apos;attribution…</p>
+                  )}
+                </div>
+              </div>
+              {vapiStatus.phoneNumber && (
+                <div className="bg-slate-50 rounded-xl p-3 space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Où mettre ce numéro</p>
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    Fiche Google My Business (numéro de contact)
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    Bio Instagram et Facebook
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    Votre site web
+                  </div>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                className="gap-2 text-red-500 border-red-200 hover:bg-red-50"
+                disabled={vapiLoading}
+                onClick={async () => {
+                  if (!bizId) return
+                  setVapiLoading(true)
+                  await fetch(`/api/vapi/setup?biz=${bizId}`, { method: "DELETE" })
+                  setVapiStatus(v => v ? { ...v, enabled: false } : null)
+                  setVapiLoading(false)
+                  toast({ title: "IA Vocale désactivée", variant: "success" })
+                }}
+              >
+                {vapiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MicOff className="w-4 h-4" />}
+                Désactiver l&apos;IA Vocale
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 text-sm">
+                {[
+                  { icon: "📞", title: "Répond à vos appels", desc: "Même quand vous êtes en train de travailler" },
+                  { icon: "📅", title: "Vérifie vos dispos", desc: "En temps réel depuis votre agenda Reputix" },
+                  { icon: "✅", title: "Confirme le RDV", desc: "Directement dans votre dashboard" },
+                ].map(item => (
+                  <div key={item.title} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl">
+                    <span className="text-xl">{item.icon}</span>
+                    <div>
+                      <p className="font-medium text-slate-900">{item.title}</p>
+                      <p className="text-slate-500 text-xs">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Button
+                className="gap-2 bg-violet-600 hover:bg-violet-700 text-white w-full"
+                disabled={vapiLoading || !bizId}
+                onClick={async () => {
+                  if (!bizId) return
+                  setVapiLoading(true)
+                  const res = await fetch(`/api/vapi/setup?biz=${bizId}`, { method: "POST" })
+                  const data = await res.json()
+                  if (res.ok) {
+                    setVapiStatus({ enabled: true, phoneNumber: null, assistantId: data.assistantId })
+                    toast({ title: "IA Vocale activée !", description: "Votre assistant IA est prêt.", variant: "success" })
+                  } else {
+                    toast({ title: data.error ?? "Erreur", variant: "destructive" })
+                  }
+                  setVapiLoading(false)
+                }}
+              >
+                {vapiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+                {vapiLoading ? "Configuration en cours…" : "Activer l'IA Vocale"}
+              </Button>
+              <p className="text-xs text-slate-400 text-center">Nécessite une clé Vapi.ai configurée</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
