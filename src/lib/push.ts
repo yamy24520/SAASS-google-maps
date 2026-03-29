@@ -13,11 +13,13 @@ export async function sendPushNotification(
 ) {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
   const privateKey = process.env.VAPID_PRIVATE_KEY
-  if (!publicKey || !privateKey) return false
-
-  webpush.setVapidDetails("mailto:contact@reputix.net", publicKey, privateKey)
+  if (!publicKey || !privateKey) {
+    console.error("[push] VAPID keys manquantes (NEXT_PUBLIC_VAPID_PUBLIC_KEY ou VAPID_PRIVATE_KEY)")
+    return false
+  }
 
   try {
+    webpush.setVapidDetails("mailto:contact@reputix.net", publicKey, privateKey)
     await webpush.sendNotification(
       {
         endpoint: subscription.endpoint,
@@ -27,10 +29,9 @@ export async function sendPushNotification(
     )
     return true
   } catch (err: unknown) {
-    // 410 Gone = subscription expirée, à supprimer
-    if (err && typeof err === "object" && "statusCode" in err && (err as { statusCode: number }).statusCode === 410) {
-      return "expired"
-    }
+    const status = err && typeof err === "object" && "statusCode" in err ? (err as { statusCode: number }).statusCode : null
+    console.error("[push] Erreur envoi notification:", status, err)
+    if (status === 410) return "expired"
     return false
   }
 }
