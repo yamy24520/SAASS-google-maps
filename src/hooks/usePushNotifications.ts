@@ -16,7 +16,9 @@ export function usePushNotifications() {
       setState("denied")
       return
     }
-    navigator.serviceWorker.ready.then(reg => {
+    // getRegistration() retourne undefined si pas encore de SW — pas de blocage
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (!reg) { setState("unsubscribed"); return }
       reg.pushManager.getSubscription().then(sub => {
         setState(sub ? "subscribed" : "unsubscribed")
       })
