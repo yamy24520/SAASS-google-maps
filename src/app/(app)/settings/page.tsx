@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { toast } from "@/components/ui/toaster"
+import { PushNotificationToggle } from "@/components/PushNotificationBanner"
 
 interface SpinPrize {
   emoji: string
@@ -677,6 +678,19 @@ export default function SettingsPage() {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Notifications push */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            🔔 Notifications push
+          </CardTitle>
+          <CardDescription>Recevez une alerte instantanée sur cet appareil à chaque nouveau RDV</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PushNotificationToggle />
         </CardContent>
       </Card>
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, BellOff, X } from "lucide-react"
+import { Bell, BellOff, X, Send } from "lucide-react"
 import { usePushNotifications } from "@/hooks/usePushNotifications"
 import { useState } from "react"
 
@@ -39,36 +39,58 @@ export function PushNotificationBanner() {
 // Bouton compact pour les settings
 export function PushNotificationToggle() {
   const { state, subscribe, unsubscribe } = usePushNotifications()
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<string | null>(null)
+
+  async function sendTest() {
+    setTesting(true)
+    setTestResult(null)
+    const res = await fetch("/api/push/test", { method: "POST" })
+    const data = await res.json()
+    setTestResult(res.ok ? `✅ Notification envoyée (${data.sent}/${data.total})` : `❌ ${data.error}`)
+    setTesting(false)
+  }
 
   if (state === "unsupported") return (
     <p className="text-xs text-slate-400">Notifications push non supportées par ce navigateur</p>
   )
 
   return (
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-slate-900">Notifications push</p>
-        <p className="text-xs text-slate-500 mt-0.5">
-          {state === "subscribed" ? "✅ Activées sur cet appareil" :
-           state === "denied" ? "❌ Bloquées — autorisez dans les réglages du navigateur" :
-           "Alertes instantanées pour chaque nouveau RDV"}
-        </p>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-900">Notifications push</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {state === "subscribed" ? "✅ Activées sur cet appareil" :
+             state === "denied" ? "❌ Bloquées — autorisez dans les réglages du navigateur" :
+             "Alertes instantanées pour chaque nouveau RDV"}
+          </p>
+        </div>
+        {state !== "denied" && (
+          <button
+            onClick={state === "subscribed" ? unsubscribe : subscribe}
+            disabled={state === "loading"}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              state === "subscribed"
+                ? "bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600"
+                : "bg-sky-500 text-white hover:bg-sky-600"
+            }`}
+          >
+            {state === "subscribed"
+              ? <><BellOff className="w-3 h-3" /> Désactiver</>
+              : <><Bell className="w-3 h-3" /> {state === "loading" ? "..." : "Activer"}</>
+            }
+          </button>
+        )}
       </div>
-      {state !== "denied" && (
-        <button
-          onClick={state === "subscribed" ? unsubscribe : subscribe}
-          disabled={state === "loading"}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-            state === "subscribed"
-              ? "bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600"
-              : "bg-sky-500 text-white hover:bg-sky-600"
-          }`}
-        >
-          {state === "subscribed"
-            ? <><BellOff className="w-3 h-3" /> Désactiver</>
-            : <><Bell className="w-3 h-3" /> {state === "loading" ? "..." : "Activer"}</>
-          }
-        </button>
+      {state === "subscribed" && (
+        <div className="flex items-center gap-3">
+          <button onClick={sendTest} disabled={testing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
+            <Send className="w-3 h-3" /> {testing ? "Envoi..." : "Tester les notifications"}
+          </button>
+          {testResult && <p className="text-xs text-slate-500">{testResult}</p>}
+        </div>
       )}
     </div>
   )
