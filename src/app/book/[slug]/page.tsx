@@ -1,7 +1,7 @@
 "use client"
 
 import { use, useEffect, useState } from "react"
-import { CheckCircle2, ChevronLeft, Clock, Euro, Users } from "lucide-react"
+import { CheckCircle2, ChevronLeft, Clock, CreditCard, Euro, MapPin, Users } from "lucide-react"
 
 interface Service { id: string; name: string; description: string | null; duration: number; price: number }
 interface Staff   { id: string; name: string; color: string }
@@ -11,7 +11,7 @@ interface BusinessInfo {
   paymentEnabled: boolean; depositType: string; depositValue: number; stripeReady: boolean
 }
 
-type Step = "service" | "staff" | "datetime" | "form" | "done"
+type Step = "service" | "staff" | "datetime" | "form" | "payment" | "done"
 
 function Spinner() {
   return <div style={{ width: 20, height: 20, border: "2px solid rgba(0,0,0,0.1)", borderTopColor: "#0ea5e9", borderRadius: "50%", animation: "spin 0.7s linear infinite", margin: "0 auto" }} />
@@ -61,6 +61,8 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" })
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
+  const [createdBookingId, setCreatedBookingId] = useState<string | null>(null)
+  const [payingOnline, setPayingOnline] = useState(false)
 
   // Load business info + services + staffs
   useEffect(() => {
@@ -129,21 +131,32 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
     })
     const data = await res.json()
     if (res.ok) {
-      // Paiement en ligne activé → rediriger vers Stripe Checkout
       if (info?.paymentEnabled && data.booking?.id) {
-        const checkoutRes = await fetch("/api/bookings/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bookingId: data.booking.id }),
-        })
-        const checkoutData = await checkoutRes.json()
-        if (checkoutData.url) { window.location.href = checkoutData.url; return }
+        setCreatedBookingId(data.booking.id)
+        setStep("payment")
+      } else {
+        setStep("done")
       }
-      setStep("done")
     } else {
       setSubmitError(data.error ?? "Une erreur est survenue")
     }
     setSubmitting(false)
+  }
+
+  async function payOnline() {
+    if (!createdBookingId) return
+    setPayingOnline(true)
+    const checkoutRes = await fetch("/api/bookings/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookingId: createdBookingId }),
+    })
+    const checkoutData = await checkoutRes.json()
+    if (checkoutData.url) {
+      window.location.href = checkoutData.url
+    } else {
+      setPayingOnline(false)
+    }
   }
 
   if (loading) return (
@@ -164,14 +177,15 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   const isRestaurant = info?.bookingType === "restaurant"
   const hasStaff = staffs.length > 0
 
-  // Steps for appointment with staff: service → staff → datetime → form
-  // Steps for appointment without staff: service → datetime → form
-  // Steps for restaurant: datetime → form
+  // Steps for appointment with staff: service → staff → datetime → form [→ payment]
+  // Steps for appointment without staff: service → datetime → form [→ payment]
+  // Steps for restaurant: datetime → form [→ payment]
+  const paymentStep: Step[] = info?.paymentEnabled ? ["payment"] : []
   const STEPS: Step[] = isRestaurant
-    ? ["datetime", "form"]
-    : hasStaff ? ["service", "staff", "datetime", "form"] : ["service", "datetime", "form"]
+    ? ["datetime", "form", ...paymentStep]
+    : hasStaff ? ["service", "staff", "datetime", "form", ...paymentStep] : ["service", "datetime", "form", ...paymentStep]
   const LABELS: Record<Step, string> = {
-    service: "Prestation", staff: "Prestataire", datetime: "Date & heure", form: "Coordonnées", done: "Confirmé"
+    service: "Prestation", staff: "Prestataire", datetime: "Date & heure", form: "Coordonnées", payment: "Paiement", done: "Confirmé"
   }
 
   return (
@@ -432,6 +446,82 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           </div>
         )}
 
+        {/* STEP: Payment choice */}
+        {step === "payment" && (
+          <div>
+            <button onClick={() => setStep("form")} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 14, padding: "0 0 16px", fontWeight: 500 }}>
+              <ChevronLeft style={{ width: 16, height: 16 }} /> Retour
+            </button>
+
+            {/* Recap */}
+            <div style={{ background: `${accent}10`, border: `1px solid ${accent}30`, borderRadius: 14, padding: "14px 16px", marginBottom: 28 }}>
+              {isRestaurant ? (
+                <>
+                  <p style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", margin: "0 0 4px" }}>Table pour {partySize} personne{partySize > 1 ? "s" : ""}</p>
+                  <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>{fmtDate(selectedDate)} à {selectedSlot}</p>
+                </>
+              ) : selectedService && (
+                <>
+                  <p style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", margin: "0 0 4px" }}>{selectedService.name}</p>
+                  <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+                    {fmtDate(selectedDate)} à {selectedSlot} · {selectedService.duration} min
+                    {selectedStaff && !anyStaff ? ` · ${selectedStaff.name}` : ""}
+                  </p>
+                </>
+              )}
+            </div>
+
+            <p style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", margin: "0 0 6px" }}>Comment souhaitez-vous régler ?</p>
+            {info?.depositType !== "full" && selectedService && (
+              <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 20px" }}>
+                {info?.depositType === "percent"
+                  ? `Acompte de ${info.depositValue}% (${((selectedService.price * info.depositValue) / 100).toFixed(2)} €) requis à la réservation`
+                  : `Acompte fixe de ${info?.depositValue?.toFixed(2)} € requis à la réservation`}
+              </p>
+            )}
+            {info?.depositType === "full" && selectedService && (
+              <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 20px" }}>
+                Paiement complet de {selectedService.price.toFixed(2)} € à la réservation
+              </p>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <button onClick={payOnline} disabled={payingOnline}
+                style={{ display: "flex", alignItems: "center", gap: 16, padding: "20px 20px", background: payingOnline ? "#f1f5f9" : "#fff", border: `2px solid ${accent}`, borderRadius: 16, cursor: payingOnline ? "default" : "pointer", textAlign: "left", transition: "all 0.15s", opacity: payingOnline ? 0.7 : 1 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: `${accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <CreditCard style={{ width: 24, height: 24, color: accent }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontWeight: 700, fontSize: 15, color: "#0f172a", margin: "0 0 3px" }}>
+                    {payingOnline ? "Redirection vers le paiement…" : "Payer en ligne maintenant"}
+                  </p>
+                  <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>Carte bancaire · Paiement sécurisé Stripe</p>
+                </div>
+                {!payingOnline && <span style={{ fontSize: 15, fontWeight: 700, color: accent, whiteSpace: "nowrap" }}>
+                  {info?.depositType === "percent" && selectedService
+                    ? `${((selectedService.price * (info.depositValue ?? 100)) / 100).toFixed(2)} €`
+                    : info?.depositType === "fixed"
+                    ? `${(info.depositValue ?? 0).toFixed(2)} €`
+                    : selectedService ? `${selectedService.price.toFixed(2)} €` : ""}
+                </span>}
+              </button>
+
+              <button onClick={() => setStep("done")} disabled={payingOnline}
+                style={{ display: "flex", alignItems: "center", gap: 16, padding: "20px 20px", background: "#fff", border: "2px solid #e2e8f0", borderRadius: 16, cursor: payingOnline ? "default" : "pointer", textAlign: "left", transition: "border-color 0.15s", opacity: payingOnline ? 0.4 : 1 }}
+                onMouseEnter={e => { if (!payingOnline) e.currentTarget.style.borderColor = "#94a3b8" }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0" }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <MapPin style={{ width: 24, height: 24, color: "#64748b" }} />
+                </div>
+                <div>
+                  <p style={{ fontWeight: 700, fontSize: 15, color: "#0f172a", margin: "0 0 3px" }}>Payer sur place</p>
+                  <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>Règlement lors du rendez-vous</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* STEP: Done */}
         {step === "done" && (
           <div style={{ textAlign: "center", padding: "40px 0" }}>
@@ -451,6 +541,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               setSelectedService(null); setSelectedStaff(null); setAnyStaff(false)
               setSelectedDate(""); setSelectedSlot(""); setPartySize(2)
               setForm({ name: "", email: "", phone: "", notes: "" })
+              setCreatedBookingId(null); setPayingOnline(false)
             }}
               style={{ marginTop: 32, padding: "12px 28px", borderRadius: 12, background: accent, color: "#fff", fontWeight: 600, fontSize: 14, border: "none", cursor: "pointer" }}>
               Nouvelle réservation
