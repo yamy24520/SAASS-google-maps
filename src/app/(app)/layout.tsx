@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { getServerSession } from "next-auth"
 import { redirect } from "next/navigation"
 import { headers } from "next/headers"
@@ -5,6 +6,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { AppSidebar } from "@/components/layout/AppSidebar"
 import { AppTopbar } from "@/components/layout/AppTopbar"
+import { MobileNav } from "@/components/layout/MobileNav"
 import { PushNotificationBanner } from "@/components/PushNotificationBanner"
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -31,7 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <AppSidebar isSubscribed={isActive} businesses={businesses} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <AppTopbar user={session.user} />
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 pb-20 lg:pb-8">
           {!isActive && !isBillingPage ? (
             <div className="max-w-2xl mx-auto mt-8">
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
@@ -50,6 +52,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
         </main>
       </div>
+      <Suspense fallback={null}>
+        <MobileNav businesses={businesses} isSubscribed={isActive} />
+      </Suspense>
     </div>
   )
 }

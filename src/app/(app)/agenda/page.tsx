@@ -69,7 +69,9 @@ export default function AgendaPage() {
   const [absences, setAbsences] = useState<StaffAbsence[]>([])
   const [calendarToken, setCalendarToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<"week" | "day">("week")
+  const [view, setView] = useState<"week" | "day">(() =>
+    typeof window !== "undefined" && window.innerWidth < 1024 ? "day" : "week"
+  )
   const [filterStaffId, setFilterStaffId] = useState<string | null>(null)
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [showSync, setShowSync] = useState(false)
