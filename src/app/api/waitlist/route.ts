@@ -52,6 +52,13 @@ export async function POST(req: NextRequest) {
     },
   })
 
+  // Archiver le lead
+  prisma.leadEmail.upsert({
+    where: { businessId_email: { businessId, email: clientEmail } } as never,
+    update: { name: clientName, phone: clientPhone || null },
+    create: { businessId, email: clientEmail, name: clientName, phone: clientPhone || null, source: "waitlist" },
+  }).catch(() => null)
+
   // Email de confirmation liste d'attente
   try {
     const resend = new Resend(process.env.RESEND_API_KEY ?? "placeholder")

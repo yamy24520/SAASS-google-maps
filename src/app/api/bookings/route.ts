@@ -132,9 +132,14 @@ export async function POST(req: NextRequest) {
   }))
 
   await prisma.booking.createMany({ data: bookingsData })
-  const booking = await prisma.booking.findFirst({
-    where: { cancelToken },
-  })
+  const booking = await prisma.booking.findFirst({ where: { cancelToken } })
+
+  // Archiver le lead email (upsert par email+business pour éviter les doublons)
+  prisma.leadEmail.upsert({
+    where: { businessId_email: { businessId: businessId2, email: clientEmail } } as never,
+    update: { name: clientName, phone: clientPhone || null },
+    create: { businessId: businessId2, email: clientEmail, name: clientName, phone: clientPhone || null, source: "booking" },
+  }).catch(() => null)
 
   const dateLabel = new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
   const cancelUrl = `${APP_URL}/cancel/${cancelToken}`
