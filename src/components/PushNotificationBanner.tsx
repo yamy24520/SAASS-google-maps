@@ -38,7 +38,7 @@ export function PushNotificationBanner() {
 
 // Bouton compact pour les settings
 export function PushNotificationToggle() {
-  const { state, subscribe, unsubscribe } = usePushNotifications()
+  const { state, error, subscribe, unsubscribe } = usePushNotifications()
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<string | null>(null)
 
@@ -53,6 +53,15 @@ export function PushNotificationToggle() {
 
   if (state === "unsupported") return (
     <p className="text-xs text-slate-400">Notifications push non supportées par ce navigateur</p>
+  )
+
+  if (error) return (
+    <div className="space-y-3">
+      <p className="text-sm font-medium text-red-600">Erreur : {error}</p>
+      <button onClick={subscribe} className="px-3 py-1.5 bg-sky-500 text-white text-xs font-semibold rounded-lg">
+        Réessayer
+      </button>
+    </div>
   )
 
   return (

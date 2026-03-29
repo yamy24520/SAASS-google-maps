@@ -6,6 +6,7 @@ export type PushState = "unsupported" | "denied" | "subscribed" | "unsubscribed"
 
 export function usePushNotifications() {
   const [state, setState] = useState<PushState>("loading")
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -27,18 +28,20 @@ export function usePushNotifications() {
 
   async function subscribe() {
     setState("loading")
+    setError(null)
     try {
-      // Demande la permission AVANT d'enregistrer le SW pour une meilleure UX
       const permission = await Notification.requestPermission()
       if (permission !== "granted") { setState("denied"); return }
 
-      // Enregistre le SW et attend qu'il soit actif
       await navigator.serviceWorker.register("/sw.js")
       const reg = await navigator.serviceWorker.ready
 
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      if (!vapidKey) throw new Error("Clé VAPID publique manquante dans le bundle")
+
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
       })
 
       const res = await fetch("/api/push", {
@@ -47,9 +50,14 @@ export function usePushNotifications() {
         body: JSON.stringify(sub.toJSON()),
       })
 
-      if (!res.ok) throw new Error("Enregistrement échoué")
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? `HTTP ${res.status}`)
+      }
       setState("subscribed")
-    } catch {
+    } catch (err) {
+      console.error("[push] subscribe error:", err)
+      setError(err instanceof Error ? err.message : String(err))
       setState("unsubscribed")
     }
   }
@@ -73,7 +81,7 @@ export function usePushNotifications() {
     }
   }
 
-  return { state, subscribe, unsubscribe }
+  return { state, error, subscribe, unsubscribe }
 }
 
 function urlBase64ToUint8Array(base64String: string) {
