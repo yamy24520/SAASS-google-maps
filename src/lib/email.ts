@@ -208,87 +208,125 @@ export async function sendReviewRequestWithOffer(params: {
 
 // ─── BOOKING EMAILS ───────────────────────────────────────────────────────────
 
-function bookingBlock(params: { serviceName: string; date: string; timeSlot: string; duration: number; price: number }) {
+function bookingBlock(params: {
+  serviceName: string; date: string; timeSlot: string
+  duration: number; price: number; isRestaurant?: boolean; partySize?: number | null
+}) {
+  const rows = [
+    { icon: "🗓️", label: "Date", value: params.date },
+    { icon: "🕐", label: "Heure", value: params.timeSlot },
+    ...(params.isRestaurant ? [
+      { icon: "👥", label: "Couverts", value: `${params.partySize ?? 1} personne${(params.partySize ?? 1) > 1 ? "s" : ""}` },
+    ] : [
+      { icon: "✂️", label: "Prestation", value: params.serviceName },
+      { icon: "⏱️", label: "Durée", value: `${params.duration} min` },
+      ...(params.price > 0 ? [{ icon: "💶", label: "Prix", value: `${params.price.toFixed(2)} €` }] : []),
+    ]),
+  ]
+
+  const rowsHtml = rows.map(r => `
+    <tr>
+      <td style="padding:10px 16px;width:40px;font-size:16px;vertical-align:middle;">${r.icon}</td>
+      <td style="padding:10px 0;color:#64748b;font-size:13px;vertical-align:middle;">${r.label}</td>
+      <td style="padding:10px 16px 10px 0;color:#0f172a;font-size:14px;font-weight:600;text-align:right;vertical-align:middle;">${r.value}</td>
+    </tr>
+  `).join(`<tr><td colspan="3" style="padding:0;"><div style="height:1px;background:#f1f5f9;margin:0 16px;"></div></td></tr>`)
+
   return `
-    <div style="background:#f8fafc;border-radius:12px;padding:20px;margin:0 0 24px;">
-      <table width="100%" cellpadding="0" cellspacing="0">
-        <tr><td style="color:#64748b;font-size:13px;padding-bottom:6px;">Prestation</td><td style="color:#1e293b;font-weight:600;font-size:14px;text-align:right;">${params.serviceName}</td></tr>
-        <tr><td style="color:#64748b;font-size:13px;padding-bottom:6px;">Date</td><td style="color:#1e293b;font-weight:600;font-size:14px;text-align:right;">${params.date}</td></tr>
-        <tr><td style="color:#64748b;font-size:13px;padding-bottom:6px;">Heure</td><td style="color:#1e293b;font-weight:600;font-size:14px;text-align:right;">${params.timeSlot}</td></tr>
-        <tr><td style="color:#64748b;font-size:13px;padding-bottom:6px;">Durée</td><td style="color:#1e293b;font-weight:600;font-size:14px;text-align:right;">${params.duration} min</td></tr>
-        <tr><td style="color:#64748b;font-size:13px;">Prix</td><td style="color:#0ea5e9;font-weight:700;font-size:15px;text-align:right;">${params.price.toFixed(2)} €</td></tr>
+    <div style="background:#f8fafc;border-radius:14px;overflow:hidden;margin:0 0 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        ${rowsHtml}
       </table>
     </div>`
 }
 
-function emailShell(title: string, subtitle: string, body: string) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
-<body style="font-family:-apple-system,sans-serif;background:#f8fafc;padding:40px 20px;margin:0;">
-  <div style="max-width:520px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-    <div style="background:linear-gradient(135deg,#0ea5e9,#06b6d4);padding:28px 32px;text-align:center;">
-      <h1 style="color:white;margin:0;font-size:22px;font-weight:700;">Reputix</h1>
-      <p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:14px;">${title}</p>
-    </div>
-    <div style="padding:32px;">${body}</div>
-    <div style="padding:14px 32px;background:#f8fafc;text-align:center;">
-      <p style="color:#94a3b8;font-size:11px;margin:0;">Propulsé par <strong>Reputix</strong></p>
+function emailShell(bizName: string, subtitle: string, accentColor: string, body: string) {
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;padding:32px 16px;margin:0;">
+  <div style="max-width:520px;margin:0 auto;">
+    <!-- Card -->
+    <div style="background:white;border-radius:20px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,0.10);">
+      <!-- Header -->
+      <div style="background:${accentColor};padding:32px 32px 28px;text-align:center;">
+        <div style="width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:14px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:white;line-height:52px;">
+          ${bizName.charAt(0).toUpperCase()}
+        </div>
+        <h1 style="color:white;margin:0;font-size:20px;font-weight:700;letter-spacing:-0.3px;">${bizName}</h1>
+        <p style="color:rgba(255,255,255,0.80);margin:6px 0 0;font-size:13px;">${subtitle}</p>
+      </div>
+      <!-- Body -->
+      <div style="padding:28px 28px 24px;">${body}</div>
+      <!-- Footer -->
+      <div style="padding:14px 28px;background:#f8fafc;border-top:1px solid #f1f5f9;text-align:center;">
+        <p style="color:#cbd5e1;font-size:11px;margin:0;">Propulsé par <strong style="color:#94a3b8;">Reputix</strong></p>
+      </div>
     </div>
   </div>
 </body></html>`
 }
+
+const BRAND_GRADIENT = "linear-gradient(135deg,#0ea5e9,#06b6d4)"
 
 export async function sendBookingRequestClient(params: {
   clientEmail: string; clientName: string; businessName: string
   serviceName: string; date: string; timeSlot: string; duration: number; price: number
   cancelUrl?: string; portalUrl?: string; isRestaurant?: boolean; partySize?: number | null
 }) {
-  const cancelBlock = params.cancelUrl ? `
-    <div style="margin-top:20px;text-align:center;">
-      <a href="${params.cancelUrl}" style="color:#94a3b8;font-size:12px;text-decoration:underline;">Annuler ma réservation</a>
-    </div>` : ""
-
-  const portalBlock = params.portalUrl ? `
-    <div style="margin-top:16px;border-top:1px solid #f1f5f9;padding-top:16px;text-align:center;">
-      <a href="${params.portalUrl}" style="display:inline-flex;align-items:center;gap:6px;color:#0ea5e9;font-size:13px;font-weight:600;text-decoration:none;">
-        📋 Gérer mes réservations →
-      </a>
-    </div>` : ""
+  const actionsBlock = `
+    <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
+      ${params.portalUrl ? `
+        <a href="${params.portalUrl}" style="display:block;background:${BRAND_GRADIENT};color:white;text-decoration:none;text-align:center;padding:13px 20px;border-radius:12px;font-weight:600;font-size:14px;">
+          📋 Gérer mes réservations →
+        </a>` : ""}
+      ${params.cancelUrl ? `
+        <a href="${params.cancelUrl}" style="display:block;color:#94a3b8;text-decoration:none;text-align:center;font-size:12px;padding:8px;">
+          Annuler cette réservation
+        </a>` : ""}
+    </div>`
 
   await getResend().emails.send({
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.clientEmail,
-    subject: `📅 Demande de RDV reçue — ${params.businessName}`,
-    html: emailShell("Réservation", "Votre demande a bien été reçue", `
-      <p style="color:#64748b;margin:0 0 6px;">Bonjour <strong>${params.clientName}</strong>,</p>
-      <p style="color:#1e293b;margin:0 0 20px;">Votre demande ${params.isRestaurant ? "de table" : "de rendez-vous"} chez <strong>${params.businessName}</strong> a bien été reçue. Vous recevrez une confirmation dès que l'établissement l'aura validée.</p>
+    subject: `📅 Demande reçue — ${params.businessName}`,
+    html: emailShell(params.businessName, "Réservation en attente", BRAND_GRADIENT, `
+      <p style="color:#64748b;margin:0 0 4px;font-size:14px;">Bonjour <strong style="color:#1e293b;">${params.clientName}</strong>,</p>
+      <p style="color:#475569;margin:0 0 22px;font-size:14px;line-height:1.6;">
+        Votre demande ${params.isRestaurant ? "de table" : "de rendez-vous"} chez <strong>${params.businessName}</strong> a bien été reçue.
+        Vous recevrez une confirmation dès validation.
+      </p>
       ${bookingBlock(params)}
-      <div style="background:#fef9c3;border-radius:10px;padding:14px 16px;">
-        <p style="color:#854d0e;font-size:13px;margin:0;">⏳ En attente de confirmation par l'établissement</p>
+      <div style="background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">⏳</span>
+        <p style="color:#92400e;font-size:13px;margin:0;">En attente de confirmation par l'établissement</p>
       </div>
-      ${cancelBlock}
-      ${portalBlock}
+      ${actionsBlock}
     `),
   })
 }
 
 export async function sendBookingRequestOwner(params: {
   ownerEmail: string; businessName: string; clientName: string; clientEmail: string; clientPhone: string | null
-  serviceName: string; date: string; timeSlot: string; duration: number; price: number; dashboardUrl: string
+  serviceName: string; date: string; timeSlot: string; duration: number; price: number
+  dashboardUrl: string; isRestaurant?: boolean; partySize?: number | null
 }) {
   await getResend().emails.send({
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.ownerEmail,
-    subject: `🔔 Nouvelle demande de RDV — ${params.clientName}`,
-    html: emailShell("Nouvelle réservation", params.businessName, `
-      <p style="color:#1e293b;margin:0 0 20px;font-size:16px;">Vous avez une nouvelle demande de rendez-vous !</p>
+    subject: `🔔 Nouvelle demande — ${params.clientName}`,
+    html: emailShell(params.businessName, "Nouvelle réservation", BRAND_GRADIENT, `
+      <p style="color:#475569;margin:0 0 22px;font-size:14px;line-height:1.6;">
+        Vous avez une nouvelle demande de ${params.isRestaurant ? "table" : "rendez-vous"} !
+      </p>
       ${bookingBlock(params)}
-      <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:24px;">
-        <p style="font-weight:600;color:#1e293b;font-size:13px;margin:0 0 8px;">Coordonnées client</p>
-        <p style="color:#475569;font-size:13px;margin:0 0 4px;">👤 ${params.clientName}</p>
-        <p style="color:#475569;font-size:13px;margin:0 0 4px;">✉️ ${params.clientEmail}</p>
-        ${params.clientPhone ? `<p style="color:#475569;font-size:13px;margin:0;">📞 ${params.clientPhone}</p>` : ""}
+      <div style="background:#f8fafc;border-radius:12px;padding:16px;margin-bottom:20px;">
+        <p style="font-weight:700;color:#1e293b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Client</p>
+        <table cellpadding="0" cellspacing="0">
+          <tr><td style="padding:0 10px 6px 0;font-size:15px;">👤</td><td style="color:#334155;font-size:13px;padding-bottom:6px;">${params.clientName}</td></tr>
+          <tr><td style="padding:0 10px 6px 0;font-size:15px;">✉️</td><td style="color:#334155;font-size:13px;padding-bottom:6px;">${params.clientEmail}</td></tr>
+          ${params.clientPhone ? `<tr><td style="padding:0 10px 0 0;font-size:15px;">📞</td><td style="color:#334155;font-size:13px;">${params.clientPhone}</td></tr>` : ""}
+        </table>
       </div>
-      <a href="${params.dashboardUrl}" style="display:block;background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:white;text-decoration:none;text-align:center;padding:14px 24px;border-radius:10px;font-weight:600;font-size:15px;">
+      <a href="${params.dashboardUrl}" style="display:block;background:${BRAND_GRADIENT};color:white;text-decoration:none;text-align:center;padding:14px 20px;border-radius:12px;font-weight:600;font-size:14px;">
         Confirmer ou refuser →
       </a>
     `),
@@ -298,23 +336,25 @@ export async function sendBookingRequestOwner(params: {
 export async function sendBookingConfirmedClient(params: {
   clientEmail: string; clientName: string; businessName: string
   serviceName: string; date: string; timeSlot: string; duration: number; price: number
-  cancelUrl?: string
+  cancelUrl?: string; isRestaurant?: boolean; partySize?: number | null
 }) {
   const cancelBlock = params.cancelUrl ? `
-    <div style="margin-top:20px;text-align:center;">
-      <a href="${params.cancelUrl}" style="color:#94a3b8;font-size:12px;text-decoration:underline;">Annuler ma réservation</a>
-    </div>` : ""
+    <a href="${params.cancelUrl}" style="display:block;color:#94a3b8;text-decoration:none;text-align:center;font-size:12px;padding:8px;margin-top:8px;">
+      Annuler ma réservation
+    </a>` : ""
 
   await getResend().emails.send({
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.clientEmail,
-    subject: `✅ RDV confirmé — ${params.businessName}`,
-    html: emailShell("Rendez-vous confirmé", params.businessName, `
+    subject: `✅ Confirmé — ${params.businessName}`,
+    html: emailShell(params.businessName, "Rendez-vous confirmé", "linear-gradient(135deg,#10b981,#059669)", `
       <div style="text-align:center;margin-bottom:24px;">
-        <div style="width:56px;height:56px;border-radius:50%;background:#dcfce7;display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:12px;">✅</div>
-        <p style="color:#1e293b;font-size:18px;font-weight:700;margin:0;">Votre RDV est confirmé !</p>
+        <div style="width:60px;height:60px;border-radius:50%;background:#dcfce7;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;line-height:60px;">✅</div>
+        <p style="color:#1e293b;font-size:18px;font-weight:700;margin:0;">C'est confirmé !</p>
       </div>
-      <p style="color:#64748b;margin:0 0 20px;">Bonjour <strong>${params.clientName}</strong>, votre rendez-vous chez <strong>${params.businessName}</strong> est confirmé.</p>
+      <p style="color:#475569;margin:0 0 22px;font-size:14px;text-align:center;line-height:1.6;">
+        Bonjour <strong>${params.clientName}</strong>, votre rendez-vous chez <strong>${params.businessName}</strong> est confirmé.
+      </p>
       ${bookingBlock(params)}
       <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0;">En cas d'empêchement, merci de prévenir l'établissement le plus tôt possible.</p>
       ${cancelBlock}
@@ -325,23 +365,25 @@ export async function sendBookingConfirmedClient(params: {
 export async function sendBookingReminderClient(params: {
   clientEmail: string; clientName: string; businessName: string
   serviceName: string; date: string; timeSlot: string; duration: number; price: number
-  cancelUrl?: string
+  cancelUrl?: string; isRestaurant?: boolean; partySize?: number | null
 }) {
   const cancelBlock = params.cancelUrl ? `
-    <div style="margin-top:20px;text-align:center;">
-      <a href="${params.cancelUrl}" style="color:#94a3b8;font-size:12px;text-decoration:underline;">Annuler ma réservation</a>
-    </div>` : ""
+    <a href="${params.cancelUrl}" style="display:block;color:#94a3b8;text-decoration:none;text-align:center;font-size:12px;padding:8px;margin-top:8px;">
+      Annuler ma réservation
+    </a>` : ""
 
   await getResend().emails.send({
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.clientEmail,
-    subject: `⏰ Rappel — Votre RDV demain chez ${params.businessName}`,
-    html: emailShell("Rappel de rendez-vous", params.businessName, `
+    subject: `⏰ Rappel — Demain chez ${params.businessName}`,
+    html: emailShell(params.businessName, "Rappel de rendez-vous", "linear-gradient(135deg,#f59e0b,#d97706)", `
       <div style="text-align:center;margin-bottom:24px;">
-        <div style="font-size:40px;margin-bottom:8px;">⏰</div>
-        <p style="color:#1e293b;font-size:18px;font-weight:700;margin:0;">Votre RDV est demain !</p>
+        <div style="font-size:44px;margin-bottom:10px;">⏰</div>
+        <p style="color:#1e293b;font-size:18px;font-weight:700;margin:0;">Votre RDV, c'est demain !</p>
       </div>
-      <p style="color:#64748b;margin:0 0 20px;">Bonjour <strong>${params.clientName}</strong>, n'oubliez pas votre rendez-vous chez <strong>${params.businessName}</strong> demain.</p>
+      <p style="color:#475569;margin:0 0 22px;font-size:14px;text-align:center;line-height:1.6;">
+        Bonjour <strong>${params.clientName}</strong>, n'oubliez pas votre rendez-vous chez <strong>${params.businessName}</strong> demain.
+      </p>
       ${bookingBlock(params)}
       <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0;">En cas d'empêchement, merci de prévenir l'établissement le plus tôt possible.</p>
       ${cancelBlock}
@@ -356,13 +398,16 @@ export async function sendBookingCancelledClient(params: {
   await getResend().emails.send({
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.clientEmail,
-    subject: `❌ RDV annulé — ${params.businessName}`,
-    html: emailShell("Rendez-vous annulé", params.businessName, `
+    subject: `❌ Annulé — ${params.businessName}`,
+    html: emailShell(params.businessName, "Réservation annulée", "linear-gradient(135deg,#ef4444,#dc2626)", `
       <div style="text-align:center;margin-bottom:24px;">
-        <div style="width:56px;height:56px;border-radius:50%;background:#fee2e2;display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:12px;">❌</div>
-        <p style="color:#1e293b;font-size:18px;font-weight:700;margin:0;">Votre RDV a été annulé</p>
+        <div style="width:60px;height:60px;border-radius:50%;background:#fee2e2;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;line-height:60px;">❌</div>
+        <p style="color:#1e293b;font-size:18px;font-weight:700;margin:0;">Votre réservation a été annulée</p>
       </div>
-      <p style="color:#64748b;margin:0 0 20px;">Bonjour <strong>${params.clientName}</strong>, votre rendez-vous <strong>${params.serviceName}</strong> du <strong>${params.date} à ${params.timeSlot}</strong> chez <strong>${params.businessName}</strong> a été annulé.</p>
+      <p style="color:#475569;margin:0 0 22px;font-size:14px;text-align:center;line-height:1.6;">
+        Bonjour <strong>${params.clientName}</strong>,<br>
+        votre <strong>${params.serviceName}</strong> du <strong>${params.date} à ${params.timeSlot}</strong> chez <strong>${params.businessName}</strong> a été annulé.
+      </p>
       <p style="color:#94a3b8;font-size:13px;text-align:center;">N'hésitez pas à reprendre rendez-vous.</p>
     `),
   })

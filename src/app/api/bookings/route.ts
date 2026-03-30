@@ -263,8 +263,10 @@ export async function POST(req: NextRequest) {
           date: dateLabel,
           timeSlot,
           duration: service?.duration ?? 0,
-          price: service?.price ?? 0,
+          price: isRestaurant ? 0 : (service?.price ?? 0),
           dashboardUrl: `${APP_URL}/bookings`,
+          isRestaurant,
+          partySize: partySize ?? null,
         }).catch(console.error)
       : Promise.resolve(),
   ])

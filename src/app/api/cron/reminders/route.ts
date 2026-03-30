@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     },
     include: {
       service: { select: { name: true, duration: true, price: true } },
-      business: { select: { name: true } },
+      business: { select: { name: true, bookingType: true } },
     },
   })
 
@@ -36,16 +36,19 @@ export async function GET(req: NextRequest) {
         weekday: "long", day: "numeric", month: "long", year: "numeric",
       })
 
+      const isRestaurant = booking.business.bookingType === "restaurant"
       await sendBookingReminderClient({
         clientEmail: booking.clientEmail,
         clientName: booking.clientName,
         businessName: booking.business.name,
-        serviceName: booking.service?.name ?? "Réservation",
+        serviceName: isRestaurant ? `Table pour ${booking.partySize ?? 1}` : (booking.service?.name ?? "Réservation"),
         date: dateLabel,
         timeSlot: booking.timeSlot,
         duration: booking.service?.duration ?? 0,
-        price: booking.service?.price ?? 0,
+        price: isRestaurant ? 0 : (booking.service?.price ?? 0),
         cancelUrl: booking.cancelToken ? `${APP_URL}/cancel/${booking.cancelToken}` : undefined,
+        isRestaurant,
+        partySize: booking.partySize,
       })
 
       // SMS si numéro disponible ET opt-in ET pas encore envoyé
