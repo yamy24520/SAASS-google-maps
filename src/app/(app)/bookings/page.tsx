@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import { CalendarDays, Clock, Phone, Mail, CheckCircle2, XCircle, AlertCircle, Plus, Pencil, X, TrendingUp, Euro, Users, RotateCcw } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/components/ui/toaster"
@@ -38,9 +37,9 @@ interface Stats {
 }
 
 const STATUS_CONFIG = {
-  PENDING:   { label: "En attente", variant: "warning" as const,   icon: AlertCircle,   color: "text-amber-500" },
-  CONFIRMED: { label: "Confirmé",   variant: "success" as const,   icon: CheckCircle2,  color: "text-emerald-500" },
-  CANCELLED: { label: "Annulé",     variant: "secondary" as const, icon: XCircle,       color: "text-slate-400" },
+  PENDING:   { label: "En attente", variant: "warning" as const,   icon: AlertCircle,   color: "text-amber-500",   border: "border-l-amber-400",  avatar: "bg-amber-100 text-amber-700" },
+  CONFIRMED: { label: "Confirmé",   variant: "success" as const,   icon: CheckCircle2,  color: "text-emerald-500", border: "border-l-emerald-400", avatar: "bg-emerald-100 text-emerald-700" },
+  CANCELLED: { label: "Annulé",     variant: "secondary" as const, icon: XCircle,       color: "text-slate-400",   border: "border-l-slate-300",  avatar: "bg-slate-100 text-slate-400" },
 }
 
 const RECURRENCE_LABELS: Record<string, string> = { weekly: "Hebdo", biweekly: "Bi-hebdo", monthly: "Mensuel" }
@@ -57,6 +56,12 @@ function getDatesAhead(n: number) {
     dates.push(d.toISOString().split("T")[0])
   }
   return dates
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
 export default function BookingsPage() {
@@ -228,54 +233,64 @@ export default function BookingsPage() {
     return acc
   }, {})
 
+  const todayStr = new Date().toISOString().split("T")[0]
+  const tomorrowStr = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0] })()
+
+  function getDateHeader(date: string, count: number) {
+    if (date === todayStr) return { label: `📅 Aujourd'hui · ${count} RDV`, isToday: true }
+    if (date === tomorrowStr) return { label: `Demain · ${count} RDV`, isToday: false }
+    return { label: `${formatDate(date).replace(/^\w/, c => c.toUpperCase())} · ${count} RDV`, isToday: false }
+  }
+
   if (loading) return (
     <div className="space-y-4 animate-pulse">
-      {[...Array(3)].map((_, i) => <div key={i} className="h-24 rounded-2xl bg-slate-200" />)}
+      {[...Array(3)].map((_, i) => <div key={i} className="h-20 rounded-2xl bg-slate-200" />)}
     </div>
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-slate-900">Réservations</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
-            {pendingCount > 0 ? <span className="text-amber-600 font-medium">{pendingCount} en attente de confirmation</span> : "Aucun RDV en attente"}
-          </p>
+          {pendingCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              {pendingCount} en attente
+            </span>
+          )}
         </div>
         <Button onClick={openNewModal} className="gap-2">
           <Plus className="w-4 h-4" /> Nouveau RDV
         </Button>
       </div>
 
-      {/* Stats */}
+      {/* Stats — horizontal scrollable pills */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
           {[
-            { label: "CA du mois", value: `${stats.caMonth.toFixed(0)} €`, sub: `${stats.caConfirmed.toFixed(0)} € confirmé`, icon: Euro, color: "text-emerald-600" },
-            { label: "RDV cette semaine", value: stats.bookingsThisWeek, sub: "7 derniers jours", icon: CalendarDays, color: "text-sky-600" },
-            { label: "À venir", value: stats.upcomingBookings, sub: "confirmés + en attente", icon: Clock, color: "text-violet-600" },
-            { label: "Taux annulation", value: `${stats.cancellationRate}%`, sub: `${stats.monthCancelled} / ${stats.monthTotal} ce mois`, icon: TrendingUp, color: stats.cancellationRate > 20 ? "text-red-500" : "text-slate-500" },
+            { label: "CA mois", value: `${stats.caMonth.toFixed(0)} €`, sub: `${stats.caConfirmed.toFixed(0)} € conf.`, icon: Euro, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-100" },
+            { label: "RDV semaine", value: String(stats.bookingsThisWeek), sub: "7 derniers jours", icon: CalendarDays, color: "text-sky-600", bg: "bg-sky-50 border-sky-100" },
+            { label: "À venir", value: String(stats.upcomingBookings), sub: "confirmés + attente", icon: Clock, color: "text-violet-600", bg: "bg-violet-50 border-violet-100" },
+            { label: "Taux annulation", value: `${stats.cancellationRate}%`, sub: `${stats.monthCancelled}/${stats.monthTotal} ce mois`, icon: TrendingUp, color: stats.cancellationRate > 20 ? "text-red-500" : "text-slate-500", bg: stats.cancellationRate > 20 ? "bg-red-50 border-red-100" : "bg-slate-50 border-slate-100" },
           ].map(s => (
-            <Card key={s.label} className="border-slate-100">
-              <CardContent className="pt-4 pb-3 px-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs text-slate-500 mb-1">{s.label}</p>
-                    <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{s.sub}</p>
-                  </div>
-                  <s.icon className={`w-4 h-4 mt-1 ${s.color} opacity-60`} />
-                </div>
-              </CardContent>
-            </Card>
+            <div key={s.label} className={`flex items-center gap-3 px-4 py-2.5 rounded-2xl border ${s.bg} shrink-0 min-w-[160px]`}>
+              <div className={`p-1.5 rounded-xl bg-white/70`}>
+                <s.icon className={`w-3.5 h-3.5 ${s.color}`} />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 leading-none mb-0.5">{s.label}</p>
+                <p className={`text-base font-bold leading-none ${s.color}`}>{s.value}</p>
+                <p className="text-xs text-slate-400 leading-none mt-0.5">{s.sub}</p>
+              </div>
+            </div>
           ))}
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200 pb-0">
+      <div className="flex gap-2 border-b border-slate-200">
         {[
           { key: "bookings", label: "Réservations", count: bookings.filter(b => b.status !== "CANCELLED").length },
           { key: "waitlist", label: "Liste d'attente", count: waitlist.length },
@@ -291,151 +306,182 @@ export default function BookingsPage() {
       {/* Onglet Réservations */}
       {activeTab === "bookings" && (
         <>
-          {/* Filtres */}
-          <div className="flex gap-2">
+          {/* Filter pills */}
+          <div className="flex gap-2 flex-wrap">
             {(["ALL", "PENDING", "CONFIRMED", "CANCELLED"] as const).map(f => (
               <button key={f} onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === f ? "bg-sky-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                  filter === f
+                    ? f === "ALL" ? "bg-slate-800 text-white border-slate-800"
+                    : f === "PENDING" ? "bg-amber-500 text-white border-amber-500"
+                    : f === "CONFIRMED" ? "bg-emerald-500 text-white border-emerald-500"
+                    : "bg-slate-400 text-white border-slate-400"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                }`}>
                 {f === "ALL" ? "Tous" : STATUS_CONFIG[f].label}
               </button>
             ))}
           </div>
 
           {Object.keys(grouped).length === 0 ? (
-            <Card>
-              <CardContent className="py-16 text-center">
-                <CalendarDays className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500 text-sm">Aucune réservation</p>
-              </CardContent>
-            </Card>
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <CalendarDays className="w-10 h-10 text-slate-200 mb-3" />
+              <p className="text-slate-400 text-sm">Aucune réservation</p>
+            </div>
           ) : (
-            Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([date, dayBookings]) => (
-              <div key={date}>
-                <div className="flex items-center gap-3 mb-3">
-                  <p className="text-sm font-semibold text-slate-700 capitalize">{formatDate(date)}</p>
-                  <div className="flex-1 h-px bg-slate-200" />
-                  <span className="text-xs text-slate-400">{dayBookings.length} RDV</span>
-                </div>
-                <div className="space-y-3">
-                  {dayBookings.sort((a, b) => a.timeSlot.localeCompare(b.timeSlot)).map(booking => {
-                    const cfg = STATUS_CONFIG[booking.status]
-                    const Icon = cfg.icon
-                    return (
-                      <Card key={booking.id} className={`hover:shadow-md transition-shadow ${booking.status === "CANCELLED" ? "opacity-60" : ""}`}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-4">
-                            <div className="text-center min-w-[52px]">
-                              <p className="text-lg font-bold text-slate-900">{booking.timeSlot}</p>
-                              <p className="text-xs text-slate-400">{booking.service?.duration ?? "—"}min</p>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2 mb-1">
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-semibold text-slate-900">{booking.clientName}</p>
-                                    {booking.recurrenceGroupId && <span className="text-xs bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><RotateCcw className="w-2.5 h-2.5" /> récurrent</span>}
-                                    {booking.partySize && <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full flex items-center gap-0.5"><Users className="w-2.5 h-2.5" /> {booking.partySize}</span>}
-                                  </div>
-                                  <p className="text-sm text-sky-600 font-medium">
-                                    {booking.service?.name ?? "Table"}
-                                    {booking.service && ` — ${booking.service.price.toFixed(2)} €`}
-                                    {booking.staff && <span className="ml-1 text-slate-400 text-xs">· {booking.staff.name}</span>}
-                                  </p>
+            <div className="space-y-6">
+              {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([date, dayBookings]) => {
+                const { label, isToday } = getDateHeader(date, dayBookings.length)
+                return (
+                  <div key={date}>
+                    {/* Date group header */}
+                    <div className={`flex items-center gap-2 mb-3 ${isToday ? "pl-3 border-l-4 border-sky-400" : ""}`}>
+                      <p className={`text-sm font-semibold capitalize ${isToday ? "text-sky-700" : "text-slate-600"}`}>{label}</p>
+                    </div>
+
+                    {/* Booking cards — timeline style */}
+                    <div className="space-y-2">
+                      {dayBookings.sort((a, b) => a.timeSlot.localeCompare(b.timeSlot)).map(booking => {
+                        const cfg = STATUS_CONFIG[booking.status]
+                        const Icon = cfg.icon
+                        const initials = getInitials(booking.clientName)
+                        return (
+                          <div key={booking.id}
+                            className={`bg-white rounded-xl border border-slate-100 border-l-4 ${cfg.border} hover:shadow-md transition-shadow ${booking.status === "CANCELLED" ? "opacity-55" : ""}`}>
+                            <div className="flex items-center gap-3 px-4 py-3">
+                              {/* Time column */}
+                              <div className="w-14 shrink-0 text-center">
+                                <p className="text-sm font-bold text-slate-900 leading-none">{booking.timeSlot}</p>
+                                <p className="text-xs text-slate-400 mt-0.5 leading-none">{booking.service?.duration ?? "—"}min</p>
+                              </div>
+
+                              {/* Avatar */}
+                              <div className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${cfg.avatar}`}>
+                                {initials}
+                              </div>
+
+                              {/* Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <p className="font-semibold text-slate-900 text-sm leading-none">{booking.clientName}</p>
+                                  {booking.recurrenceGroupId && (
+                                    <span className="inline-flex items-center gap-0.5 text-xs bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full">
+                                      <RotateCcw className="w-2.5 h-2.5" /> récurrent
+                                    </span>
+                                  )}
+                                  {booking.partySize && (
+                                    <span className="inline-flex items-center gap-0.5 text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">
+                                      <Users className="w-2.5 h-2.5" /> {booking.partySize}
+                                    </span>
+                                  )}
                                 </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
+                                <p className="text-xs text-sky-600 font-medium mt-0.5 leading-none">
+                                  {booking.service?.name ?? "Table"}
+                                  {booking.service && ` — ${booking.service.price.toFixed(2)} €`}
+                                  {booking.staff && <span className="text-slate-400"> · {booking.staff.name}</span>}
+                                </p>
+                                <div className="flex items-center gap-3 mt-1">
+                                  <span className="flex items-center gap-1 text-xs text-slate-400">
+                                    <Mail className="w-3 h-3" />{booking.clientEmail}
+                                  </span>
+                                  {booking.clientPhone && (
+                                    <span className="flex items-center gap-1 text-xs text-slate-400">
+                                      <Phone className="w-3 h-3" />{booking.clientPhone}
+                                    </span>
+                                  )}
+                                </div>
+                                {booking.notes && <p className="text-xs text-slate-400 mt-1 italic">{booking.notes}</p>}
+                              </div>
+
+                              {/* Right: badges + actions */}
+                              <div className="flex flex-col items-end gap-2 shrink-0">
+                                <div className="flex items-center gap-1.5 flex-wrap justify-end">
                                   {booking.paymentStatus === "PAID" && (
-                                    <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
+                                    <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
                                       💳 {booking.depositAmount ? `${booking.depositAmount.toFixed(0)} €` : "Payé"}
                                     </span>
                                   )}
                                   {booking.paymentStatus === "PENDING" && (
-                                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">⏳ En attente</span>
+                                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">⏳ En attente</span>
                                   )}
                                   {booking.paymentStatus === "FAILED" && (
-                                    <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">❌ Échec</span>
+                                    <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold">❌ Échec</span>
                                   )}
-                                  <Badge variant={cfg.variant} className="flex items-center gap-1">
+                                  <Badge variant={cfg.variant} className="flex items-center gap-1 text-xs">
                                     <Icon className="w-3 h-3" />{cfg.label}
                                   </Badge>
                                 </div>
+                                <div className="flex items-center gap-1.5">
+                                  <button onClick={() => openEditModal(booking)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600">
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                  {booking.status === "PENDING" && (
+                                    <>
+                                      <Button size="sm" className="h-7 text-xs gap-1 bg-emerald-500 hover:bg-emerald-600 px-2.5"
+                                        disabled={updating === booking.id} onClick={() => updateStatus(booking.id, "CONFIRMED")}>
+                                        <CheckCircle2 className="w-3 h-3" /> Confirmer
+                                      </Button>
+                                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-red-500 border-red-200 hover:bg-red-50 px-2.5"
+                                        disabled={updating === booking.id} onClick={() => updateStatus(booking.id, "CANCELLED")}>
+                                        <XCircle className="w-3 h-3" /> Annuler
+                                      </Button>
+                                    </>
+                                  )}
+                                  {booking.status === "CONFIRMED" && (
+                                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-red-500 border-red-200 hover:bg-red-50 px-2.5"
+                                      disabled={updating === booking.id} onClick={() => updateStatus(booking.id, "CANCELLED")}>
+                                      <XCircle className="w-3 h-3" /> Annuler
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex flex-wrap gap-3 text-xs text-slate-500 mt-2">
-                                <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{booking.clientEmail}</span>
-                                {booking.clientPhone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{booking.clientPhone}</span>}
-                              </div>
-                              {booking.notes && <p className="text-xs text-slate-400 mt-1.5 italic">{booking.notes}</p>}
-                            </div>
-                            <div className="flex flex-col gap-2 shrink-0">
-                              <button onClick={() => openEditModal(booking)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600">
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              {booking.status === "PENDING" && (
-                                <>
-                                  <Button size="sm" className="h-7 text-xs gap-1 bg-emerald-500 hover:bg-emerald-600"
-                                    disabled={updating === booking.id} onClick={() => updateStatus(booking.id, "CONFIRMED")}>
-                                    <CheckCircle2 className="w-3 h-3" /> Confirmer
-                                  </Button>
-                                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-red-500 border-red-200 hover:bg-red-50"
-                                    disabled={updating === booking.id} onClick={() => updateStatus(booking.id, "CANCELLED")}>
-                                    <XCircle className="w-3 h-3" /> Annuler
-                                  </Button>
-                                </>
-                              )}
-                              {booking.status === "CONFIRMED" && (
-                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-red-500 border-red-200 hover:bg-red-50"
-                                  disabled={updating === booking.id} onClick={() => updateStatus(booking.id, "CANCELLED")}>
-                                  <XCircle className="w-3 h-3" /> Annuler
-                                </Button>
-                              )}
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              </div>
-            ))
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </>
       )}
 
       {/* Onglet Liste d'attente */}
       {activeTab === "waitlist" && (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {waitlist.length === 0 ? (
-            <Card><CardContent className="py-16 text-center">
-              <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500 text-sm">Aucun client en liste d'attente</p>
-            </CardContent></Card>
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <Users className="w-10 h-10 text-slate-200 mb-3" />
+              <p className="text-slate-400 text-sm">Aucun client en liste d&apos;attente</p>
+            </div>
           ) : waitlist.map(entry => (
-            <Card key={entry.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-semibold text-slate-900">{entry.clientName}</p>
-                      {entry.notifiedAt && <span className="text-xs bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full">Notifié</span>}
-                    </div>
-                    <p className="text-sm text-sky-600">{entry.service?.name ?? "Toute prestation"}</p>
-                    <div className="flex flex-wrap gap-3 text-xs text-slate-500 mt-1.5">
-                      <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{entry.clientEmail}</span>
-                      {entry.clientPhone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{entry.clientPhone}</span>}
-                      {entry.preferredDate && <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{formatDate(entry.preferredDate)}</span>}
-                    </div>
+            <div key={entry.id} className="bg-white rounded-xl border border-slate-100 px-4 py-3 hover:shadow-sm transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="font-semibold text-slate-900 text-sm">{entry.clientName}</p>
+                    {entry.notifiedAt && <span className="text-xs bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-medium">Notifié</span>}
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => notifyWaitlist(entry.id)}
-                      disabled={!!entry.notifiedAt}>
-                      {entry.notifiedAt ? "Notifié" : "Notifier"}
-                    </Button>
-                    <button onClick={() => removeWaitlist(entry.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition-colors">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                  <p className="text-xs text-sky-600 font-medium">{entry.service?.name ?? "Toute prestation"}</p>
+                  <div className="flex flex-wrap gap-3 text-xs text-slate-400 mt-1">
+                    <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{entry.clientEmail}</span>
+                    {entry.clientPhone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{entry.clientPhone}</span>}
+                    {entry.preferredDate && <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{formatDate(entry.preferredDate)}</span>}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex gap-2 shrink-0">
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => notifyWaitlist(entry.id)}
+                    disabled={!!entry.notifiedAt}>
+                    {entry.notifiedAt ? "Notifié" : "Notifier"}
+                  </Button>
+                  <button onClick={() => removeWaitlist(entry.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition-colors">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -524,7 +570,7 @@ export default function BookingsPage() {
                   </div>
                   {modalForm.recurrence && (
                     <div className="mt-2">
-                      <label className="text-xs font-medium text-slate-500 block mb-1">Jusqu'au</label>
+                      <label className="text-xs font-medium text-slate-500 block mb-1">Jusqu&apos;au</label>
                       <input type="date" value={modalForm.recurrenceEnd} onChange={e => setModalForm(f => ({ ...f, recurrenceEnd: e.target.value }))}
                         className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500" />
                     </div>

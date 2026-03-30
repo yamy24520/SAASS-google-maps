@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
-import { ChevronLeft, ChevronRight, X, Copy, Check, RefreshCw, Smartphone, CheckCircle2, XCircle, Clock, User, Scissors } from "lucide-react"
+import { ChevronLeft, ChevronRight, X, Copy, Check, RefreshCw, Smartphone, CheckCircle2, XCircle, Clock, User, Scissors, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/toaster"
 
@@ -59,9 +59,40 @@ function isAbsent(absences: StaffAbsence[], staffId: string, dateStr: string) {
   return absences.some(a => a.staffId === staffId && dateStr >= a.startDate && dateStr <= a.endDate)
 }
 
+/** Group bookings by overlap: A and B overlap if their time ranges intersect */
+function groupOverlapping(bookings: Booking[]): Booking[][] {
+  const sorted = [...bookings].sort((a, b) => toMin(a.timeSlot) - toMin(b.timeSlot))
+  const groups: Booking[][] = []
+
+  for (const booking of sorted) {
+    const aStart = toMin(booking.timeSlot)
+    const aDur = booking.service?.duration ?? 60
+    const aEnd = aStart + aDur
+
+    let placed = false
+    for (const group of groups) {
+      // Check if booking overlaps with any booking already in this group
+      const overlaps = group.some(b => {
+        const bStart = toMin(b.timeSlot)
+        const bDur = b.service?.duration ?? 60
+        const bEnd = bStart + bDur
+        return aStart < bEnd && bStart < aEnd
+      })
+      if (overlaps) {
+        group.push(booking)
+        placed = true
+        break
+      }
+    }
+    if (!placed) groups.push([booking])
+  }
+  return groups
+}
+
 export default function AgendaPage() {
   const searchParams = useSearchParams()
   const bizParam = searchParams.get("biz") ? `?biz=${searchParams.get("biz")}` : ""
+  const bizParamLink = searchParams.get("biz") ? `?biz=${searchParams.get("biz")}` : ""
 
   const [ref, setRef] = useState(() => new Date())
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -162,90 +193,90 @@ export default function AgendaPage() {
     const dateLabel = new Date(b.date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
 
     return (
-      <div style={{ position: "fixed", inset: 0, zIndex: 50 }} onClick={() => setSelectedBooking(null)}>
-        <div style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.3)" }} />
+      <div className="fixed inset-0 z-50" onClick={() => setSelectedBooking(null)}>
+        <div className="absolute inset-0 bg-slate-900/30" />
         <div
-          style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 380, background: "#fff", boxShadow: "-4px 0 24px rgba(0,0,0,0.12)", display: "flex", flexDirection: "column" }}
+          className="absolute top-0 right-0 bottom-0 w-96 bg-white shadow-2xl flex flex-col"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: colors.bg, color: colors.text, border: `1px solid ${colors.border}` }}>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <span
+                className="px-2.5 py-1 rounded-full text-xs font-semibold border"
+                style={{ background: colors.bg, color: colors.text, borderColor: colors.border }}>
                 {b.status === "PENDING" ? "En attente" : b.status === "CONFIRMED" ? "Confirmé" : "Annulé"}
               </span>
               {b.paymentStatus === "PAID" && (
-                <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: "#dcfce7", color: "#166534", border: "1px solid #4ade80" }}>
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   💳 Payé{b.depositAmount ? ` ${b.depositAmount.toFixed(2)}€` : ""}
                 </span>
               )}
             </div>
-            <button onClick={() => setSelectedBooking(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 8, color: "#94a3b8" }}>
-              <X style={{ width: 18, height: 18 }} />
+            <button onClick={() => setSelectedBooking(null)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400">
+              <X className="w-4.5 h-4.5" />
             </button>
           </div>
 
           {/* Content */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div>
-                <p style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", margin: 0 }}>{b.clientName}</p>
-                <p style={{ fontSize: 13, color: "#64748b", margin: "2px 0 0" }}>{b.clientEmail}</p>
-                {b.clientPhone && <p style={{ fontSize: 13, color: "#64748b", margin: "2px 0 0" }}>{b.clientPhone}</p>}
-              </div>
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div>
+              <p className="text-xl font-bold text-slate-900">{b.clientName}</p>
+              <p className="text-sm text-slate-500 mt-0.5">{b.clientEmail}</p>
+              {b.clientPhone && <p className="text-sm text-slate-500">{b.clientPhone}</p>}
+            </div>
 
-              <div style={{ background: "#f8fafc", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <Clock style={{ width: 15, height: 15, color: "#64748b", flexShrink: 0 }} />
+            <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2.5">
+                <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-slate-900 capitalize">{dateLabel}</p>
+                  <p className="text-xs text-slate-500">{b.timeSlot} · {duration} min</p>
+                </div>
+              </div>
+              {b.service && (
+                <div className="flex items-center gap-2.5">
+                  <Scissors className="w-4 h-4 text-slate-400 shrink-0" />
                   <div>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0, textTransform: "capitalize" }}>{dateLabel}</p>
-                    <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>{b.timeSlot} · {duration} min</p>
+                    <p className="text-sm font-semibold text-slate-900">{b.service.name}</p>
+                    <p className="text-xs text-slate-500">{b.service.price.toFixed(2)} €</p>
                   </div>
                 </div>
-                {b.service && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <Scissors style={{ width: 15, height: 15, color: "#64748b", flexShrink: 0 }} />
-                    <div>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", margin: 0 }}>{b.service.name}</p>
-                      <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>{b.service.price.toFixed(2)} €</p>
-                    </div>
-                  </div>
-                )}
-                {b.staff && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 15, height: 15, borderRadius: "50%", background: b.staff.color, flexShrink: 0 }} />
-                    <p style={{ fontSize: 13, color: "#0f172a", margin: 0 }}>{b.staff.name}</p>
-                  </div>
-                )}
-                {b.partySize && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <User style={{ width: 15, height: 15, color: "#64748b", flexShrink: 0 }} />
-                    <p style={{ fontSize: 13, color: "#0f172a", margin: 0 }}>{b.partySize} personne{b.partySize > 1 ? "s" : ""}</p>
-                  </div>
-                )}
-              </div>
-
-              {b.notes && (
-                <div style={{ background: "#fef9c3", borderRadius: 10, padding: "10px 14px" }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: "#92400e", margin: "0 0 4px" }}>Note client</p>
-                  <p style={{ fontSize: 13, color: "#78350f", margin: 0 }}>{b.notes}</p>
+              )}
+              {b.staff && (
+                <div className="flex items-center gap-2.5">
+                  <span className="w-4 h-4 rounded-full shrink-0" style={{ background: b.staff.color }} />
+                  <p className="text-sm text-slate-900">{b.staff.name}</p>
+                </div>
+              )}
+              {b.partySize && (
+                <div className="flex items-center gap-2.5">
+                  <User className="w-4 h-4 text-slate-400 shrink-0" />
+                  <p className="text-sm text-slate-900">{b.partySize} personne{b.partySize > 1 ? "s" : ""}</p>
                 </div>
               )}
             </div>
+
+            {b.notes && (
+              <div className="bg-amber-50 rounded-xl p-4">
+                <p className="text-xs font-semibold text-amber-800 mb-1">Note client</p>
+                <p className="text-sm text-amber-700">{b.notes}</p>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
           {b.status !== "CANCELLED" && (
-            <div style={{ padding: "16px 20px", borderTop: "1px solid #f1f5f9", display: "flex", gap: 10 }}>
+            <div className="flex gap-2.5 px-5 py-4 border-t border-slate-100">
               {b.status === "PENDING" && (
                 <button onClick={() => updateStatus(b.id, "CONFIRMED")} disabled={updatingStatus}
-                  style={{ flex: 1, padding: "10px", borderRadius: 10, background: "#22c55e", color: "#fff", fontWeight: 600, fontSize: 13, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                  <CheckCircle2 style={{ width: 14, height: 14 }} /> Confirmer
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm transition-colors disabled:opacity-60">
+                  <CheckCircle2 className="w-4 h-4" /> Confirmer
                 </button>
               )}
               <button onClick={() => updateStatus(b.id, "CANCELLED")} disabled={updatingStatus}
-                style={{ flex: b.status === "PENDING" ? "none" : 1, padding: "10px 16px", borderRadius: 10, background: "#fff", color: "#ef4444", fontWeight: 600, fontSize: 13, border: "1.5px solid #fecaca", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                <XCircle style={{ width: 14, height: 14 }} /> Annuler
+                className={`${b.status === "PENDING" ? "" : "flex-1"} flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-red-50 text-red-500 font-semibold text-sm border border-red-200 transition-colors disabled:opacity-60`}>
+                <XCircle className="w-4 h-4" /> Annuler
               </button>
             </div>
           )}
@@ -256,40 +287,41 @@ export default function AgendaPage() {
 
   // ─── SYNC PHONE PANEL ────────────────────────────────────────────────────────
   const SyncPanel = () => (
-    <div style={{ position: "fixed", inset: 0, zIndex: 50 }} onClick={() => setShowSync(false)}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.3)" }} />
-      <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 400, background: "#fff", boxShadow: "-4px 0 24px rgba(0,0,0,0.12)", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: "20px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Smartphone style={{ width: 20, height: 20, color: "#0ea5e9" }} />
-            <p style={{ fontWeight: 700, fontSize: 16, color: "#0f172a", margin: 0 }}>Sync calendrier téléphone</p>
+    <div className="fixed inset-0 z-50" onClick={() => setShowSync(false)}>
+      <div className="absolute inset-0 bg-slate-900/30" />
+      <div className="absolute top-0 right-0 bottom-0 w-[400px] bg-white shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <Smartphone className="w-5 h-5 text-sky-500" />
+            <p className="font-bold text-base text-slate-900">Sync calendrier téléphone</p>
           </div>
-          <button onClick={() => setShowSync(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#94a3b8" }}>
-            <X style={{ width: 18, height: 18 }} />
+          <button onClick={() => setShowSync(false)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400">
+            <X className="w-4.5 h-4.5" />
           </button>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px", display: "flex", flexDirection: "column", gap: 20 }}>
-          <p style={{ fontSize: 14, color: "#64748b", margin: 0 }}>
+        <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
+          <p className="text-sm text-slate-500">
             Abonnez-vous à ce calendrier pour voir vos réservations directement dans Apple Calendar, Google Calendar ou Outlook. Il se met à jour automatiquement.
           </p>
 
           {/* URL */}
           <div>
-            <p style={{ fontSize: 12, fontWeight: 600, color: "#475569", margin: "0 0 8px" }}>Lien d&apos;abonnement</p>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input readOnly value={calendarUrl ?? ""} style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 12, color: "#475569", background: "#f8fafc", outline: "none" }} />
-              <button onClick={copyCalendarUrl} style={{ padding: "10px 14px", borderRadius: 10, background: copied ? "#22c55e" : "#0ea5e9", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
-                {copied ? <><Check style={{ width: 14, height: 14 }} /> Copié</> : <><Copy style={{ width: 14, height: 14 }} /> Copier</>}
+            <p className="text-xs font-semibold text-slate-600 mb-2">Lien d&apos;abonnement</p>
+            <div className="flex gap-2 items-center">
+              <input readOnly value={calendarUrl ?? ""} className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-500 bg-slate-50 focus:outline-none" />
+              <button onClick={copyCalendarUrl}
+                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-white font-semibold text-sm whitespace-nowrap transition-colors ${copied ? "bg-emerald-500" : "bg-sky-500 hover:bg-sky-600"}`}>
+                {copied ? <><Check className="w-3.5 h-3.5" /> Copié</> : <><Copy className="w-3.5 h-3.5" /> Copier</>}
               </button>
             </div>
           </div>
 
           {/* Instructions */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 12, padding: "16px" }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: "#0369a1", margin: "0 0 8px" }}>📱 iPhone / iPad (Apple Calendar)</p>
-              <ol style={{ fontSize: 12, color: "#0c4a6e", margin: 0, paddingLeft: 16, lineHeight: 1.8 }}>
+          <div className="space-y-3">
+            <div className="bg-sky-50 border border-sky-200 rounded-xl p-4">
+              <p className="text-sm font-bold text-sky-800 mb-2">📱 iPhone / iPad (Apple Calendar)</p>
+              <ol className="text-xs text-sky-900 space-y-1 pl-4 list-decimal leading-relaxed">
                 <li>Copiez le lien ci-dessus</li>
                 <li>Ouvrez <strong>Réglages → Calendrier → Comptes</strong></li>
                 <li>Appuyez sur <strong>Ajouter un compte → Autre</strong></li>
@@ -298,9 +330,9 @@ export default function AgendaPage() {
               </ol>
             </div>
 
-            <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "16px" }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: "#166534", margin: "0 0 8px" }}>📅 Google Calendar (Android)</p>
-              <ol style={{ fontSize: 12, color: "#14532d", margin: 0, paddingLeft: 16, lineHeight: 1.8 }}>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+              <p className="text-sm font-bold text-emerald-800 mb-2">📅 Google Calendar (Android)</p>
+              <ol className="text-xs text-emerald-900 space-y-1 pl-4 list-decimal leading-relaxed">
                 <li>Copiez le lien ci-dessus</li>
                 <li>Sur ordinateur, ouvrez <strong>calendar.google.com</strong></li>
                 <li>Cliquez sur <strong>+ → Depuis une URL</strong></li>
@@ -309,9 +341,9 @@ export default function AgendaPage() {
               </ol>
             </div>
 
-            <div style={{ background: "#faf5ff", border: "1px solid #e9d5ff", borderRadius: 12, padding: "16px" }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: "#7e22ce", margin: "0 0 8px" }}>🖥 Outlook / Windows</p>
-              <ol style={{ fontSize: 12, color: "#581c87", margin: 0, paddingLeft: 16, lineHeight: 1.8 }}>
+            <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+              <p className="text-sm font-bold text-violet-800 mb-2">🖥 Outlook / Windows</p>
+              <ol className="text-xs text-violet-900 space-y-1 pl-4 list-decimal leading-relaxed">
                 <li>Copiez le lien ci-dessus</li>
                 <li>Dans Outlook, allez dans <strong>Calendrier</strong></li>
                 <li>Cliquez <strong>Ajouter un calendrier → Depuis Internet</strong></li>
@@ -321,10 +353,11 @@ export default function AgendaPage() {
           </div>
 
           {/* Régénérer */}
-          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 16 }}>
-            <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 10px" }}>Si vous pensez que le lien a été partagé par erreur, vous pouvez le régénérer. L&apos;ancien lien ne fonctionnera plus.</p>
-            <button onClick={regenerateToken} disabled={regenerating} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1.5px solid #fecaca", background: "#fff", color: "#ef4444", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-              <RefreshCw style={{ width: 13, height: 13 }} /> {regenerating ? "Régénération..." : "Régénérer le lien"}
+          <div className="border-t border-slate-100 pt-4">
+            <p className="text-xs text-slate-400 mb-3">Si vous pensez que le lien a été partagé par erreur, vous pouvez le régénérer. L&apos;ancien lien ne fonctionnera plus.</p>
+            <button onClick={regenerateToken} disabled={regenerating}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-red-200 bg-white text-red-500 text-xs font-semibold hover:bg-red-50 transition-colors disabled:opacity-60">
+              <RefreshCw className="w-3.5 h-3.5" /> {regenerating ? "Régénération..." : "Régénérer le lien"}
             </button>
           </div>
         </div>
@@ -374,17 +407,29 @@ export default function AgendaPage() {
               ? absences.filter(a => a.staffId === filterStaffId && ds >= a.startDate && ds <= a.endDate)
               : absences.filter(a => ds >= a.startDate && ds <= a.endDate)
 
+            // Group overlapping bookings for side-by-side display
+            const overlapGroups = groupOverlapping(dayBookings)
+            // Build a map: bookingId -> { groupSize, indexInGroup }
+            const overlapMap = new Map<string, { total: number; idx: number }>()
+            for (const group of overlapGroups) {
+              group.forEach((b, idx) => overlapMap.set(b.id, { total: group.length, idx }))
+            }
+
             return (
               <div key={colIdx} className={`relative border-r border-slate-100 last:border-0 ${isToday ? "bg-sky-50/20" : ""}`} style={{ height: HOURS.length * SLOT_HEIGHT }}>
-                {HOURS.map((_, hi) => <div key={hi} style={{ position: "absolute", top: hi * SLOT_HEIGHT, left: 0, right: 0, borderTop: "1px solid #f8fafc" }} />)}
+                {HOURS.map((_, hi) => (
+                  <div key={hi} style={{ position: "absolute", top: hi * SLOT_HEIGHT, left: 0, right: 0, borderTop: "1px solid #f8fafc" }} />
+                ))}
 
                 {/* Ligne maintenant */}
                 {isToday && (() => {
                   const now = new Date()
                   const top = ((now.getHours() * 60 + now.getMinutes() - 7 * 60) / 60) * SLOT_HEIGHT
-                  return top >= 0 ? <div style={{ position: "absolute", top, left: 0, right: 0, height: 2, background: "#ef4444", zIndex: 5 }}>
-                    <div style={{ position: "absolute", left: -3, top: -3, width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
-                  </div> : null
+                  return top >= 0 ? (
+                    <div style={{ position: "absolute", top, left: 0, right: 0, height: 2, background: "#ef4444", zIndex: 5 }}>
+                      <div style={{ position: "absolute", left: -3, top: -3, width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
+                    </div>
+                  ) : null
                 })()}
 
                 {/* Blocs absence */}
@@ -399,16 +444,35 @@ export default function AgendaPage() {
                   )
                 })}
 
-                {/* RDVs */}
+                {/* RDVs — avec gestion des overlaps */}
                 {dayBookings.map(booking => {
                   const slotMin = toMin(booking.timeSlot)
                   const duration = booking.service?.duration ?? 60
                   const top    = ((slotMin - 7 * 60) / 60) * SLOT_HEIGHT
                   const height = Math.max((duration / 60) * SLOT_HEIGHT - 2, 18)
                   const colors = STATUS_COLORS[booking.status]
+                  const overlap = overlapMap.get(booking.id) ?? { total: 1, idx: 0 }
+                  const widthPct = 100 / overlap.total
+                  const leftPct  = widthPct * overlap.idx
+
                   return (
                     <button key={booking.id} onClick={() => setSelectedBooking(booking)}
-                      style={{ position: "absolute", top: top + 1, left: 2, right: 2, height, background: colors.bg, border: `1px solid ${colors.border}`, borderLeft: `3px solid ${booking.staff?.color ?? "#0ea5e9"}`, borderRadius: 5, padding: "2px 5px", overflow: "hidden", zIndex: 2, cursor: "pointer", textAlign: "left", width: "calc(100% - 4px)" }}>
+                      style={{
+                        position: "absolute",
+                        top: top + 1,
+                        left: `calc(${leftPct}% + 2px)`,
+                        width: `calc(${widthPct}% - 4px)`,
+                        height,
+                        background: colors.bg,
+                        border: `1px solid ${colors.border}`,
+                        borderLeft: `3px solid ${booking.staff?.color ?? "#0ea5e9"}`,
+                        borderRadius: 5,
+                        padding: "2px 5px",
+                        overflow: "hidden",
+                        zIndex: 2,
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}>
                       <p style={{ fontSize: 10, fontWeight: 700, color: colors.text, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {booking.timeSlot} {booking.clientName}
                       </p>
@@ -434,8 +498,15 @@ export default function AgendaPage() {
       ? absences.filter(a => a.staffId === filterStaffId && dayStr >= a.startDate && dayStr <= a.endDate)
       : absences.filter(a => dayStr >= a.startDate && dayStr <= a.endDate)
 
+    // Overlap handling for day view
+    const overlapGroups = groupOverlapping(displayBookings)
+    const overlapMap = new Map<string, { total: number; idx: number }>()
+    for (const group of overlapGroups) {
+      group.forEach((b, idx) => overlapMap.set(b.id, { total: group.length, idx }))
+    }
+
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col" style={{ maxHeight: "calc(100vh - 200px)" }}>
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col relative" style={{ maxHeight: "calc(100vh - 200px)" }}>
         <div className="border-b border-slate-200 px-4 py-3 flex-shrink-0 flex items-center justify-between">
           <div>
             <p className="font-semibold text-slate-900 capitalize">
@@ -444,11 +515,12 @@ export default function AgendaPage() {
             <p className="text-xs text-slate-400 mt-0.5">{displayBookings.length} RDV</p>
           </div>
           {dayAbsences.length > 0 && (
-            <div style={{ display: "flex", gap: 6 }}>
+            <div className="flex gap-1.5 flex-wrap">
               {dayAbsences.map((ab, i) => {
                 const s = staffs.find(st => st.id === ab.staffId)
                 return (
-                  <span key={i} style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: ABSENCE_COLORS[ab.type], color: "#475569" }}>
+                  <span key={i} className="px-2.5 py-1 rounded-full text-xs font-semibold text-slate-600"
+                    style={{ background: ABSENCE_COLORS[ab.type] }}>
                     {s?.name} — {ABSENCE_LABELS[ab.type]}
                   </span>
                 )
@@ -456,6 +528,7 @@ export default function AgendaPage() {
             </div>
           )}
         </div>
+
         <div className="overflow-y-auto flex-1">
           <div className="relative flex" style={{ height: HOURS.length * SLOT_HEIGHT }}>
             <div className="w-12 flex-shrink-0 border-r border-slate-100">
@@ -466,7 +539,9 @@ export default function AgendaPage() {
               ))}
             </div>
             <div className="flex-1 relative" style={{ height: HOURS.length * SLOT_HEIGHT }}>
-              {HOURS.map((_, hi) => <div key={hi} style={{ position: "absolute", top: hi * SLOT_HEIGHT, left: 0, right: 0, borderTop: "1px solid #f8fafc" }} />)}
+              {HOURS.map((_, hi) => (
+                <div key={hi} style={{ position: "absolute", top: hi * SLOT_HEIGHT, left: 0, right: 0, borderTop: "1px solid #f8fafc" }} />
+              ))}
 
               {/* Absence overlay */}
               {dayAbsences.length > 0 && (
@@ -477,9 +552,11 @@ export default function AgendaPage() {
               {dayStr === todayStr && (() => {
                 const now = new Date()
                 const top = ((now.getHours() * 60 + now.getMinutes() - 7 * 60) / 60) * SLOT_HEIGHT
-                return top >= 0 ? <div style={{ position: "absolute", top, left: 0, right: 0, height: 2, background: "#ef4444", zIndex: 10 }}>
-                  <div style={{ position: "absolute", left: -3, top: -3, width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
-                </div> : null
+                return top >= 0 ? (
+                  <div style={{ position: "absolute", top, left: 0, right: 0, height: 2, background: "#ef4444", zIndex: 10 }}>
+                    <div style={{ position: "absolute", left: -3, top: -3, width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
+                  </div>
+                ) : null
               })()}
 
               {displayBookings.map(booking => {
@@ -488,9 +565,28 @@ export default function AgendaPage() {
                 const top    = ((slotMin - 7 * 60) / 60) * SLOT_HEIGHT
                 const height = Math.max((duration / 60) * SLOT_HEIGHT - 3, 32)
                 const colors = STATUS_COLORS[booking.status]
+                const overlap = overlapMap.get(booking.id) ?? { total: 1, idx: 0 }
+                const widthPct = 100 / overlap.total
+                const leftPct  = widthPct * overlap.idx
+
                 return (
                   <button key={booking.id} onClick={() => setSelectedBooking(booking)}
-                    style={{ position: "absolute", top: top + 1, left: 8, right: 8, height, background: colors.bg, border: `1px solid ${colors.border}`, borderLeft: `4px solid ${booking.staff?.color ?? "#0ea5e9"}`, borderRadius: 8, padding: "6px 10px", overflow: "hidden", zIndex: 2, cursor: "pointer", textAlign: "left", width: "calc(100% - 16px)" }}>
+                    style={{
+                      position: "absolute",
+                      top: top + 1,
+                      left: `calc(${leftPct}% + 8px)`,
+                      width: `calc(${widthPct}% - 16px)`,
+                      height,
+                      background: colors.bg,
+                      border: `1px solid ${colors.border}`,
+                      borderLeft: `4px solid ${booking.staff?.color ?? "#0ea5e9"}`,
+                      borderRadius: 8,
+                      padding: "6px 10px",
+                      overflow: "hidden",
+                      zIndex: 2,
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: colors.text, margin: "0 0 2px" }}>{booking.timeSlot} — {booking.clientName}</p>
                     {height > 40 && (
                       <p style={{ fontSize: 11, color: colors.text, opacity: 0.8, margin: 0 }}>
@@ -505,6 +601,15 @@ export default function AgendaPage() {
             </div>
           </div>
         </div>
+
+        {/* FAB — Nouveau RDV (links to bookings page with biz param) */}
+        <a
+          href={`/bookings${bizParamLink}`}
+          className="absolute bottom-5 right-5 w-12 h-12 rounded-full bg-sky-500 hover:bg-sky-600 text-white shadow-lg flex items-center justify-center transition-colors z-10"
+          title="Nouveau RDV"
+        >
+          <Plus className="w-5 h-5" />
+        </a>
       </div>
     )
   }
@@ -514,7 +619,7 @@ export default function AgendaPage() {
     : ref.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
 
   return (
-    <div className="flex flex-col gap-3" style={{ height: "100%" }}>
+    <div className="flex flex-col gap-3 h-full">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
@@ -542,15 +647,20 @@ export default function AgendaPage() {
 
       {/* Staff filter pills */}
       {staffs.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="flex gap-2 flex-wrap">
           <button onClick={() => setFilterStaffId(null)}
-            style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, border: `1.5px solid ${filterStaffId === null ? "#0ea5e9" : "#e2e8f0"}`, background: filterStaffId === null ? "#0ea5e9" : "#fff", color: filterStaffId === null ? "#fff" : "#64748b", cursor: "pointer", transition: "all 0.15s" }}>
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all ${filterStaffId === null ? "bg-sky-500 text-white border-sky-500" : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"}`}>
             Tous
           </button>
           {staffs.map(s => (
             <button key={s.id} onClick={() => setFilterStaffId(filterStaffId === s.id ? null : s.id)}
-              style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, border: `1.5px solid ${filterStaffId === s.id ? s.color : "#e2e8f0"}`, background: filterStaffId === s.id ? s.color : "#fff", color: filterStaffId === s.id ? "#fff" : "#64748b", cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: filterStaffId === s.id ? "#fff" : s.color, display: "inline-block" }} />
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all"
+              style={{
+                borderColor: filterStaffId === s.id ? s.color : "#e2e8f0",
+                background: filterStaffId === s.id ? s.color : "#fff",
+                color: filterStaffId === s.id ? "#fff" : "#64748b",
+              }}>
+              <span className="w-2 h-2 rounded-full" style={{ background: filterStaffId === s.id ? "#fff" : s.color }} />
               {s.name}
             </button>
           ))}
