@@ -693,6 +693,25 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
     <div style={{ background: T.pageBg, minHeight: "100svh", fontFamily: T.fontFamily }}>
       <style>{globalCss}</style>
 
+      {/* ══ Mobile hero banner (< lg) ════════════════════════════════════════════ */}
+      {displayCover ? (
+        <div className="lg:hidden relative w-full overflow-hidden" style={{ aspectRatio: "21/9", maxHeight: 200, minHeight: 100 }}>
+          <img src={displayCover} className="w-full h-full object-cover" alt="" />
+          {/* gradient overlay */}
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.55) 100%)" }} />
+          {/* identity overlay */}
+          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 flex items-end gap-3">
+            {displayLogo && (
+              <img src={displayLogo} className="w-10 h-10 rounded-xl object-cover shadow-lg flex-shrink-0 border border-white/20" alt="" />
+            )}
+            <div className="min-w-0">
+              <p className="font-bold text-sm text-white truncate leading-tight drop-shadow">{displayName}</p>
+              {displayTagline && <p className="text-xs text-white/75 truncate leading-tight">{displayTagline}</p>}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* ══ Mobile sticky header (< lg) ══════════════════════════════════════════ */}
       <div
         className="lg:hidden sticky top-0 z-20 backdrop-blur-md border-b"
@@ -802,17 +821,9 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         {/* ── Right content ─────────────────────────────────────────────────────── */}
         <main className="flex-1 px-4 lg:px-12 pt-8 pb-32 lg:pb-16">
 
-          {/* Mobile-only: cover, tagline, description, hours (hidden on desktop where sidebar shows them) */}
-          {stepIdx === 0 && (displayCover || displayDescription || displayTagline || displayShowHours) && (
+          {/* Mobile-only: description, hours (cover is now in hero above, tagline in overlay) */}
+          {stepIdx === 0 && (displayDescription || displayShowHours) && (
             <div className="lg:hidden mb-6 space-y-3">
-              {displayCover && (
-                <div className="w-full rounded-2xl overflow-hidden" style={{ aspectRatio: "21/9", maxHeight: 160, minHeight: 60 }}>
-                  <img src={displayCover} className="w-full h-full object-cover" alt="" />
-                </div>
-              )}
-              {displayTagline && (
-                <p className="text-sm font-medium" style={{ color: T.textMuted }}>{displayTagline}</p>
-              )}
               {displayDescription && (
                 <p className="text-sm leading-relaxed" style={{ color: T.textBody }}>{displayDescription}</p>
               )}
