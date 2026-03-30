@@ -77,7 +77,21 @@ export default function PersonnalisationPage() {
     businessName: "",
   })
   const [saved, setSaved] = useState<PreviewState>(state)
-  const dirty = JSON.stringify(state) !== JSON.stringify(saved)
+  const savedRef = useRef(saved)
+  savedRef.current = saved
+
+  // Efficient dirty check — compare only lightweight fields, skip base64 blobs by reference
+  const dirty = state.pageTheme !== saved.pageTheme
+    || state.pageAccentColor !== saved.pageAccentColor
+    || state.pageTagline !== saved.pageTagline
+    || state.logoDataUrl !== saved.logoDataUrl
+    || state.pageCoverDataUrl !== saved.pageCoverDataUrl
+    || state.pageDescription !== saved.pageDescription
+    || state.pageLegalText !== saved.pageLegalText
+    || state.pageShowHours !== saved.pageShowHours
+    || state.businessName !== saved.businessName
+    || JSON.stringify(state.pageLabels) !== JSON.stringify(saved.pageLabels)
+    || JSON.stringify(state.pageServiceOrder) !== JSON.stringify(saved.pageServiceOrder)
 
   const activePrimary = state.pageAccentColor ?? THEMES.find(t => t.key === state.pageTheme)?.primary ?? "#0ea5e9"
 
@@ -119,9 +133,13 @@ export default function PersonnalisationPage() {
     })
   }, [bizParam])
 
-  // Send preview on state change
+  // Debounced preview — wait 150ms after last change before sending to iframe
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    if (iframeReady) sendPreview(state)
+    if (!iframeReady) return
+    if (previewTimer.current) clearTimeout(previewTimer.current)
+    previewTimer.current = setTimeout(() => sendPreview(state), 150)
+    return () => { if (previewTimer.current) clearTimeout(previewTimer.current) }
   }, [state, iframeReady, sendPreview])
 
   function update<K extends keyof PreviewState>(key: K, value: PreviewState[K]) {
