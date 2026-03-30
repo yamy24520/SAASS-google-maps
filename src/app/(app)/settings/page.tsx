@@ -385,64 +385,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-        </div>
-      )}
-
-      {/* ─── TAB: PAIEMENTS ─── */}
-      {tab === "advanced" && (
-        <div className="space-y-5">
-
-          {/* Stripe Connect */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-violet-500" /> Paiement en ligne
-              </CardTitle>
-              <CardDescription>Connectez Stripe pour recevoir les paiements de réservations</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!stripeConnect ? (
-                <p className="text-sm text-slate-400 animate-pulse">Chargement…</p>
-              ) : stripeConnect.connected && stripeConnect.active ? (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">Compte Stripe actif</p>
-                      <p className="text-xs text-slate-500">Paiements et virements activés</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={handleStripeConnect} disabled={connectLoading}>
-                    {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                    Gérer
-                  </Button>
-                </div>
-              ) : stripeConnect.connected ? (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-500" />
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">En attente de vérification</p>
-                      <p className="text-xs text-slate-500">Finalisez votre inscription Stripe</p>
-                    </div>
-                  </div>
-                  <Button size="sm" className="gap-1.5" onClick={handleStripeConnect} disabled={connectLoading}>
-                    {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                    Finaliser
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-slate-500">Aucun compte Stripe connecté</p>
-                  <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-500" onClick={handleStripeConnect} disabled={connectLoading}>
-                    {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
-                    Connecter Stripe
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* IA Vocale */}
           <Card className="border-violet-100">
             <CardHeader>
@@ -530,6 +472,64 @@ export default function SettingsPage() {
                     {vapiLoading ? "Configuration en cours…" : "Activer l'IA Vocale"}
                   </Button>
                   <p className="text-xs text-slate-400 text-center">Nécessite une clé Vapi.ai configurée</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+        </div>
+      )}
+
+      {/* ─── TAB: PAIEMENTS ─── */}
+      {tab === "advanced" && (
+        <div className="space-y-5">
+
+          {/* Stripe Connect */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-violet-500" /> Paiement en ligne
+              </CardTitle>
+              <CardDescription>Connectez Stripe pour recevoir les paiements de réservations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!stripeConnect ? (
+                <p className="text-sm text-slate-400 animate-pulse">Chargement…</p>
+              ) : stripeConnect.connected && stripeConnect.active ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">Compte Stripe actif</p>
+                      <p className="text-xs text-slate-500">Paiements et virements activés</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={handleStripeConnect} disabled={connectLoading}>
+                    {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                    Gérer
+                  </Button>
+                </div>
+              ) : stripeConnect.connected ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-500" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">En attente de vérification</p>
+                      <p className="text-xs text-slate-500">Finalisez votre inscription Stripe</p>
+                    </div>
+                  </div>
+                  <Button size="sm" className="gap-1.5" onClick={handleStripeConnect} disabled={connectLoading}>
+                    {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                    Finaliser
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-slate-500">Aucun compte Stripe connecté</p>
+                  <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-500" onClick={handleStripeConnect} disabled={connectLoading}>
+                    {connectLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+                    Connecter Stripe
+                  </Button>
                 </div>
               )}
             </CardContent>
