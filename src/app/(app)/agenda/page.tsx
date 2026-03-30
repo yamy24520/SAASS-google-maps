@@ -104,6 +104,7 @@ export default function AgendaPage() {
   const [staffs, setStaffs] = useState<Staff[]>([])
   const [absences, setAbsences] = useState<StaffAbsence[]>([])
   const [calendarToken, setCalendarToken] = useState<string | null>(null)
+  const [staffTokens, setStaffTokens] = useState<{ id: string; name: string; color: string; token: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<"week" | "day">(() =>
     typeof window !== "undefined" && window.innerWidth < 1024 ? "day" : "week"
@@ -137,6 +138,7 @@ export default function AgendaPage() {
     setStaffs(sData.staffs ?? [])
     setAbsences(aData.absences ?? [])
     setCalendarToken(tData.token ?? null)
+    setStaffTokens(tData.staffTokens ?? [])
     setLoading(false)
   }, [bizParam])
 
@@ -291,84 +293,130 @@ export default function AgendaPage() {
   }
 
   // ─── SYNC PHONE PANEL ────────────────────────────────────────────────────────
-  const SyncPanel = () => (
-    <div className="fixed inset-0 z-50" onClick={() => setShowSync(false)}>
-      <div className="absolute inset-0 bg-slate-900/30" />
-      <div className="absolute top-0 right-0 bottom-0 w-[400px] bg-white shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-2.5">
-            <Smartphone className="w-5 h-5 text-sky-500" />
-            <p className="font-bold text-base text-slate-900">Sync calendrier téléphone</p>
+  const SyncPanel = () => {
+    const [copiedKey, setCopiedKey] = useState<string | null>(null)
+
+    async function copyUrl(url: string, key: string) {
+      await navigator.clipboard.writeText(url)
+      setCopiedKey(key)
+      setTimeout(() => setCopiedKey(null), 2000)
+    }
+
+    function CalendarRow({ label, url, colorDot, rowKey }: { label: string; url: string; colorDot?: string; rowKey: string }) {
+      return (
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {colorDot && <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: colorDot }} />}
+            <span className="text-xs text-slate-600 font-medium truncate">{label}</span>
           </div>
-          <button onClick={() => setShowSync(false)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400">
-            <X className="w-4.5 h-4.5" />
+          <button
+            onClick={() => copyUrl(url, rowKey)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors flex-shrink-0 ${
+              copiedKey === rowKey ? "bg-emerald-500 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+            }`}
+          >
+            {copiedKey === rowKey ? <><Check className="w-3 h-3" /> Copié</> : <><Copy className="w-3 h-3" /> Copier</>}
           </button>
         </div>
+      )
+    }
 
-        <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
-          <p className="text-sm text-slate-500">
-            Abonnez-vous à ce calendrier pour voir vos réservations directement dans Apple Calendar, Google Calendar ou Outlook. Il se met à jour automatiquement.
-          </p>
+    return (
+      <div className="fixed inset-0 z-50" onClick={() => setShowSync(false)}>
+        <div className="absolute inset-0 bg-slate-900/30" />
+        <div className="absolute top-0 right-0 bottom-0 w-[420px] bg-white shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <Smartphone className="w-5 h-5 text-sky-500" />
+              <p className="font-bold text-base text-slate-900">Sync calendrier téléphone</p>
+            </div>
+            <button onClick={() => setShowSync(false)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400">
+              <X className="w-4.5 h-4.5" />
+            </button>
+          </div>
 
-          {/* URL */}
-          <div>
-            <p className="text-xs font-semibold text-slate-600 mb-2">Lien d&apos;abonnement</p>
-            <div className="flex gap-2 items-center">
-              <input readOnly value={calendarUrl ?? ""} className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-500 bg-slate-50 focus:outline-none" />
-              <button onClick={copyCalendarUrl}
-                className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-white font-semibold text-sm whitespace-nowrap transition-colors ${copied ? "bg-emerald-500" : "bg-sky-500 hover:bg-sky-600"}`}>
-                {copied ? <><Check className="w-3.5 h-3.5" /> Copié</> : <><Copy className="w-3.5 h-3.5" /> Copier</>}
+          <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
+            <p className="text-sm text-slate-500">
+              Chaque prestataire peut syncer <strong>uniquement ses propres RDV</strong> sur son téléphone. Le lien général contient tous les RDV.
+            </p>
+
+            {/* Lien général */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Lien général</p>
+              <div className="bg-slate-50 rounded-xl p-3 space-y-2">
+                {calendarUrl && (
+                  <CalendarRow label="Tous les RDV" url={calendarUrl} rowKey="general" />
+                )}
+              </div>
+            </div>
+
+            {/* Liens par prestataire */}
+            {staffTokens.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Par prestataire</p>
+                <div className="bg-slate-50 rounded-xl p-3 space-y-2.5">
+                  {staffTokens.map(s => (
+                    <CalendarRow
+                      key={s.id}
+                      label={s.name}
+                      url={`${APP_URL}/api/calendar/${s.token}`}
+                      colorDot={s.color}
+                      rowKey={s.id}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400">Partagez uniquement le lien personnel de chaque employé — il ne verra que ses RDV.</p>
+              </div>
+            )}
+
+            {/* Instructions */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Comment syncer</p>
+              <div className="bg-sky-50 border border-sky-200 rounded-xl p-4">
+                <p className="text-sm font-bold text-sky-800 mb-2">📱 iPhone / iPad (Apple Calendar)</p>
+                <ol className="text-xs text-sky-900 space-y-1 pl-4 list-decimal leading-relaxed">
+                  <li>Copiez le lien souhaité</li>
+                  <li>Ouvrez <strong>Réglages → Calendrier → Comptes</strong></li>
+                  <li>Appuyez sur <strong>Ajouter un compte → Autre</strong></li>
+                  <li>Appuyez sur <strong>Ajouter un calendrier avec abonnement</strong></li>
+                  <li>Collez le lien et appuyez sur <strong>Suivant</strong></li>
+                </ol>
+              </div>
+
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <p className="text-sm font-bold text-emerald-800 mb-2">📅 Google Calendar (Android)</p>
+                <ol className="text-xs text-emerald-900 space-y-1 pl-4 list-decimal leading-relaxed">
+                  <li>Copiez le lien souhaité</li>
+                  <li>Sur ordinateur, ouvrez <strong>calendar.google.com</strong></li>
+                  <li>Cliquez sur <strong>+ → Depuis une URL</strong></li>
+                  <li>Collez le lien et cliquez <strong>Ajouter un calendrier</strong></li>
+                </ol>
+              </div>
+
+              <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+                <p className="text-sm font-bold text-violet-800 mb-2">🖥 Outlook / Windows</p>
+                <ol className="text-xs text-violet-900 space-y-1 pl-4 list-decimal leading-relaxed">
+                  <li>Copiez le lien souhaité</li>
+                  <li>Dans Outlook, allez dans <strong>Calendrier</strong></li>
+                  <li>Cliquez <strong>Ajouter un calendrier → Depuis Internet</strong></li>
+                  <li>Collez le lien et confirmez</li>
+                </ol>
+              </div>
+            </div>
+
+            {/* Régénérer lien général */}
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-xs text-slate-400 mb-3">Régénérer le lien général révoque l&apos;accès à l&apos;ancien. Les liens individuels des prestataires ne sont pas affectés.</p>
+              <button onClick={regenerateToken} disabled={regenerating}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-red-200 bg-white text-red-500 text-xs font-semibold hover:bg-red-50 transition-colors disabled:opacity-60">
+                <RefreshCw className="w-3.5 h-3.5" /> {regenerating ? "Régénération..." : "Régénérer le lien général"}
               </button>
             </div>
           </div>
-
-          {/* Instructions */}
-          <div className="space-y-3">
-            <div className="bg-sky-50 border border-sky-200 rounded-xl p-4">
-              <p className="text-sm font-bold text-sky-800 mb-2">📱 iPhone / iPad (Apple Calendar)</p>
-              <ol className="text-xs text-sky-900 space-y-1 pl-4 list-decimal leading-relaxed">
-                <li>Copiez le lien ci-dessus</li>
-                <li>Ouvrez <strong>Réglages → Calendrier → Comptes</strong></li>
-                <li>Appuyez sur <strong>Ajouter un compte → Autre</strong></li>
-                <li>Appuyez sur <strong>Ajouter un calendrier avec abonnement</strong></li>
-                <li>Collez le lien et appuyez sur <strong>Suivant</strong></li>
-              </ol>
-            </div>
-
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-              <p className="text-sm font-bold text-emerald-800 mb-2">📅 Google Calendar (Android)</p>
-              <ol className="text-xs text-emerald-900 space-y-1 pl-4 list-decimal leading-relaxed">
-                <li>Copiez le lien ci-dessus</li>
-                <li>Sur ordinateur, ouvrez <strong>calendar.google.com</strong></li>
-                <li>Cliquez sur <strong>+ → Depuis une URL</strong></li>
-                <li>Collez le lien et cliquez <strong>Ajouter un calendrier</strong></li>
-                <li>Il apparaîtra automatiquement sur votre Android</li>
-              </ol>
-            </div>
-
-            <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
-              <p className="text-sm font-bold text-violet-800 mb-2">🖥 Outlook / Windows</p>
-              <ol className="text-xs text-violet-900 space-y-1 pl-4 list-decimal leading-relaxed">
-                <li>Copiez le lien ci-dessus</li>
-                <li>Dans Outlook, allez dans <strong>Calendrier</strong></li>
-                <li>Cliquez <strong>Ajouter un calendrier → Depuis Internet</strong></li>
-                <li>Collez le lien et confirmez</li>
-              </ol>
-            </div>
-          </div>
-
-          {/* Régénérer */}
-          <div className="border-t border-slate-100 pt-4">
-            <p className="text-xs text-slate-400 mb-3">Si vous pensez que le lien a été partagé par erreur, vous pouvez le régénérer. L&apos;ancien lien ne fonctionnera plus.</p>
-            <button onClick={regenerateToken} disabled={regenerating}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-red-200 bg-white text-red-500 text-xs font-semibold hover:bg-red-50 transition-colors disabled:opacity-60">
-              <RefreshCw className="w-3.5 h-3.5" /> {regenerating ? "Régénération..." : "Régénérer le lien"}
-            </button>
-          </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   // ─── VUE SEMAINE ──────────────────────────────────────────────────────────────
   const WeekView = () => (

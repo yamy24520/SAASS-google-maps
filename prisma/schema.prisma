@@ -313,10 +313,11 @@ model Staff {
   businessId  String
   business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  name        String
-  color       String   @default("#0ea5e9")
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  name          String
+  color         String   @default("#0ea5e9")
+  active        Boolean  @default(true)
+  calendarToken String?  @unique
+  createdAt     DateTime @default(now())
 
   bookings    Booking[]
   absences    StaffAbsence[]
