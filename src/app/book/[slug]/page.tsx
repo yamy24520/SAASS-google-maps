@@ -10,7 +10,7 @@ interface Service { id: string; name: string; description: string | null; catego
 interface Staff   { id: string; name: string; color: string }
 interface BusinessInfo {
   businessId: string; businessName: string; logoDataUrl: string | null
-  pageTheme: string; pageTagline: string | null; pageAccentColor: string | null
+  pageTheme: string; pageStyle: string | null; pageTagline: string | null; pageAccentColor: string | null
   pageCoverDataUrl: string | null; pageDescription: string | null
   pageLegalText: string | null; pageLabels: Record<string, string> | null
   pageServiceOrder: string[] | null; pageShowHours: boolean
@@ -22,145 +22,125 @@ interface BusinessInfo {
 type Step = "service" | "staff" | "datetime" | "form" | "payment" | "done"
 
 // ─── Theme System ──────────────────────────────────────────────────────────────
+// pageStyle controls the visual style (dark/light/layout/effects)
+// pageAccentColor (any hex) overrides the primary color
 
-type ThemeKey = "default" | "hello_kitty" | "barber" | "manga"
+type StyleKey = "minimal" | "modern" | "future" | "luxury"
 
 interface ThemeConfig {
-  // Page
   pageBg: string
-  // Sidebar (desktop left panel)
   sidebarBg: string
   sidebarBorder: string
-  // Cards
   cardBg: string
   cardBorder: string
-  // Primary (buttons, selected state, progress bar)
   primary: string
   primaryHover: string
   primaryText: string
   primaryShadow: string
-  // Text
   textHeading: string
   textBody: string
   textMuted: string
-  // Inputs
   inputBorder: string
   inputFocusBorder: string
   inputBg: string
-  // Step indicator (sidebar)
   stepDone: string
   stepActive: string
   stepFuture: string
-  // Decorative
   accentEmoji: string
   fontStyle: string
   badgeText: string
   badgeBg: string
   badgeTextColor: string
+  // Style-specific
+  isDark: boolean
+  glowEffect: boolean
+  fontFamily: string
 }
 
-const THEMES: Record<ThemeKey, ThemeConfig> = {
-  default: {
-    pageBg: "#f8fafc",
-    sidebarBg: "#ffffff",
-    sidebarBorder: "#f1f5f9",
-    cardBg: "#ffffff",
-    cardBorder: "#f1f5f9",
-    primary: "#0ea5e9",
-    primaryHover: "#0284c7",
-    primaryText: "#ffffff",
-    primaryShadow: "rgba(14,165,233,0.25)",
-    textHeading: "#0f172a",
-    textBody: "#334155",
-    textMuted: "#94a3b8",
-    inputBorder: "#e2e8f0",
-    inputFocusBorder: "#0ea5e9",
-    inputBg: "#ffffff",
-    stepDone: "#0ea5e9",
-    stepActive: "#0ea5e9",
-    stepFuture: "#e2e8f0",
-    accentEmoji: "✨",
-    fontStyle: "Moderne",
-    badgeText: "Standard",
-    badgeBg: "#f0f9ff",
-    badgeTextColor: "#0369a1",
-  },
-  hello_kitty: {
-    pageBg: "#fce4ec",
-    sidebarBg: "#fce4ec",
-    sidebarBorder: "#f48fb1",
-    cardBg: "#fff0f6",
-    cardBorder: "#f48fb1",
-    primary: "#e91e8c",
-    primaryHover: "#c2185b",
-    primaryText: "#ffffff",
-    primaryShadow: "rgba(233,30,140,0.35)",
-    textHeading: "#880e4f",
-    textBody: "#ad1457",
-    textMuted: "#f48fb1",
-    inputBorder: "#f48fb1",
-    inputFocusBorder: "#e91e8c",
-    inputBg: "#fce4ec",
-    stepDone: "#e91e8c",
-    stepActive: "#e91e8c",
-    stepFuture: "#f8bbd0",
-    accentEmoji: "🎀",
-    fontStyle: "Kawaii",
-    badgeText: "Hello Kitty",
-    badgeBg: "#f8bbd0",
-    badgeTextColor: "#880e4f",
-  },
-  barber: {
-    pageBg: "#0f172a",
-    sidebarBg: "#1e293b",
-    sidebarBorder: "#334155",
-    cardBg: "#1e293b",
-    cardBorder: "#334155",
-    primary: "#f59e0b",
-    primaryHover: "#d97706",
-    primaryText: "#0f172a",
-    primaryShadow: "rgba(245,158,11,0.30)",
-    textHeading: "#f8fafc",
-    textBody: "#cbd5e1",
-    textMuted: "#64748b",
-    inputBorder: "#334155",
-    inputFocusBorder: "#f59e0b",
-    inputBg: "#0f172a",
-    stepDone: "#f59e0b",
-    stepActive: "#f59e0b",
-    stepFuture: "#334155",
-    accentEmoji: "✂️",
-    fontStyle: "Élégant",
-    badgeText: "Barber Shop",
-    badgeBg: "#1e293b",
-    badgeTextColor: "#f59e0b",
-  },
-  manga: {
-    pageBg: "#ffffff",
-    sidebarBg: "#fafafa",
-    sidebarBorder: "#e5e7eb",
-    cardBg: "#ffffff",
-    cardBorder: "#111827",
-    primary: "#dc2626",
-    primaryHover: "#b91c1c",
-    primaryText: "#ffffff",
-    primaryShadow: "rgba(220,38,38,0.25)",
-    textHeading: "#111827",
-    textBody: "#1f2937",
-    textMuted: "#6b7280",
-    inputBorder: "#111827",
-    inputFocusBorder: "#dc2626",
-    inputBg: "#ffffff",
-    stepDone: "#dc2626",
-    stepActive: "#dc2626",
-    stepFuture: "#e5e7eb",
-    accentEmoji: "⚡",
-    fontStyle: "Manga",
-    badgeText: "Manga",
-    badgeBg: "#fef2f2",
-    badgeTextColor: "#dc2626",
-  },
+// Legacy themeKey alias (kept for compat with old data)
+type ThemeKey = StyleKey | "default" | "hello_kitty" | "barber" | "manga"
+
+function hexToRgb(hex: string): string {
+  const h = hex.replace("#", "")
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `${r},${g},${b}`
 }
+
+function buildTheme(style: StyleKey, accent: string): ThemeConfig {
+  const rgb = hexToRgb(accent)
+  switch (style) {
+    case "minimal":
+      return {
+        pageBg: "#ffffff", sidebarBg: "#fafafa", sidebarBorder: "#f0f0f0",
+        cardBg: "#ffffff", cardBorder: "#ebebeb",
+        primary: accent, primaryHover: accent, primaryText: "#ffffff",
+        primaryShadow: `rgba(${rgb},0.18)`,
+        textHeading: "#111111", textBody: "#444444", textMuted: "#aaaaaa",
+        inputBorder: "#e0e0e0", inputFocusBorder: accent, inputBg: "#ffffff",
+        stepDone: accent, stepActive: accent, stepFuture: "#ebebeb",
+        accentEmoji: "", fontStyle: "Minimal", badgeText: "Minimal",
+        badgeBg: `rgba(${rgb},0.08)`, badgeTextColor: accent,
+        isDark: false, glowEffect: false, fontFamily: "'Inter','Helvetica Neue',sans-serif",
+      }
+    case "future":
+      return {
+        pageBg: "#04040f", sidebarBg: "#07071a", sidebarBorder: `rgba(${rgb},0.15)`,
+        cardBg: "#0a0a20", cardBorder: `rgba(${rgb},0.12)`,
+        primary: accent, primaryHover: accent, primaryText: "#ffffff",
+        primaryShadow: `rgba(${rgb},0.5)`,
+        textHeading: "#f0eaff", textBody: "#9080cc", textMuted: "#484068",
+        inputBorder: `rgba(${rgb},0.2)`, inputFocusBorder: accent, inputBg: "#07071a",
+        stepDone: accent, stepActive: accent, stepFuture: `rgba(${rgb},0.1)`,
+        accentEmoji: "", fontStyle: "Future", badgeText: "Future",
+        badgeBg: `rgba(${rgb},0.15)`, badgeTextColor: accent,
+        isDark: true, glowEffect: true, fontFamily: "'SF Pro Display','Inter',sans-serif",
+      }
+    case "luxury":
+      return {
+        pageBg: "#0a0800", sidebarBg: "#100e00", sidebarBorder: `rgba(${rgb},0.2)`,
+        cardBg: "#100e00", cardBorder: `rgba(${rgb},0.18)`,
+        primary: accent, primaryHover: accent, primaryText: "#0a0800",
+        primaryShadow: `rgba(${rgb},0.4)`,
+        textHeading: "#f5e8c0", textBody: "#c0a870", textMuted: "#705840",
+        inputBorder: `rgba(${rgb},0.2)`, inputFocusBorder: accent, inputBg: "#0a0800",
+        stepDone: accent, stepActive: accent, stepFuture: `rgba(${rgb},0.1)`,
+        accentEmoji: "", fontStyle: "Luxury", badgeText: "Luxury",
+        badgeBg: `rgba(${rgb},0.12)`, badgeTextColor: accent,
+        isDark: true, glowEffect: false, fontFamily: "'Didot','Garamond','Georgia',serif",
+      }
+    default: // modern
+      return {
+        pageBg: "#f5f5fa", sidebarBg: "#ffffff", sidebarBorder: "#eaeaf0",
+        cardBg: "#ffffff", cardBorder: "#eaeaf0",
+        primary: accent, primaryHover: accent, primaryText: "#ffffff",
+        primaryShadow: `rgba(${rgb},0.25)`,
+        textHeading: "#0f0f1a", textBody: "#3d3d5c", textMuted: "#9b9bb4",
+        inputBorder: "#e0e0f0", inputFocusBorder: accent, inputBg: "#ffffff",
+        stepDone: accent, stepActive: accent, stepFuture: "#e8e8f5",
+        accentEmoji: "", fontStyle: "Modern", badgeText: "Modern",
+        badgeBg: `rgba(${rgb},0.08)`, badgeTextColor: accent,
+        isDark: false, glowEffect: false, fontFamily: "-apple-system,'SF Pro Display','Segoe UI',sans-serif",
+      }
+  }
+}
+
+// Map old pageTheme keys to style + default accent
+const LEGACY_THEME_MAP: Record<string, { style: StyleKey; accent: string }> = {
+  default:    { style: "modern",  accent: "#6366f1" },
+  dark:       { style: "modern",  accent: "#6366f1" },
+  light:      { style: "minimal", accent: "#6366f1" },
+  hello_kitty:{ style: "modern",  accent: "#f0238c" },
+  barber:     { style: "luxury",  accent: "#e8a020" },
+  manga:      { style: "minimal", accent: "#e81818" },
+  future:     { style: "future",  accent: "#7c50ff" },
+  luxury:     { style: "luxury",  accent: "#c8a03c" },
+  ocean:      { style: "modern",  accent: "#38bdf8" },
+  forest:     { style: "modern",  accent: "#4ade80" },
+  warm:       { style: "modern",  accent: "#fbbf24" },
+}
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -432,6 +412,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         businessName: pageData.businessName,
         logoDataUrl: pageData.logoDataUrl,
         pageTheme: pageData.pageTheme ?? "default",
+        pageStyle: pageData.pageStyle ?? null,
         pageTagline: pageData.pageTagline ?? null,
         pageAccentColor: pageData.pageAccentColor ?? null,
         pageCoverDataUrl: pageData.pageCoverDataUrl ?? null,
@@ -546,6 +527,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   // ── Theme resolution (preview overrides have priority) ───────────────────────
 
   const displayTheme       = preview?.pageTheme        ?? info?.pageTheme        ?? "default"
+  const displayStyleRaw    = (preview as { pageStyle?: string } | null)?.pageStyle ?? info?.pageStyle ?? null
   const displayAccent      = preview?.pageAccentColor  ?? info?.pageAccentColor  ?? null
   const displayTagline     = preview?.pageTagline      ?? info?.pageTagline      ?? null
   const displayLogo        = preview?.logoDataUrl      ?? info?.logoDataUrl      ?? null
@@ -557,17 +539,12 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   const displayShowHours   = preview?.pageShowHours    ?? info?.pageShowHours    ?? false
   const displayServiceOrder = preview?.pageServiceOrder ?? info?.pageServiceOrder ?? null
 
-  const themeKey = displayTheme as ThemeKey
-  const baseTheme = THEMES[themeKey] ?? THEMES.default
-  const effectivePrimary = displayAccent ?? baseTheme.primary
-  const T: ThemeConfig = {
-    ...baseTheme,
-    primary: effectivePrimary,
-    primaryHover: effectivePrimary,
-    inputFocusBorder: effectivePrimary,
-    stepDone: effectivePrimary,
-    stepActive: effectivePrimary,
-  }
+  // Resolve style: pageStyle takes priority, fallback to legacy pageTheme mapping
+  const legacyMap = LEGACY_THEME_MAP[displayTheme] ?? LEGACY_THEME_MAP.default
+  const resolvedStyle = (displayStyleRaw as StyleKey | null) ?? legacyMap.style
+  const resolvedAccent = displayAccent ?? legacyMap.accent
+  const T: ThemeConfig = buildTheme(resolvedStyle, resolvedAccent)
+  const themeKey = displayTheme as ThemeKey // kept for serviceAccents compat
 
   // ── Derived state ─────────────────────────────────────────────────────────────
 
@@ -696,8 +673,25 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   // Render
   // ─────────────────────────────────────────────────────────────────────────────
 
+  const globalCss = `
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    @keyframes glow-pulse { 0%,100%{box-shadow:0 0 20px rgba(${hexToRgb(resolvedAccent)},0.3)} 50%{box-shadow:0 0 40px rgba(${hexToRgb(resolvedAccent)},0.6)} }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+    .shimmer-btn {
+      background: linear-gradient(90deg, ${resolvedAccent} 0%, ${resolvedAccent}cc 40%, ${resolvedAccent}ff 50%, ${resolvedAccent}cc 60%, ${resolvedAccent} 100%);
+      background-size: 200% auto;
+      animation: shimmer 2.5s linear infinite;
+    }
+    ${resolvedStyle === "future" ? `
+      .future-glow { animation: glow-pulse 3s ease-in-out infinite; }
+      .future-card { transition: border-color 0.3s, box-shadow 0.3s; }
+      .future-card:hover { border-color: rgba(${hexToRgb(resolvedAccent)},0.4) !important; box-shadow: 0 0 20px rgba(${hexToRgb(resolvedAccent)},0.15); }
+    ` : ""}
+  `
+
   return (
-    <div style={{ background: T.pageBg, minHeight: "100svh" }}>
+    <div style={{ background: T.pageBg, minHeight: "100svh", fontFamily: T.fontFamily }}>
+      <style>{globalCss}</style>
 
       {/* ══ Mobile sticky header (< lg) ══════════════════════════════════════════ */}
       <div
@@ -705,15 +699,8 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         style={{ background: `${T.sidebarBg}e6`, borderColor: T.sidebarBorder }}
       >
         <div className="px-4 py-3 flex items-center gap-3">
-          {displayLogo ? (
+          {displayLogo && (
             <img src={displayLogo} className="w-8 h-8 rounded-xl object-cover shadow-sm flex-shrink-0" alt="" />
-          ) : (
-            <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0"
-              style={{ background: T.primary, color: T.primaryText }}
-            >
-              {displayName.charAt(0)}
-            </div>
           )}
           <p className="font-bold text-sm flex-1 truncate" style={{ color: T.textHeading }}>{displayName}</p>
           {step !== "done" && (
@@ -749,20 +736,9 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
 
           {/* Business identity */}
           <div className="mb-8">
-            {/* Accent emoji only — no badge text */}
-            {T.accentEmoji && (
-              <div className="mb-4 text-2xl">{T.accentEmoji}</div>
-            )}
             {displayLogo ? (
               <img src={displayLogo} className="w-16 h-16 rounded-2xl object-cover shadow-md mb-4" alt="" />
-            ) : (
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-2xl shadow-md mb-4"
-                style={{ background: T.primary, color: T.primaryText }}
-              >
-                {displayName.charAt(0)}
-              </div>
-            )}
+            ) : null}
             <h1 className="text-2xl font-bold leading-tight" style={{ color: T.textHeading }}>{displayName}</h1>
             {displayTagline && (
               <p className="text-sm mt-1 leading-snug" style={{ color: T.textMuted }}>{displayTagline}</p>
@@ -887,7 +863,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                 <button
                   key={svc.id}
                   onClick={() => { setSelectedService(svc); setStep(hasStaff ? "staff" : "datetime") }}
-                  className="w-full rounded-xl text-left transition-all duration-150 group"
+                  className={`w-full rounded-xl text-left transition-all duration-150 group${T.glowEffect ? " future-card" : ""}`}
                   style={{ background: T.cardBg, borderBottom: `1px solid ${T.cardBorder}` }}
                   onMouseEnter={e => { e.currentTarget.style.background = `${T.primary}08` }}
                   onMouseLeave={e => { e.currentTarget.style.background = T.cardBg }}
@@ -1250,10 +1226,8 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                   {selectedSlot && (
                     <button
                       onClick={() => setStep("form")}
-                      className="w-full py-4 rounded-2xl font-bold text-base transition-all duration-150 mt-2"
-                      style={{ background: T.primary, color: T.primaryText, boxShadow: `0 8px 24px ${T.primaryShadow}` }}
-                      onMouseEnter={e => (e.currentTarget.style.background = T.primaryHover)}
-                      onMouseLeave={e => (e.currentTarget.style.background = T.primary)}
+                      className={`w-full py-4 rounded-2xl font-bold text-base transition-all duration-150 mt-2${T.glowEffect ? " future-glow shimmer-btn" : ""}`}
+                      style={{ background: T.glowEffect ? undefined : T.primary, color: T.primaryText, boxShadow: `0 8px 24px ${T.primaryShadow}` }}
                     >
                       Continuer →
                     </button>
@@ -1344,18 +1318,12 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               <button
                 onClick={submit}
                 disabled={submitting || !form.name || !form.email}
-                className="mt-8 hidden lg:block px-10 py-4 rounded-2xl font-bold text-base transition-all duration-150"
+                className={`mt-8 hidden lg:block px-10 py-4 rounded-2xl font-bold text-base transition-all duration-150${(!submitting && form.name && form.email && T.glowEffect) ? " shimmer-btn future-glow" : ""}`}
                 style={
                   submitting || !form.name || !form.email
                     ? { background: T.stepFuture, color: T.textMuted, cursor: "not-allowed" }
-                    : { background: T.primary, color: T.primaryText, boxShadow: `0 8px 24px ${T.primaryShadow}` }
+                    : { background: T.glowEffect ? undefined : T.primary, color: T.primaryText, boxShadow: `0 8px 24px ${T.primaryShadow}` }
                 }
-                onMouseEnter={e => {
-                  if (!submitting && form.name && form.email) e.currentTarget.style.background = T.primaryHover
-                }}
-                onMouseLeave={e => {
-                  if (!submitting && form.name && form.email) e.currentTarget.style.background = T.primary
-                }}
               >
                 {submitting ? "Envoi en cours…" : "Confirmer la réservation"}
               </button>

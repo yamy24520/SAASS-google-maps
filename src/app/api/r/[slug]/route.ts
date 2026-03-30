@@ -67,6 +67,7 @@ export async function GET(
     reviews,
     logoDataUrl: business.logoDataUrl ?? null,
     pageTheme: business.pageTheme ?? "dark",
+    pageStyle: business.pageStyle ?? "modern",
     pageTagline: business.pageTagline ?? null,
     pageAccentColor: business.pageAccentColor ?? null,
     pageCoverDataUrl: business.pageCoverDataUrl ?? null,

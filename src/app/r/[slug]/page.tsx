@@ -837,18 +837,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
               <div style={{ display: "inline-block", marginBottom: 24, position: "relative" }}>
                 <img src={logo} style={{ width: 96, height: 96, borderRadius: 26, objectFit: "cover", display: "block", boxShadow: `0 12px 40px rgba(0,0,0,0.35), 0 0 0 1px ${t.border}` }} />
               </div>
-            ) : (
-              <div style={{
-                width: 96, height: 96, borderRadius: 26,
-                background: `linear-gradient(135deg, ${t.accent}50, ${t.star}50)`,
-                border: `1px solid ${t.border}`,
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                color: t.text, fontSize: 40, fontWeight: 800, marginBottom: 24,
-                boxShadow: `0 12px 40px rgba(0,0,0,0.35)`,
-              }}>
-                {data.businessName.charAt(0)}
-              </div>
-            )}
+            ) : null}
 
             {/* Business name */}
             <h1 style={{

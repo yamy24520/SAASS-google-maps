@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/toaster"
 
 interface PreviewState {
   pageTheme: string
+  pageStyle: string
   pageAccentColor: string | null
   pageTagline: string | null
   logoDataUrl: string | null
@@ -24,11 +25,41 @@ interface PreviewState {
 
 interface ServiceItem { id: string; name: string }
 
+const STYLES = [
+  {
+    key: "modern",
+    label: "Modern",
+    desc: "Épuré, animations douces",
+    preview: { bg: "#f5f5fa", sidebar: "#ffffff", btn: "#6366f1", card: "#ffffff" },
+  },
+  {
+    key: "minimal",
+    label: "Minimal",
+    desc: "Sobre, typographie pure",
+    preview: { bg: "#ffffff", sidebar: "#fafafa", btn: "#111111", card: "#ffffff" },
+  },
+  {
+    key: "future",
+    label: "Future",
+    desc: "Néon, glow, dark total",
+    preview: { bg: "#04040f", sidebar: "#07071a", btn: "#7c50ff", card: "#0a0a20" },
+  },
+  {
+    key: "luxury",
+    label: "Luxury",
+    desc: "Sombre, doré, prestige",
+    preview: { bg: "#0a0800", sidebar: "#100e00", btn: "#c8a03c", card: "#100e00" },
+  },
+]
+
+const PRESET_COLORS = ["#6366f1","#0ea5e9","#10b981","#f59e0b","#ef4444","#ec4899","#8b5cf6","#14b8a6","#f97316","#ffffff","#c8a03c","#e8a020"]
+
+// Legacy themes kept for compat
 const THEMES = [
-  { key: "default",     label: "Standard",    primary: "#0ea5e9", pageBg: "#f8fafc", dark: false },
-  { key: "hello_kitty", label: "Hello Kitty", primary: "#e91e8c", pageBg: "#fce4ec", dark: false },
-  { key: "barber",      label: "Barber Shop", primary: "#f59e0b", pageBg: "#0f172a", dark: true  },
-  { key: "manga",       label: "Manga",       primary: "#dc2626", pageBg: "#ffffff", dark: false },
+  { key: "default", label: "Standard", primary: "#6366f1", pageBg: "#f5f5fa", dark: false },
+  { key: "hello_kitty", label: "Hello Kitty", primary: "#f0238c", pageBg: "#fff0f7", dark: false },
+  { key: "barber", label: "Barber Shop", primary: "#e8a020", pageBg: "#080c14", dark: true },
+  { key: "manga", label: "Manga", primary: "#e81818", pageBg: "#fafafa", dark: false },
 ]
 
 const DEFAULT_LABELS: Record<string, string> = {
@@ -86,6 +117,7 @@ export default function PersonnalisationPage() {
 
   const [state, setState] = useState<PreviewState>({
     pageTheme: "default",
+    pageStyle: "modern",
     pageAccentColor: null,
     pageTagline: null,
     logoDataUrl: null,
@@ -103,6 +135,7 @@ export default function PersonnalisationPage() {
 
   // Efficient dirty check — compare only lightweight fields, skip base64 blobs by reference
   const dirty = state.pageTheme !== saved.pageTheme
+    || state.pageStyle !== saved.pageStyle
     || state.pageAccentColor !== saved.pageAccentColor
     || state.pageTagline !== saved.pageTagline
     || state.logoDataUrl !== saved.logoDataUrl
@@ -114,7 +147,7 @@ export default function PersonnalisationPage() {
     || JSON.stringify(state.pageLabels) !== JSON.stringify(saved.pageLabels)
     || JSON.stringify(state.pageServiceOrder) !== JSON.stringify(saved.pageServiceOrder)
 
-  const activePrimary = state.pageAccentColor ?? THEMES.find(t => t.key === state.pageTheme)?.primary ?? "#0ea5e9"
+  const activePrimary = state.pageAccentColor ?? STYLES.find(s => s.key === state.pageStyle)?.preview.btn ?? "#6366f1"
 
   const sendPreview = useCallback((overrides: PreviewState) => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -134,6 +167,7 @@ export default function PersonnalisationPage() {
       if (b) {
         const initial: PreviewState = {
           pageTheme:        b.pageTheme ?? "default",
+          pageStyle:        b.pageStyle ?? "modern",
           pageAccentColor:  b.pageAccentColor ?? null,
           pageTagline:      b.pageTagline ?? null,
           logoDataUrl:      b.logoDataUrl ?? null,
@@ -183,6 +217,7 @@ export default function PersonnalisationPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         pageTheme:        state.pageTheme,
+        pageStyle:        state.pageStyle,
         pageAccentColor:  state.pageAccentColor,
         pageTagline:      state.pageTagline || null,
         logoDataUrl:      state.logoDataUrl,
@@ -244,7 +279,6 @@ export default function PersonnalisationPage() {
   )
 
   const iframeUrl = `/book/${slug}`
-  const activeTheme = THEMES.find(t => t.key === state.pageTheme) ?? THEMES[0]
 
   // Ordered services for display
   const displayOrder = state.pageServiceOrder ?? services.map(s => s.id)
@@ -293,31 +327,40 @@ export default function PersonnalisationPage() {
         {/* Left config panel */}
         <div className="w-80 flex-shrink-0 bg-white border-r border-slate-200 overflow-y-auto">
 
-          {/* ─ Theme ─ */}
-          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="theme" label="Theme" icon={Tag}>
+          {/* ─ Style visuel ─ */}
+          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="theme" label="Style visuel" icon={Tag}>
             <div className="grid grid-cols-2 gap-2">
-              {THEMES.map(theme => {
-                const sel = state.pageTheme === theme.key
+              {STYLES.map(s => {
+                const sel = state.pageStyle === s.key
+                const accent = state.pageAccentColor ?? s.preview.btn
                 return (
-                  <button key={theme.key} onClick={() => update("pageTheme", theme.key)}
-                    className="flex flex-col items-center gap-2 p-2.5 rounded-xl transition-all"
+                  <button key={s.key} onClick={() => update("pageStyle", s.key)}
+                    className="flex flex-col gap-2 p-2.5 rounded-xl text-left transition-all"
                     style={{
-                      border: sel ? `2px solid ${theme.primary}` : "2px solid #e2e8f0",
-                      background: sel ? `${theme.primary}12` : "transparent",
+                      border: sel ? `2px solid ${accent}` : "2px solid #e2e8f0",
+                      background: sel ? `${accent}10` : "transparent",
                     }}>
-                    <div className="w-full h-10 rounded-lg overflow-hidden">
-                      <div style={{ height: "55%", background: theme.primary }} />
-                      <div style={{ height: "45%", background: theme.pageBg, borderTop: "1px solid #e2e8f0" }} />
+                    {/* Mini preview */}
+                    <div className="w-full h-12 rounded-lg overflow-hidden flex" style={{ background: s.preview.bg }}>
+                      <div className="w-1/3 h-full" style={{ background: s.preview.sidebar, borderRight: "1px solid rgba(0,0,0,0.06)" }} />
+                      <div className="flex-1 p-1.5 flex flex-col gap-1">
+                        <div className="h-2 rounded-full w-3/4" style={{ background: s.preview.card === "#ffffff" ? "#e2e8f0" : "rgba(255,255,255,0.08)" }} />
+                        <div className="h-3 rounded-md w-full mt-auto" style={{ background: accent }} />
+                      </div>
                     </div>
-                    <span className="text-xs font-medium text-slate-700">{theme.label}</span>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-800">{s.label}</p>
+                      <p className="text-[10px] text-slate-400 leading-tight">{s.desc}</p>
+                    </div>
                   </button>
                 )
               })}
             </div>
           </SectionAccordion>
 
-          {/* ─ Couleurs ─ */}
+          {/* ─ Couleur principale ─ */}
           <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="colors" label="Couleur principale" icon={Tag}>
+            <p className="text-xs text-slate-400">S&apos;applique sur n&apos;importe quel style.</p>
             <div className="flex items-center gap-3">
               <input type="color" value={activePrimary}
                 onChange={e => update("pageAccentColor", e.target.value)}
@@ -326,7 +369,7 @@ export default function PersonnalisationPage() {
                 <p className="text-sm font-semibold text-slate-800">{activePrimary.toUpperCase()}</p>
                 {state.pageAccentColor
                   ? <p className="text-xs text-sky-500">Personnalisee</p>
-                  : <p className="text-xs text-slate-400">Couleur du theme</p>}
+                  : <p className="text-xs text-slate-400">Couleur par defaut</p>}
               </div>
               {state.pageAccentColor && (
                 <button onClick={() => update("pageAccentColor", null)}
@@ -336,27 +379,32 @@ export default function PersonnalisationPage() {
               )}
             </div>
             <div className="flex gap-1.5 flex-wrap">
-              {["#0ea5e9","#8b5cf6","#10b981","#f59e0b","#ef4444","#ec4899","#14b8a6","#f97316"].map(c => (
+              {PRESET_COLORS.map(c => (
                 <button key={c} onClick={() => update("pageAccentColor", c)}
                   className={`w-6 h-6 rounded-full transition-transform hover:scale-110 ${state.pageAccentColor === c ? "ring-2 ring-offset-1 ring-slate-400 scale-110" : ""}`}
-                  style={{ background: c }} />
+                  style={{ background: c, border: c === "#ffffff" ? "1px solid #e2e8f0" : "none" }} />
               ))}
             </div>
             {/* Mini preview */}
-            <div className="rounded-xl overflow-hidden border border-slate-200">
-              <div className="p-3 flex items-center gap-2" style={{ background: activeTheme.pageBg }}>
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-sm" style={{ background: activePrimary }}>
-                  {state.businessName.charAt(0) || "R"}
+            {(() => {
+              const activeStyle = STYLES.find(s => s.key === state.pageStyle) ?? STYLES[0]
+              return (
+                <div className="rounded-xl overflow-hidden border border-slate-200">
+                  <div className="p-3 flex items-center gap-2" style={{ background: activeStyle.preview.bg }}>
+                    {state.logoDataUrl
+                      ? <img src={state.logoDataUrl} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" alt="" />
+                      : null}
+                    <div className="flex-1">
+                      <div className="h-2.5 w-24 rounded-full mb-1" style={{ background: activeStyle.preview.bg === "#ffffff" || activeStyle.preview.bg === "#fafafa" || activeStyle.preview.bg === "#f5f5fa" ? "#0f172a20" : "#ffffff30" }} />
+                      <div className="h-2 w-16 rounded-full" style={{ background: activeStyle.preview.bg === "#ffffff" || activeStyle.preview.bg === "#fafafa" || activeStyle.preview.bg === "#f5f5fa" ? "#0f172a12" : "#ffffff18" }} />
+                    </div>
+                  </div>
+                  <div className="p-3" style={{ background: activeStyle.preview.card }}>
+                    <div className="h-7 rounded-lg w-full" style={{ background: activePrimary }} />
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <div className="h-2.5 w-24 rounded-full mb-1" style={{ background: activeTheme.dark ? "#ffffff30" : "#0f172a20" }} />
-                  <div className="h-2 w-16 rounded-full" style={{ background: activeTheme.dark ? "#ffffff18" : "#0f172a12" }} />
-                </div>
-              </div>
-              <div className="p-3" style={{ background: activeTheme.dark ? "#1e293b" : "#f8fafc" }}>
-                <div className="h-7 rounded-lg w-full" style={{ background: activePrimary, opacity: 0.9 }} />
-              </div>
-            </div>
+              )
+            })()}
           </SectionAccordion>
 
           {/* ─ Identite (logo, tagline, description) ─ */}

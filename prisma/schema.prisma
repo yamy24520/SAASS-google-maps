@@ -117,6 +117,7 @@ model Business {
   socialLinks          Json?
   logoDataUrl          String? @db.Text
   pageTheme            String  @default("dark")
+  pageStyle            String  @default("modern")
   pageTagline          String?
   pageAccentColor      String?
   pageCoverDataUrl     String? @db.Text

@@ -31,6 +31,7 @@ const schema = z.object({
   }).nullable().optional(),
   logoDataUrl: z.string().nullable().optional(),
   pageTheme: z.string().optional(),
+  pageStyle: z.string().optional(),
   pageTagline: z.string().nullable().optional(),
   pageAccentColor: z.string().nullable().optional(),
   pageCoverDataUrl: z.string().nullable().optional(),
