@@ -384,6 +384,17 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
+  // Live preview overrides — reçus via postMessage depuis /personnalisation
+  const [preview, setPreview] = useState<Partial<BusinessInfo> | null>(null)
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (e.data?.type !== "REPUTIX_PREVIEW") return
+      setPreview(e.data.overrides ?? null)
+    }
+    window.addEventListener("message", onMessage)
+    return () => window.removeEventListener("message", onMessage)
+  }, [])
+
   const [step, setStep] = useState<Step>("service")
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null)
@@ -520,12 +531,17 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
     </div>
   )
 
-  // ── Theme resolution ──────────────────────────────────────────────────────────
+  // ── Theme resolution (preview overrides have priority) ───────────────────────
 
-  const themeKey = (info?.pageTheme ?? "default") as ThemeKey
+  const displayTheme    = preview?.pageTheme      ?? info?.pageTheme      ?? "default"
+  const displayAccent   = preview?.pageAccentColor ?? info?.pageAccentColor ?? null
+  const displayTagline  = preview?.pageTagline     ?? info?.pageTagline     ?? null
+  const displayLogo     = preview?.logoDataUrl     ?? info?.logoDataUrl     ?? null
+  const displayName     = preview?.businessName    ?? info?.businessName    ?? ""
+
+  const themeKey = displayTheme as ThemeKey
   const baseTheme = THEMES[themeKey] ?? THEMES.default
-  // Apply custom accent color override from settings
-  const effectivePrimary = info?.pageAccentColor ?? baseTheme.primary
+  const effectivePrimary = displayAccent ?? baseTheme.primary
   const T: ThemeConfig = {
     ...baseTheme,
     primary: effectivePrimary,
@@ -659,17 +675,17 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         style={{ background: `${T.sidebarBg}e6`, borderColor: T.sidebarBorder }}
       >
         <div className="px-4 py-3 flex items-center gap-3">
-          {info?.logoDataUrl ? (
-            <img src={info.logoDataUrl} className="w-8 h-8 rounded-xl object-cover shadow-sm flex-shrink-0" alt="" />
+          {displayLogo ? (
+            <img src={displayLogo} className="w-8 h-8 rounded-xl object-cover shadow-sm flex-shrink-0" alt="" />
           ) : (
             <div
               className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0"
               style={{ background: T.primary, color: T.primaryText }}
             >
-              {info?.businessName.charAt(0)}
+              {displayName.charAt(0)}
             </div>
           )}
-          <p className="font-bold text-sm flex-1 truncate" style={{ color: T.textHeading }}>{info?.businessName}</p>
+          <p className="font-bold text-sm flex-1 truncate" style={{ color: T.textHeading }}>{displayName}</p>
           {step !== "done" && (
             <span className="text-xs font-medium flex-shrink-0" style={{ color: T.textMuted }}>
               {stepIdx + 1} / {STEPS.length}
@@ -700,19 +716,19 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
             {T.accentEmoji && (
               <div className="mb-4 text-2xl">{T.accentEmoji}</div>
             )}
-            {info?.logoDataUrl ? (
-              <img src={info.logoDataUrl} className="w-16 h-16 rounded-2xl object-cover shadow-md mb-4" alt="" />
+            {displayLogo ? (
+              <img src={displayLogo} className="w-16 h-16 rounded-2xl object-cover shadow-md mb-4" alt="" />
             ) : (
               <div
                 className="w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-2xl shadow-md mb-4"
                 style={{ background: T.primary, color: T.primaryText }}
               >
-                {info?.businessName.charAt(0)}
+                {displayName.charAt(0)}
               </div>
             )}
-            <h1 className="text-2xl font-bold leading-tight" style={{ color: T.textHeading }}>{info?.businessName}</h1>
-            {info?.pageTagline && (
-              <p className="text-sm mt-1 leading-snug" style={{ color: T.textMuted }}>{info.pageTagline}</p>
+            <h1 className="text-2xl font-bold leading-tight" style={{ color: T.textHeading }}>{displayName}</h1>
+            {displayTagline && (
+              <p className="text-sm mt-1 leading-snug" style={{ color: T.textMuted }}>{displayTagline}</p>
             )}
             <div className="flex items-center gap-1.5 mt-2">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
