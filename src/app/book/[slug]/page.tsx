@@ -12,7 +12,7 @@ interface Staff   { id: string; name: string; color: string }
 interface BusinessInfo {
   businessId: string; businessName: string; logoDataUrl: string | null
   pageTheme: string; pageStyle: string | null; pageTagline: string | null; pageAccentColor: string | null
-  pageCoverDataUrl: string | null; pageDescription: string | null
+  pageCoverDataUrl: string | null; pageCoverHeight: number | null; pageDescription: string | null
   pageLegalText: string | null; pageLabels: Record<string, string> | null
   pageServiceOrder: string[] | null; pageShowHours: boolean
   bookingHours: Record<string, { open: string; close: string }> | null
@@ -422,6 +422,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         pageTagline: pageData.pageTagline ?? null,
         pageAccentColor: pageData.pageAccentColor ?? null,
         pageCoverDataUrl: pageData.pageCoverDataUrl ?? null,
+        pageCoverHeight: pageData.pageCoverHeight ?? null,
         pageDescription: pageData.pageDescription ?? null,
         pageLegalText: pageData.pageLegalText ?? null,
         pageLabels: pageData.pageLabels ?? null,
@@ -562,6 +563,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   const displayLogo        = preview?.logoDataUrl      ?? info?.logoDataUrl      ?? null
   const displayName        = preview?.businessName     ?? info?.businessName     ?? ""
   const displayCover       = preview?.pageCoverDataUrl ?? info?.pageCoverDataUrl ?? null
+  const displayCoverHeight = preview?.pageCoverHeight  ?? info?.pageCoverHeight  ?? null
   const displayDescription = preview?.pageDescription  ?? info?.pageDescription  ?? null
   const displayLegal       = preview?.pageLegalText    ?? info?.pageLegalText    ?? null
   const displayLabels      = preview?.pageLabels       ?? info?.pageLabels       ?? null
@@ -724,7 +726,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
 
       {/* ══ Mobile hero banner (< lg) ════════════════════════════════════════════ */}
       {displayCover ? (
-        <div className="lg:hidden relative w-full overflow-hidden" style={{ aspectRatio: "21/9", maxHeight: 200, minHeight: 100 }}>
+        <div className="lg:hidden relative w-full overflow-hidden" style={{ height: displayCoverHeight ? Math.min(displayCoverHeight, 280) : undefined, aspectRatio: displayCoverHeight ? undefined : "21/9", maxHeight: displayCoverHeight ?? 200, minHeight: 80 }}>
           <img src={displayCover} className="w-full h-full object-cover" alt="" />
           {/* gradient overlay */}
           <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.55) 100%)" }} />
@@ -775,9 +777,9 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           className="hidden lg:flex flex-col w-80 shrink-0 sticky top-0 h-svh overflow-y-auto p-8 border-r"
           style={{ background: T.sidebarBg, borderColor: T.sidebarBorder }}
         >
-          {/* Cover image — 21:9, adapts to sidebar width, clamped between 80px and 180px */}
+          {/* Cover image — height controlled by pageCoverHeight, clamped to sidebar range */}
           {displayCover && (
-            <div className="mb-6 -mx-8 -mt-8 overflow-hidden" style={{ aspectRatio: "21/9", maxHeight: 180, minHeight: 80 }}>
+            <div className="mb-6 -mx-8 -mt-8 overflow-hidden" style={{ height: displayCoverHeight ? Math.min(displayCoverHeight, 240) : undefined, aspectRatio: displayCoverHeight ? undefined : "21/9", maxHeight: displayCoverHeight ?? 180, minHeight: 80 }}>
               <img src={displayCover} className="w-full h-full object-cover" alt="" />
             </div>
           )}

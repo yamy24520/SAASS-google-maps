@@ -72,6 +72,7 @@ export async function GET(
     pageTagline: business.pageTagline ?? null,
     pageAccentColor: business.pageAccentColor ?? null,
     pageCoverDataUrl: business.pageCoverDataUrl ?? null,
+    pageCoverHeight: business.pageCoverHeight ?? null,
     pageDescription: business.pageDescription ?? null,
     pageLegalText: business.pageLegalText ?? null,
     pageLabels: (business.pageLabels as Record<string, string>) ?? null,

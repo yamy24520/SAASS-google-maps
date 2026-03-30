@@ -121,6 +121,7 @@ model Business {
   pageTagline          String?
   pageAccentColor      String?
   pageCoverDataUrl     String? @db.Text
+  pageCoverHeight      Int?
   pageDescription      String?
   pageLegalText        String? @db.Text
   pageLabels           Json?

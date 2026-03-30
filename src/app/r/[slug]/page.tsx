@@ -25,6 +25,7 @@ interface PageData {
   reviews: ReviewData[]
   logoDataUrl: string | null
   pageCoverDataUrl: string | null
+  pageCoverHeight: number | null
   pageTheme: string
   pageStyle: string | null
   pageAccentColor: string | null
@@ -947,7 +948,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
 
         {/* ── Cover image hero ── */}
         {d.pageCoverDataUrl && (
-          <div style={{ position: "relative", width: "100%", overflow: "hidden", aspectRatio: "21/9", maxHeight: 220, minHeight: 100 }}>
+          <div style={{ position: "relative", width: "100%", overflow: "hidden", ...(d.pageCoverHeight ? { height: d.pageCoverHeight } : { aspectRatio: "21/9" }), maxHeight: d.pageCoverHeight ?? 220, minHeight: 80 }}>
             <img src={d.pageCoverDataUrl} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} alt="" />
             <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.6) 100%)` }} />
             {/* Logo + name overlay at bottom */}

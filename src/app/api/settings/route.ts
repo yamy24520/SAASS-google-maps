@@ -41,6 +41,7 @@ const schema = z.object({
   pageLabels: z.record(z.string(), z.string()).nullable().optional(),
   pageServiceOrder: z.array(z.string()).nullable().optional(),
   pageShowHours: z.boolean().optional(),
+  pageCoverHeight: z.number().min(60).max(400).nullable().optional(),
   emailHeaderUrl: z.string().nullable().optional(),
   emailHeaderHeight: z.number().min(60).max(500).nullable().optional(),
   emailAccentColor: z.string().nullable().optional(),
