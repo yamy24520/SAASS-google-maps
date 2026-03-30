@@ -133,7 +133,6 @@ Sois concise et naturelle.`
         body: JSON.stringify(assistantConfig)
       })
       const created = await createRes.json()
-      console.log("[vapi/setup] Réponse Vapi:", JSON.stringify(created).slice(0, 500))
       if (!createRes.ok) {
         return NextResponse.json({ error: `Vapi API error: ${created.message ?? JSON.stringify(created)}` }, { status: 500 })
       }

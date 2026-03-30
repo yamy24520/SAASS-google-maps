@@ -5,6 +5,7 @@ import { Trophy, Star, MessageSquare, TrendingUp, RefreshCw } from "lucide-react
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "@/components/ui/toaster"
 
 export default function CompetitorsPage() {
   const [data, setData] = useState<any>(null)
@@ -24,20 +25,26 @@ export default function CompetitorsPage() {
     const repRes = await fetch("/api/reputation")
     const repData = await repRes.json()
     if (!repData.business?.placeId) {
-      alert("Liez d'abord votre fiche Google Maps dans la page Réputation.")
+      toast({ title: "Fiche Google Maps manquante", description: "Liez d'abord votre fiche Google Maps dans la page Réputation.", variant: "destructive" })
       setSyncing(false)
       return
     }
     if (!repData.business?.lat || !repData.business?.lng) {
-      alert("Coordonnées introuvables. Déliez et reliez votre fiche Google Maps dans la page Réputation.")
+      toast({ title: "Coordonnées introuvables", description: "Déliez et reliez votre fiche Google Maps dans la page Réputation.", variant: "destructive" })
       setSyncing(false)
       return
     }
-    await fetch("/api/competitors", {
+    const res = await fetch("/api/competitors", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lat: repData.business.lat, lng: repData.business.lng, placeType: repData.business.placeType }),
     })
+    const result = await res.json()
+    if (!res.ok) {
+      toast({ title: "Erreur", description: result.error ?? "Impossible d'analyser les concurrents", variant: "destructive" })
+    } else {
+      toast({ title: "Analyse terminée", description: `${result.count} concurrent(s) trouvé(s)`, variant: "success" })
+    }
     await load()
     setSyncing(false)
   }
@@ -45,8 +52,12 @@ export default function CompetitorsPage() {
   useEffect(() => { load() }, [])
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+    <div className="space-y-6 animate-pulse">
+      <div className="h-10 w-64 bg-slate-200 rounded-xl" />
+      <div className="h-28 bg-slate-200 rounded-2xl" />
+      <div className="space-y-3">
+        {[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-slate-200 rounded-2xl" />)}
+      </div>
     </div>
   )
 

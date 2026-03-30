@@ -112,46 +112,48 @@ export function DashboardClient() {
             value: stats ? stats.averageRating.toFixed(1) : "–",
             delta: stats ? (stats.avgRatingDelta > 0 ? `+${stats.avgRatingDelta.toFixed(1)}` : stats.avgRatingDelta.toFixed(1)) : null,
             icon: <Star className="w-5 h-5 text-amber-400 fill-amber-400" />,
-            color: "amber",
+            href: `/reputation${bizParam}`,
           },
           {
             label: "Avis ce mois",
             value: stats?.reviewsThisMonth ?? "–",
             delta: stats ? (stats.reviewsLastMonthDelta >= 0 ? `+${stats.reviewsLastMonthDelta}` : `${stats.reviewsLastMonthDelta}`) : null,
             icon: <MessageSquare className="w-5 h-5 text-sky-500" />,
-            color: "sky",
+            href: `/reviews${bizParam}`,
           },
           {
             label: "Taux de réponse",
             value: stats ? `${Math.round(stats.responseRate)}%` : "–",
             delta: null,
             icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
-            color: "emerald",
+            href: `/reviews${bizParam}`,
           },
           {
             label: "En attente",
             value: stats?.pendingCount ?? "–",
             delta: null,
             icon: <Clock className="w-5 h-5 text-orange-400" />,
-            color: "orange",
+            href: `/reviews${bizParam ? bizParam + "&status=PENDING" : "?status=PENDING"}`,
           },
         ].map((card) => (
-          <Card key={card.label} className="hover:shadow-md transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-slate-500 font-medium">{card.label}</p>
-                  <p className="text-3xl font-bold text-slate-900 mt-1">{card.value}</p>
-                  {card.delta && (
-                    <p className={`text-xs mt-1 font-medium ${card.delta.startsWith("+") ? "text-emerald-600" : "text-red-500"}`}>
-                      {card.delta} vs mois dernier
-                    </p>
-                  )}
+          <Link key={card.label} href={card.href}>
+            <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs text-slate-500 font-medium">{card.label}</p>
+                    <p className="text-3xl font-bold text-slate-900 mt-1">{card.value}</p>
+                    {card.delta && (
+                      <p className={`text-xs mt-1 font-medium ${card.delta.startsWith("+") ? "text-emerald-600" : "text-red-500"}`}>
+                        {card.delta} vs mois dernier
+                      </p>
+                    )}
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-50">{card.icon}</div>
                 </div>
-                <div className="p-2 rounded-xl bg-slate-50">{card.icon}</div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
 
@@ -197,7 +199,12 @@ export function DashboardClient() {
         {/* Recent reviews */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Avis récents</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Avis récents</CardTitle>
+              <Link href={`/reviews${bizParam}`} className="text-xs text-sky-500 hover:text-sky-700 font-medium">
+                Voir tout →
+              </Link>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {recentReviews.length === 0 ? (
@@ -205,7 +212,7 @@ export function DashboardClient() {
             ) : (
               <div className="divide-y divide-slate-100">
                 {recentReviews.map((review) => (
-                  <div key={review.id} className="p-4">
+                  <Link key={review.id} href={`/reviews/${review.id}${bizParam ? "?" + bizParam.slice(1) : ""}`} className="block p-4 hover:bg-slate-50 transition-colors">
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                         {review.reviewerName[0]}
@@ -229,7 +236,7 @@ export function DashboardClient() {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

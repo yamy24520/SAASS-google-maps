@@ -72,86 +72,17 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // Vérifier conflit côté serveur (seulement si pas manualStatus, i.e. réservation publique)
-  if (!manualStatus) {
-    if (isRestaurant) {
-      if (business.bookingMaxCovers) {
-        const existingCovers = await prisma.booking.aggregate({
-          where: { businessId: businessId2, date, timeSlot, status: { not: "CANCELLED" } },
-          _sum: { partySize: true },
-        })
-        const taken = existingCovers._sum.partySize ?? 0
-        const needed = partySize ?? 1
-        if (taken + needed > business.bookingMaxCovers) {
-          return NextResponse.json({ error: "Plus de places disponibles pour ce créneau" }, { status: 409 })
-        }
-      }
-    } else {
-      const conflict = await prisma.booking.findFirst({
-        where: { businessId: businessId2, date, timeSlot, status: { not: "CANCELLED" }, ...(staffId ? { staffId } : {}) },
-      })
-      if (conflict) return NextResponse.json({ error: "Ce créneau n'est plus disponible" }, { status: 409 })
-    }
-  }
-
-  // Auto-assign : si pas de staffId fourni + mode salon + staff existe → prendre le moins chargé dispo
-  let resolvedStaffId: string | null = staffId || null
-  if (!resolvedStaffId && !isRestaurant) {
-    const activeStaffs = await prisma.staff.findMany({
-      where: { businessId: businessId2, active: true },
-      select: { id: true },
-    })
-    if (activeStaffs.length > 0) {
-      const today = date
-      // Exclure les staff absents ce jour
-      const absences = await prisma.staffAbsence.findMany({
-        where: {
-          staffId: { in: activeStaffs.map(s => s.id) },
-          startDate: { lte: today },
-          endDate:   { gte: today },
-        },
-        select: { staffId: true },
-      })
-      const absentIds = new Set(absences.map(a => a.staffId))
-      // Exclure les staff déjà bookés sur ce créneau
-      const slotConflicts = await prisma.booking.findMany({
-        where: {
-          businessId: businessId2,
-          date,
-          timeSlot,
-          status: { not: "CANCELLED" },
-          staffId: { in: activeStaffs.map(s => s.id) },
-        },
-        select: { staffId: true },
-      })
-      const bookedIds = new Set(slotConflicts.map(b => b.staffId).filter(Boolean) as string[])
-      const available = activeStaffs.filter(s => !absentIds.has(s.id) && !bookedIds.has(s.id))
-      if (available.length > 0) {
-        // Compter les RDVs de chaque dispo ce jour → prendre le moins chargé
-        const counts = await prisma.booking.groupBy({
-          by: ["staffId"],
-          where: { businessId: businessId2, date, status: { not: "CANCELLED" }, staffId: { in: available.map(s => s.id) } },
-          _count: { id: true },
-        })
-        const countMap = new Map(counts.map(c => [c.staffId, c._count.id]))
-        const sorted = available.sort((a, b) => (countMap.get(a.id) ?? 0) - (countMap.get(b.id) ?? 0))
-        resolvedStaffId = sorted[0].id
-      }
-    }
-  }
-
   // Récurrence : générer toutes les dates
   const dates: string[] = [date]
   if (recurrence && recurrenceEnd) {
     const endDate = new Date(recurrenceEnd + "T00:00:00")
     let cur = new Date(date + "T00:00:00")
-    const step = recurrence === "weekly" ? 7 : recurrence === "biweekly" ? 14 : 30
     while (true) {
       cur = new Date(cur)
       if (recurrence === "monthly") {
         cur.setMonth(cur.getMonth() + 1)
       } else {
-        cur.setDate(cur.getDate() + step)
+        cur.setDate(cur.getDate() + (recurrence === "weekly" ? 7 : 14))
       }
       if (cur > endDate) break
       dates.push(cur.toISOString().split("T")[0])
@@ -161,25 +92,91 @@ export async function POST(req: NextRequest) {
   const recurrenceGroupId = dates.length > 1 ? randomUUID() : null
   const cancelToken = randomUUID()
 
-  // Créer tous les RDV (récurrence ou single)
-  const bookingsData = dates.map((d, i) => ({
-    businessId: businessId2,
-    serviceId: serviceId || null,
-    staffId: resolvedStaffId,
-    clientName,
-    clientEmail,
-    clientPhone: clientPhone || null,
-    date: d,
-    timeSlot,
-    notes: notes || null,
-    partySize: partySize || null,
-    cancelToken: i === 0 ? cancelToken : randomUUID(),
-    recurrenceGroupId,
-    status: (manualStatus ?? "PENDING") as "PENDING" | "CONFIRMED" | "CANCELLED",
-  }))
+  // Toute la logique de vérification + création dans une transaction sérialisée
+  // pour éviter les race conditions (double booking au même créneau)
+  let booking
+  try { booking = await prisma.$transaction(async (tx) => {
+    // Vérifier conflit côté serveur (seulement si pas manualStatus, i.e. réservation publique)
+    if (!manualStatus) {
+      if (isRestaurant) {
+        if (business.bookingMaxCovers) {
+          const existingCovers = await tx.booking.aggregate({
+            where: { businessId: businessId2, date, timeSlot, status: { not: "CANCELLED" } },
+            _sum: { partySize: true },
+          })
+          const taken = existingCovers._sum.partySize ?? 0
+          const needed = partySize ?? 1
+          if (taken + needed > business.bookingMaxCovers) {
+            throw Object.assign(new Error("Plus de places disponibles pour ce créneau"), { status: 409 })
+          }
+        }
+      } else {
+        const conflict = await tx.booking.findFirst({
+          where: { businessId: businessId2, date, timeSlot, status: { not: "CANCELLED" }, ...(staffId ? { staffId } : {}) },
+        })
+        if (conflict) throw Object.assign(new Error("Ce créneau n'est plus disponible"), { status: 409 })
+      }
+    }
 
-  await prisma.booking.createMany({ data: bookingsData })
-  const booking = await prisma.booking.findFirst({ where: { cancelToken } })
+    // Auto-assign staff
+    let resolvedStaffId: string | null = staffId || null
+    if (!resolvedStaffId && !isRestaurant) {
+      const activeStaffs = await tx.staff.findMany({
+        where: { businessId: businessId2, active: true },
+        select: { id: true },
+      })
+      if (activeStaffs.length > 0) {
+        const absences = await tx.staffAbsence.findMany({
+          where: { staffId: { in: activeStaffs.map(s => s.id) }, startDate: { lte: date }, endDate: { gte: date } },
+          select: { staffId: true },
+        })
+        const absentIds = new Set(absences.map(a => a.staffId))
+        const slotConflicts = await tx.booking.findMany({
+          where: { businessId: businessId2, date, timeSlot, status: { not: "CANCELLED" }, staffId: { in: activeStaffs.map(s => s.id) } },
+          select: { staffId: true },
+        })
+        const bookedIds = new Set(slotConflicts.map(b => b.staffId).filter(Boolean) as string[])
+        const available = activeStaffs.filter(s => !absentIds.has(s.id) && !bookedIds.has(s.id))
+        if (available.length > 0) {
+          const counts = await tx.booking.groupBy({
+            by: ["staffId"],
+            where: { businessId: businessId2, date, status: { not: "CANCELLED" }, staffId: { in: available.map(s => s.id) } },
+            _count: { id: true },
+          })
+          const countMap = new Map(counts.map(c => [c.staffId, c._count.id]))
+          const sorted = [...available].sort((a, b) => (countMap.get(a.id) ?? 0) - (countMap.get(b.id) ?? 0))
+          resolvedStaffId = sorted[0].id
+        }
+      }
+    }
+
+    // Créer tous les RDV
+    const bookingsData = dates.map((d, i) => ({
+      businessId: businessId2,
+      serviceId: serviceId || null,
+      staffId: resolvedStaffId,
+      clientName,
+      clientEmail,
+      clientPhone: clientPhone || null,
+      date: d,
+      timeSlot,
+      notes: notes || null,
+      partySize: partySize || null,
+      cancelToken: i === 0 ? cancelToken : randomUUID(),
+      recurrenceGroupId,
+      status: (manualStatus ?? "PENDING") as "PENDING" | "CONFIRMED" | "CANCELLED",
+    }))
+
+    await tx.booking.createMany({ data: bookingsData })
+    return tx.booking.findFirst({ where: { cancelToken } })
+  }, { isolationLevel: "Serializable" })
+  } catch (err: unknown) {
+    const e = err as Error & { status?: number }
+    const status = e.status ?? 500
+    return NextResponse.json({ error: e.message ?? "Erreur lors de la création" }, { status })
+  }
+
+  if (!booking) return NextResponse.json({ error: "Erreur lors de la création" }, { status: 500 })
 
   // Archiver le lead email (upsert par email+business pour éviter les doublons)
   prisma.leadEmail.upsert({

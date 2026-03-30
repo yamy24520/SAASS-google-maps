@@ -25,18 +25,19 @@ export async function GET(
     return NextResponse.json({ error: "Page introuvable" }, { status: 404 })
   }
 
-  const snapshot = await prisma.reputationSnapshot.findFirst({
-    where: { businessId: business.id },
-    orderBy: { recordedAt: "desc" },
-    select: { rating: true, reviewCount: true, placeId: true },
-  })
-
-  const reviews = await prisma.review.findMany({
-    where: { businessId: business.id, rating: { gte: 4 }, comment: { not: null } },
-    orderBy: { reviewPublishedAt: "desc" },
-    take: 5,
-    select: { reviewerName: true, rating: true, comment: true, reviewPublishedAt: true },
-  })
+  const [snapshot, reviews] = await Promise.all([
+    prisma.reputationSnapshot.findFirst({
+      where: { businessId: business.id },
+      orderBy: { recordedAt: "desc" },
+      select: { rating: true, reviewCount: true, placeId: true },
+    }),
+    prisma.review.findMany({
+      where: { businessId: business.id, rating: { gte: 4 }, comment: { not: null } },
+      orderBy: { reviewPublishedAt: "desc" },
+      take: 5,
+      select: { reviewerName: true, rating: true, comment: true, reviewPublishedAt: true },
+    }),
+  ])
 
   const placeId = business.gbpLocationId ?? snapshot?.placeId ?? null
   const rating = snapshot?.rating ?? business.averageRating ?? 0

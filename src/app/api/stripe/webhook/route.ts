@@ -62,8 +62,7 @@ export async function POST(req: NextRequest) {
       if (!userId || !session.subscription) break
 
       const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sub = subscription as any
+      const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end
 
       await prisma.subscription.upsert({
         where: { stripeCustomerId: session.customer as string },
@@ -72,13 +71,13 @@ export async function POST(req: NextRequest) {
           stripeCustomerId: session.customer as string,
           stripeSubscriptionId: subscription.id,
           stripePriceId: subscription.items.data[0].price.id,
-          stripeCurrentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
+          stripeCurrentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
           status: subscription.status === "trialing" ? "TRIALING" : "ACTIVE",
         },
         update: {
           stripeSubscriptionId: subscription.id,
           stripePriceId: subscription.items.data[0].price.id,
-          stripeCurrentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
+          stripeCurrentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
           status: subscription.status === "trialing" ? "TRIALING" : "ACTIVE",
         },
       })
@@ -87,13 +86,12 @@ export async function POST(req: NextRequest) {
 
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const updatedSub = subscription as any
+      const updatedPeriodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end
       await prisma.subscription.updateMany({
         where: { stripeSubscriptionId: subscription.id },
         data: {
           status: mapStatus(subscription.status),
-          stripeCurrentPeriodEnd: updatedSub.current_period_end ? new Date(updatedSub.current_period_end * 1000) : null,
+          stripeCurrentPeriodEnd: updatedPeriodEnd ? new Date(updatedPeriodEnd * 1000) : null,
           cancelAtPeriodEnd: subscription.cancel_at_period_end,
         },
       })
@@ -110,11 +108,11 @@ export async function POST(req: NextRequest) {
     }
 
     case "invoice.payment_failed": {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const invoice = event.data.object as any
-      if (invoice.subscription) {
+      const invoice = event.data.object as Stripe.Invoice
+      if ((invoice as unknown as { subscription?: string }).subscription) {
+        const invoiceSub = (invoice as unknown as { subscription?: string }).subscription
         await prisma.subscription.updateMany({
-          where: { stripeSubscriptionId: invoice.subscription as string },
+          where: { stripeSubscriptionId: invoiceSub as string },
           data: { status: "PAST_DUE" },
         })
       }

@@ -58,10 +58,11 @@ export async function GET(req: NextRequest) {
   }
 
   // Vérifier la fenêtre de réservation
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const requestedDate = new Date(date + "T00:00:00")
-  const daysAhead = Math.round((requestedDate.getTime() - today.getTime()) / 86400000)
+  // Utiliser UTC pour éviter les dérives timezone serveur
+  const todayUTC = new Date()
+  todayUTC.setUTCHours(0, 0, 0, 0)
+  const requestedDate = new Date(date + "T00:00:00Z")
+  const daysAhead = Math.round((requestedDate.getTime() - todayUTC.getTime()) / 86400000)
 
   if (daysAhead < 0) return NextResponse.json({ slots: [], reason: "past" })
   if (daysAhead > settings.maxDaysAhead) return NextResponse.json({ slots: [], reason: "too_far" })

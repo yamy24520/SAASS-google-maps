@@ -96,20 +96,8 @@ export default function BookingsPage() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  // Charger les créneaux dispo quand date/service change dans le modal
+  // Réinitialiser les créneaux quand la date ou le service change
   useEffect(() => {
-    if (!modalForm.date || (!modalForm.serviceId && !editingBooking)) return
-    const bizId = searchParams.get("biz")
-    const svcId = modalForm.serviceId || editingBooking?.service ? (modalForm.serviceId || editingBooking?.service?.name) : ""
-    // On a besoin du businessId — on le récupère via l'API availability
-    fetch(`/api/bookings${bizParam}`)
-      .then(r => r.json())
-      .then(async (d) => {
-        // On cherche le businessId depuis les bookings existants ou via l'API
-        const biz = await fetch(`/api/services${bizParam}`).then(r => r.json())
-        // Pour récupérer businessId, on passe par une autre route si besoin
-        // Pour l'instant on affiche juste un input libre
-      })
     setAvailableSlots([])
   }, [modalForm.date, modalForm.serviceId])
 
