@@ -208,26 +208,14 @@ export async function sendReviewRequestWithOffer(params: {
 
 // ─── BOOKING EMAILS ───────────────────────────────────────────────────────────
 
-// Inline SVG icons (email-safe, no img tags needed)
-const SVG = {
-  cal:      `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
-  clock:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-  scissors: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`,
-  users:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-  timer:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-  euro:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M4 10h12M4 14h12M19.5 8.5A7 7 0 1 0 19.5 15.5"/></svg>`,
-  user:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
-  mail:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
-  phone:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6.08 6.08l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`,
-  note:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
-}
+// OpenTable-inspired: warm cream bg, serif headline, black CTA, dark footer
+// accentColor is used for the status dot and section divider only — never on buttons
 
-function infoRow(icon: string, label: string, value: string, last = false) {
-  const border = last ? "" : `border-bottom:1px solid #f3f4f6;`
-  return `<tr style="${border}">
-    <td style="padding:13px 20px;width:36px;color:#9ca3af;vertical-align:middle;">${icon}</td>
-    <td style="padding:13px 0;color:#6b7280;font-size:13px;vertical-align:middle;">${label}</td>
-    <td style="padding:13px 20px;color:#111827;font-size:13px;font-weight:600;text-align:right;vertical-align:middle;">${value}</td>
+function detailRow(label: string, value: string, last = false) {
+  const border = last ? "" : "border-bottom:1px solid #E8E4D9;"
+  return `<tr>
+    <td style="padding:12px 0;font-family:sans-serif;font-size:13px;color:#6B6358;${border}">${label}</td>
+    <td style="padding:12px 0;font-family:sans-serif;font-size:13px;font-weight:600;color:#1A1714;text-align:right;${border}">${value}</td>
   </tr>`
 }
 
@@ -237,106 +225,131 @@ function bookingInfoBlock(params: {
 }) {
   const covers = params.partySize ?? 1
   const rows = params.isRestaurant ? [
-    infoRow(SVG.cal,   "Date",     `<strong>${params.date}</strong>`),
-    infoRow(SVG.clock, "Heure",    params.timeSlot),
-    infoRow(SVG.users, "Couverts", `${covers} personne${covers > 1 ? "s" : ""}`, true),
+    detailRow("Date", `<strong>${params.date}</strong>`),
+    detailRow("Heure", params.timeSlot),
+    detailRow("Couverts", `${covers} personne${covers > 1 ? "s" : ""}`, true),
   ] : [
-    infoRow(SVG.cal,      "Date",       `<strong>${params.date}</strong>`),
-    infoRow(SVG.clock,    "Heure",      params.timeSlot),
-    infoRow(SVG.scissors, "Prestation", params.serviceName),
-    infoRow(SVG.timer,    "Durée",      `${params.duration} min`,
-      params.price <= 0),
-    ...(params.price > 0 ? [infoRow(SVG.euro, "Prix", `${params.price.toFixed(2)} €`, true)] : []),
+    detailRow("Date", `<strong>${params.date}</strong>`),
+    detailRow("Heure", params.timeSlot),
+    detailRow("Prestation", params.serviceName),
+    detailRow("Durée", `${params.duration} min`, params.price <= 0),
+    ...(params.price > 0 ? [detailRow("Prix", `${params.price.toFixed(2)} €`, true)] : []),
   ]
-
-  return `
-    <div style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin:20px 0 0;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-        ${rows.join("")}
-      </table>
-    </div>`
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:24px 0 0;">
+    ${rows.join("")}
+  </table>`
 }
 
 function clientInfoBlock(name: string, email: string, phone?: string | null, notes?: string | null) {
   const rows = [
-    infoRow(SVG.user,  "Nom",       name),
-    infoRow(SVG.mail,  "Email",     email, !phone && !notes),
-    ...(phone  ? [infoRow(SVG.phone, "Tél.",  phone,  !notes)] : []),
-    ...(notes  ? [infoRow(SVG.note,  "Notes", notes,  true)]   : []),
+    detailRow("Nom", name),
+    detailRow("Email", `<a href="mailto:${email}" style="color:#1A1714;text-decoration:none;">${email}</a>`, !phone && !notes),
+    ...(phone ? [detailRow("Tél.", phone, !notes)] : []),
+    ...(notes ? [detailRow("Notes", notes, true)] : []),
   ]
-  return `
-    <div style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin:16px 0 0;">
-      <div style="background:#f9fafb;padding:9px 20px;border-bottom:1px solid #e5e7eb;">
-        <span style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.8px;">Client</span>
-      </div>
-      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-        ${rows.join("")}
-      </table>
-    </div>`
+  return `<div style="margin-top:20px;border-top:2px solid #1A1714;padding-top:16px;">
+    <p style="margin:0 0 4px;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#6B6358;">Client</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      ${rows.join("")}
+    </table>
+  </div>`
 }
 
-function emailShell(bizName: string, statusLine: string, accentColor: string, body: string) {
-  // Top accent bar + clean white card
-  return `<!DOCTYPE html>
-<html lang="fr">
+// bizName, headline (serif large), subline, accentColor (dot only), body
+function emailShell(bizName: string, headline: string, subline: string, _accentColor: string, body: string) {
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body,#bodyTable{height:100%!important;width:100%!important;margin:0;padding:0;}
+    img,a img{border:0;outline:none;text-decoration:none;}
+    table,td{border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;}
+    body,table,td,p,a,li{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%;}
+    a[x-apple-data-detectors]{color:inherit!important;text-decoration:none!important;}
+    @media only screen and (max-width:480px){
+      .mpad{padding-left:24px!important;padding-right:24px!important;}
+      .headline{font-size:28px!important;line-height:34px!important;}
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 16px 48px;">
-    <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;">
+<body style="margin:0;padding:0;background-color:#F5F2EA;" bgcolor="#F5F2EA">
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#F5F2EA">
+    <tr>
+      <td align="center" valign="top" style="padding:40px 16px 0;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;">
 
-        <!-- Card -->
-        <tr><td style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.07),0 8px 32px rgba(0,0,0,0.05);">
+          <!-- Card -->
+          <tr>
+            <td bgcolor="#FDFAF4" style="background-color:#FDFAF4;border:1px solid #E8E4D9;border-radius:2px;">
 
-          <!-- Top accent bar -->
-          <table width="100%" cellpadding="0" cellspacing="0">
-            <tr><td style="background:${accentColor};height:5px;font-size:0;line-height:0;">&nbsp;</td></tr>
-          </table>
+              <!-- Top bar -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td style="background:#1A1714;padding:18px 48px;" class="mpad">
+                  <span style="font-family:sans-serif;font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#F5F2EA;">${bizName}</span>
+                </td></tr>
+              </table>
 
-          <!-- Header: biz name + status -->
-          <table width="100%" cellpadding="0" cellspacing="0">
-            <tr><td style="padding:28px 32px 24px;text-align:center;border-bottom:1px solid #f3f4f6;">
-              <div style="width:48px;height:48px;border-radius:12px;background:${accentColor};margin:0 auto 14px;text-align:center;line-height:48px;font-size:22px;font-weight:800;color:#ffffff;">
-                ${bizName.charAt(0).toUpperCase()}
-              </div>
-              <div style="font-size:17px;font-weight:700;color:#111827;letter-spacing:-0.3px;margin-bottom:8px;">${bizName}</div>
-              <div style="display:inline-block;background:${accentColor}18;color:${accentColor};font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:0.4px;text-transform:uppercase;">${statusLine}</div>
-            </td></tr>
-          </table>
+              <!-- Hero text -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td style="padding:40px 48px 8px;" class="mpad">
+                  <p style="margin:0 0 10px;font-family:sans-serif;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#9C9589;">${subline}</p>
+                  <h1 class="headline" style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:36px;line-height:42px;font-weight:400;color:#1A1714;">${headline}</h1>
+                </td></tr>
+              </table>
 
-          <!-- Body -->
-          <table width="100%" cellpadding="0" cellspacing="0">
-            <tr><td style="padding:24px 28px 32px;">
-              ${body}
-            </td></tr>
-          </table>
+              <!-- Divider -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td style="padding:24px 48px 0;" class="mpad">
+                  <div style="height:1px;background:#E8E4D9;font-size:0;line-height:0;">&nbsp;</div>
+                </td></tr>
+              </table>
 
-        </td></tr>
+              <!-- Body -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td style="padding:28px 48px 48px;" class="mpad">
+                  ${body}
+                </td></tr>
+              </table>
 
-        <!-- Footer -->
-        <tr><td style="text-align:center;padding-top:20px;">
-          <p style="color:#9ca3af;font-size:11px;margin:0;letter-spacing:0.2px;">
-            Propulsé par <a href="https://reputix.net" style="color:#6b7280;font-weight:600;text-decoration:none;">Reputix</a>
-          </p>
-        </td></tr>
+            </td>
+          </tr>
 
-      </table>
-    </td></tr>
+          <!-- Footer -->
+          <tr>
+            <td bgcolor="#1A1714" style="background-color:#1A1714;border-radius:0 0 2px 2px;padding:28px 48px 24px;" class="mpad">
+              <p style="margin:0 0 6px;font-family:sans-serif;font-size:12px;font-weight:300;color:#C8C2B6;line-height:18px;">
+                Cet email vous a été envoyé suite à votre réservation chez <strong style="font-weight:600;">${bizName}</strong>.
+              </p>
+              <p style="margin:0;font-family:sans-serif;font-size:11px;font-weight:300;color:#6B6358;line-height:16px;">
+                Propulsé par <a href="https://reputix.net" style="color:#9C9589;text-decoration:none;font-weight:600;">Reputix</a>
+              </p>
+            </td>
+          </tr>
+
+          <tr><td style="padding-bottom:40px;"></td></tr>
+        </table>
+      </td>
+    </tr>
   </table>
 </body>
 </html>`
 }
 
-function ctaButton(label: string, url: string, color: string, style: "primary" | "secondary" = "primary") {
+// Primary = black button / secondary = small underlined link
+function ctaButton(label: string, url: string, _color: string, style: "primary" | "secondary" = "primary") {
   if (style === "secondary") {
-    return `<div style="text-align:center;margin-top:12px;">
-      <a href="${url}" style="font-size:12px;color:#9ca3af;text-decoration:underline;">${label}</a>
-    </div>`
+    return `<p style="margin:16px 0 0;text-align:center;">
+      <a href="${url}" style="font-family:sans-serif;font-size:12px;color:#9C9589;text-decoration:underline;">${label}</a>
+    </p>`
   }
-  return `<a href="${url}" style="display:block;background:${color};color:#ffffff;text-decoration:none;text-align:center;padding:14px 24px;border-radius:10px;font-weight:700;font-size:14px;margin-top:24px;letter-spacing:0.2px;">${label} →</a>`
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;">
+    <tr><td>
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${url}" style="height:48px;v-text-anchor:middle;width:100%;" strokecolor="#1A1714" fillcolor="#1A1714"><w:anchorlock/><center style="font-family:sans-serif;color:#F5F2EA;font-size:14px;font-weight:600;">${label}</center></v:roundrect><![endif]-->
+      <a href="${url}" style="display:block;background:#1A1714;color:#F5F2EA;font-family:sans-serif;font-size:14px;font-weight:600;text-decoration:none;text-align:center;padding:15px 24px;letter-spacing:0.3px;mso-hide:all;">${label}</a>
+    </td></tr>
+  </table>`
 }
 
 export async function sendBookingRequestClient(params: {
@@ -348,12 +361,12 @@ export async function sendBookingRequestClient(params: {
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.clientEmail,
     subject: `Demande de réservation reçue — ${params.businessName}`,
-    html: emailShell(params.businessName, "En attente de confirmation", "#f59e0b", `
-      <p style="color:#374151;font-size:14px;line-height:1.7;margin:0 0 4px;">
+    html: emailShell(params.businessName, "Réservation reçue", "En attente de confirmation", "#f59e0b", `
+      <p style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1A1714;margin:0 0 6px;">
         Bonjour <strong>${params.clientName}</strong>,
       </p>
-      <p style="color:#6b7280;font-size:14px;line-height:1.7;margin:0 0 0;">
-        Votre demande ${params.isRestaurant ? "de table" : "de rendez-vous"} chez <strong style="color:#111827;">${params.businessName}</strong> a bien été reçue.
+      <p style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#6B6358;margin:0;">
+        Votre demande ${params.isRestaurant ? "de table" : "de rendez-vous"} a bien été reçue.
         Vous recevrez une confirmation dès validation par l'établissement.
       </p>
       ${bookingInfoBlock(params)}
@@ -372,9 +385,9 @@ export async function sendBookingRequestOwner(params: {
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.ownerEmail,
     subject: `Nouvelle demande — ${params.clientName}`,
-    html: emailShell(params.businessName, "Nouvelle réservation", "#3b82f6", `
-      <p style="color:#374151;font-size:14px;line-height:1.7;margin:0;">
-        Vous avez une nouvelle demande de ${params.isRestaurant ? "table" : "rendez-vous"} de <strong>${params.clientName}</strong>.
+    html: emailShell(params.businessName, "Nouvelle demande", "Réservation à confirmer", "#3b82f6", `
+      <p style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#6B6358;margin:0;">
+        Vous avez une nouvelle demande de ${params.isRestaurant ? "table" : "rendez-vous"} de <strong style="color:#1A1714;">${params.clientName}</strong>.
       </p>
       ${bookingInfoBlock(params)}
       ${clientInfoBlock(params.clientName, params.clientEmail, params.clientPhone)}
@@ -392,14 +405,15 @@ export async function sendBookingConfirmedClient(params: {
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.clientEmail,
     subject: `Réservation confirmée — ${params.businessName}`,
-    html: emailShell(params.businessName, "Réservation confirmée", "#10b981", `
-      <p style="color:#374151;font-size:14px;line-height:1.7;margin:0;">
-        Bonjour <strong>${params.clientName}</strong>,<br>
-        votre ${params.isRestaurant ? "réservation" : "rendez-vous"} chez <strong style="color:#111827;">${params.businessName}</strong> est confirmé.
-        À bientôt !
+    html: emailShell(params.businessName, "C'est confirmé.", "Votre réservation", "#10b981", `
+      <p style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1A1714;margin:0 0 6px;">
+        Bonjour <strong>${params.clientName}</strong>,
+      </p>
+      <p style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#6B6358;margin:0;">
+        Votre ${params.isRestaurant ? "réservation" : "rendez-vous"} est confirmé. À très bientôt !
       </p>
       ${bookingInfoBlock(params)}
-      <p style="color:#9ca3af;font-size:12px;text-align:center;margin:16px 0 0;">
+      <p style="font-family:sans-serif;font-size:12px;color:#9C9589;text-align:center;margin:20px 0 0;">
         En cas d'empêchement, merci de prévenir l'établissement.
       </p>
       ${params.cancelUrl ? ctaButton("Annuler ma réservation", params.cancelUrl, "#10b981", "secondary") : ""}
@@ -416,13 +430,15 @@ export async function sendBookingReminderClient(params: {
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.clientEmail,
     subject: `Rappel — Votre rendez-vous demain chez ${params.businessName}`,
-    html: emailShell(params.businessName, "Rappel · Demain", "#f59e0b", `
-      <p style="color:#374151;font-size:14px;line-height:1.7;margin:0;">
-        Bonjour <strong>${params.clientName}</strong>,<br>
-        n'oubliez pas votre ${params.isRestaurant ? "réservation" : "rendez-vous"} chez <strong style="color:#111827;">${params.businessName}</strong> demain.
+    html: emailShell(params.businessName, "C'est demain.", "Rappel de réservation", "#f59e0b", `
+      <p style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1A1714;margin:0 0 6px;">
+        Bonjour <strong>${params.clientName}</strong>,
+      </p>
+      <p style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#6B6358;margin:0;">
+        N'oubliez pas votre ${params.isRestaurant ? "réservation" : "rendez-vous"} de demain.
       </p>
       ${bookingInfoBlock(params)}
-      <p style="color:#9ca3af;font-size:12px;text-align:center;margin:16px 0 0;">
+      <p style="font-family:sans-serif;font-size:12px;color:#9C9589;text-align:center;margin:20px 0 0;">
         En cas d'empêchement, merci de prévenir l'établissement le plus tôt possible.
       </p>
       ${params.cancelUrl ? ctaButton("Annuler ma réservation", params.cancelUrl, "#f59e0b", "secondary") : ""}
@@ -438,12 +454,12 @@ export async function sendBookingCancelledClient(params: {
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.clientEmail,
     subject: `Réservation annulée — ${params.businessName}`,
-    html: emailShell(params.businessName, "Réservation annulée", "#ef4444", `
-      <p style="color:#374151;font-size:14px;line-height:1.7;margin:0;">
-        Bonjour <strong>${params.clientName}</strong>,<br>
-        votre réservation du <strong>${params.date} à ${params.timeSlot}</strong> chez <strong style="color:#111827;">${params.businessName}</strong> a été annulée.
+    html: emailShell(params.businessName, "Réservation annulée.", "Annulation", "#ef4444", `
+      <p style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1A1714;margin:0 0 6px;">
+        Bonjour <strong>${params.clientName}</strong>,
       </p>
-      <p style="color:#6b7280;font-size:13px;margin:16px 0 0;">
+      <p style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#6B6358;margin:0;">
+        Votre réservation du <strong style="color:#1A1714;">${params.date} à ${params.timeSlot}</strong> a été annulée.
         N'hésitez pas à reprendre rendez-vous quand vous le souhaitez.
       </p>
     `),
@@ -459,14 +475,14 @@ export async function sendClientOtpEmail(params: {
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.clientEmail,
     subject: `${params.code} — Votre code de connexion`,
-    html: emailShell(params.businessName, "Code de connexion", "#6366f1", `
-      <p style="color:#374151;font-size:14px;line-height:1.7;margin:0 0 20px;text-align:center;">
-        Voici votre code pour accéder à votre espace client :
+    html: emailShell(params.businessName, "Votre code.", "Espace client", "#6366f1", `
+      <p style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#6B6358;margin:0 0 24px;">
+        Utilisez ce code pour accéder à votre espace client :
       </p>
-      <div style="background:#f3f4f6;border-radius:14px;padding:22px 32px;text-align:center;margin:0 0 20px;">
-        <span style="font-size:38px;font-weight:800;letter-spacing:14px;color:#111827;font-family:monospace;">${params.code}</span>
+      <div style="background:#F0EDE5;border:1px solid #E8E4D9;padding:24px 32px;text-align:center;margin:0 0 20px;">
+        <span style="font-size:40px;font-weight:700;letter-spacing:16px;color:#1A1714;font-family:'Courier New',Courier,monospace;">${params.code}</span>
       </div>
-      <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0;">
+      <p style="font-family:sans-serif;font-size:12px;color:#9C9589;text-align:center;margin:0;">
         Ce code expire dans <strong>10 minutes</strong>. Ne le partagez avec personne.
       </p>
     `),
@@ -497,9 +513,9 @@ export async function sendBookingConfirmedOwner(params: {
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.ownerEmail,
     subject: `RDV confirmé — ${params.clientName}`,
-    html: emailShell(params.businessName, "Réservation confirmée", "#10b981", `
-      <p style="color:#374151;font-size:14px;line-height:1.7;margin:0;">
-        Vous avez confirmé le rendez-vous de <strong>${params.clientName}</strong>.
+    html: emailShell(params.businessName, "RDV confirmé.", "Notification", "#10b981", `
+      <p style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#6B6358;margin:0;">
+        Vous avez confirmé le rendez-vous de <strong style="color:#1A1714;">${params.clientName}</strong>.
       </p>
       ${ownerBookingBlock(params)}
     `),
@@ -518,8 +534,8 @@ export async function sendBookingCancelledOwner(params: {
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.ownerEmail,
     subject: `RDV annulé — ${params.clientName}`,
-    html: emailShell(params.businessName, "Réservation annulée", "#ef4444", `
-      <p style="color:#374151;font-size:14px;line-height:1.7;margin:0;">${byLabel}</p>
+    html: emailShell(params.businessName, "RDV annulé.", "Notification", "#ef4444", `
+      <p style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#6B6358;margin:0;">${byLabel}</p>
       ${ownerBookingBlock(params)}
     `),
   })
@@ -532,21 +548,19 @@ export async function sendBookingModifiedOwner(params: {
   changes: string[]; dashboardUrl: string
 }) {
   const changesHtml = params.changes.map(c =>
-    `<tr><td style="padding:8px 16px;font-size:13px;color:#374151;border-bottom:1px solid #f3f4f6;">${c}</td></tr>`
+    `<tr><td style="padding:9px 0;font-family:sans-serif;font-size:13px;color:#1A1714;border-bottom:1px solid #E8E4D9;">${c}</td></tr>`
   ).join("")
   await getResend().emails.send({
     from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
     to: params.ownerEmail,
     subject: `RDV modifié — ${params.clientName}`,
-    html: emailShell(params.businessName, "Réservation modifiée", "#6366f1", `
-      <p style="color:#374151;font-size:14px;line-height:1.7;margin:0 0 16px;">
-        Le rendez-vous de <strong>${params.clientName}</strong> a été modifié.
+    html: emailShell(params.businessName, "RDV modifié.", "Notification", "#6366f1", `
+      <p style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#6B6358;margin:0 0 20px;">
+        Le rendez-vous de <strong style="color:#1A1714;">${params.clientName}</strong> a été modifié.
       </p>
-      <div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:4px;">
-        <div style="background:#f9fafb;padding:8px 16px;border-bottom:1px solid #e5e7eb;">
-          <span style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.6px;">Modifications</span>
-        </div>
-        <table width="100%" cellpadding="0" cellspacing="0">${changesHtml}</table>
+      <div style="border-top:2px solid #1A1714;padding-top:16px;margin-bottom:4px;">
+        <p style="margin:0 0 8px;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#6B6358;">Modifications</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${changesHtml}</table>
       </div>
       ${ownerBookingBlock(params)}
     `),
