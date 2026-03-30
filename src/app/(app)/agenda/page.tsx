@@ -497,117 +497,156 @@ export default function AgendaPage() {
     </div>
   )
 
-  // ─── VUE JOURNALIÈRE ─────────────────────────────────────────────────────────
+  // ─── VUE JOURNALIÈRE — Colonnes par prestataire ──────────────────────────────
   const DayView = () => {
-    const dayAbsences = filterStaffId
-      ? absences.filter(a => a.staffId === filterStaffId && dayStr >= a.startDate && dayStr <= a.endDate)
-      : absences.filter(a => dayStr >= a.startDate && dayStr <= a.endDate)
+    const visibleStaffs = filterStaffId ? staffs.filter(s => s.id === filterStaffId) : staffs
 
-    // Overlap handling for day view
-    const overlapGroups = groupOverlapping(displayBookings)
-    const overlapMap = new Map<string, { total: number; idx: number }>()
-    for (const group of overlapGroups) {
-      group.forEach((b, idx) => overlapMap.set(b.id, { total: group.length, idx }))
+    // End-time helper
+    function endTime(timeSlot: string, duration: number) {
+      const m = toMin(timeSlot) + duration
+      return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
     }
 
+    // Bookings without a staff assignment
+    const unassigned = displayBookings
+      .filter(b => !b.staff)
+      .sort((a, b) => toMin(a.timeSlot) - toMin(b.timeSlot))
+
+    // Columns: one per staff + optionally unassigned
+    const columns: Array<{ key: string; label: string; color: string; bookings: Booking[]; absent: boolean }> = [
+      ...visibleStaffs.map(s => ({
+        key: s.id,
+        label: s.name,
+        color: s.color,
+        bookings: displayBookings
+          .filter(b => b.staff?.id === s.id)
+          .sort((a, b) => toMin(a.timeSlot) - toMin(b.timeSlot)),
+        absent: isAbsent(absences, s.id, dayStr),
+      })),
+      ...(unassigned.length > 0 && !filterStaffId
+        ? [{ key: "__none__", label: "Non assigné", color: "#94a3b8", bookings: unassigned, absent: false }]
+        : []),
+    ]
+
+    // Fallback — no staff configured, show plain list
+    const noStaff = staffs.length === 0
+
     return (
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col relative" style={{ maxHeight: "calc(100vh - 200px)" }}>
-        <div className="border-b border-slate-200 px-4 py-3 flex-shrink-0 flex items-center justify-between">
-          <div>
-            <p className="font-semibold text-slate-900 capitalize">
-              {ref.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-            </p>
-            <p className="text-xs text-slate-400 mt-0.5">{displayBookings.length} RDV</p>
-          </div>
-          {dayAbsences.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap">
-              {dayAbsences.map((ab, i) => {
-                const s = staffs.find(st => st.id === ab.staffId)
-                return (
-                  <span key={i} className="px-2.5 py-1 rounded-full text-xs font-semibold text-slate-600"
-                    style={{ background: ABSENCE_COLORS[ab.type] }}>
-                    {s?.name} — {ABSENCE_LABELS[ab.type]}
-                  </span>
-                )
-              })}
-            </div>
-          )}
+      <div
+        className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col"
+        style={{ maxHeight: "calc(100vh - 200px)" }}
+      >
+        {/* Date header */}
+        <div className="px-5 py-4 border-b border-slate-100 flex-shrink-0 flex items-center justify-between">
+          <h2 className="font-bold text-lg text-slate-900 capitalize">
+            {ref.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+          </h2>
+          <span className="text-xs text-slate-400 font-medium">{displayBookings.length} RDV</span>
         </div>
 
-        <div className="overflow-y-auto flex-1">
-          <div className="relative flex" style={{ height: HOURS.length * SLOT_HEIGHT }}>
-            <div className="w-12 flex-shrink-0 border-r border-slate-100">
-              {HOURS.map(h => (
-                <div key={h} style={{ height: SLOT_HEIGHT }} className="border-b border-slate-100 flex items-start justify-end pr-2 pt-1">
-                  <span className="text-xs text-slate-400">{String(h).padStart(2, "0")}h</span>
-                </div>
-              ))}
-            </div>
-            <div className="flex-1 relative" style={{ height: HOURS.length * SLOT_HEIGHT }}>
-              {HOURS.map((_, hi) => (
-                <div key={hi} style={{ position: "absolute", top: hi * SLOT_HEIGHT, left: 0, right: 0, borderTop: "1px solid #f8fafc" }} />
-              ))}
-
-              {/* Absence overlay */}
-              {dayAbsences.length > 0 && (
-                <div style={{ position: "absolute", inset: 0, background: "#f1f5f9", opacity: 0.4, zIndex: 1 }} />
-              )}
-
-              {/* Ligne maintenant */}
-              {dayStr === todayStr && (() => {
-                const now = new Date()
-                const top = ((now.getHours() * 60 + now.getMinutes() - 7 * 60) / 60) * SLOT_HEIGHT
-                return top >= 0 ? (
-                  <div style={{ position: "absolute", top, left: 0, right: 0, height: 2, background: "#ef4444", zIndex: 10 }}>
-                    <div style={{ position: "absolute", left: -3, top: -3, width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
-                  </div>
-                ) : null
-              })()}
-
-              {displayBookings.map(booking => {
-                const slotMin = toMin(booking.timeSlot)
-                const duration = booking.service?.duration ?? 60
-                const top    = ((slotMin - 7 * 60) / 60) * SLOT_HEIGHT
-                const height = Math.max((duration / 60) * SLOT_HEIGHT - 3, 32)
-                const colors = STATUS_COLORS[booking.status]
-                const overlap = overlapMap.get(booking.id) ?? { total: 1, idx: 0 }
-                const widthPct = 100 / overlap.total
-                const leftPct  = widthPct * overlap.idx
-
-                return (
-                  <button key={booking.id} onClick={() => setSelectedBooking(booking)}
-                    style={{
-                      position: "absolute",
-                      top: top + 1,
-                      left: `calc(${leftPct}% + 8px)`,
-                      width: `calc(${widthPct}% - 16px)`,
-                      height,
-                      background: colors.bg,
-                      border: `1px solid ${colors.border}`,
-                      borderLeft: `4px solid ${booking.staff?.color ?? "#0ea5e9"}`,
-                      borderRadius: 8,
-                      padding: "6px 10px",
-                      overflow: "hidden",
-                      zIndex: 2,
-                      cursor: "pointer",
-                      textAlign: "left",
-                    }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: colors.text, margin: "0 0 2px" }}>{booking.timeSlot} — {booking.clientName}</p>
-                    {height > 40 && (
-                      <p style={{ fontSize: 11, color: colors.text, opacity: 0.8, margin: 0 }}>
-                        {booking.service?.name ?? (booking.partySize ? `${booking.partySize} pers.` : "RDV")}
-                        {booking.service && ` · ${booking.service.duration}min · ${booking.service.price.toFixed(0)}€`}
-                        {booking.staff && ` · ${booking.staff.name}`}
+        {noStaff ? (
+          /* ── Pas de staff : liste simple ── */
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {displayBookings.length === 0 ? (
+              <div className="py-16 text-center text-slate-400 text-sm">Aucun RDV ce jour</div>
+            ) : (
+              displayBookings
+                .sort((a, b) => toMin(a.timeSlot) - toMin(b.timeSlot))
+                .map(booking => {
+                  const dur = booking.service?.duration ?? 60
+                  const colors = STATUS_COLORS[booking.status]
+                  return (
+                    <button key={booking.id} onClick={() => setSelectedBooking(booking)}
+                      className="w-full text-left rounded-xl p-3.5 transition-all hover:brightness-95"
+                      style={{ background: colors.bg, border: `1px solid ${colors.border}` }}>
+                      <p className="font-bold text-sm" style={{ color: colors.text }}>
+                        {booking.timeSlot} - {endTime(booking.timeSlot, dur)}
                       </p>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+                      <p className="text-sm mt-0.5" style={{ color: colors.text, opacity: 0.85 }}>{booking.clientName}</p>
+                      {booking.service && (
+                        <p className="text-xs mt-0.5" style={{ color: colors.text, opacity: 0.6 }}>{booking.service.name}</p>
+                      )}
+                    </button>
+                  )
+                })
+            )}
           </div>
-        </div>
+        ) : (
+          /* ── Colonnes par prestataire ── */
+          <div className="flex overflow-x-auto overflow-y-auto flex-1 divide-x divide-slate-100">
+            {columns.map(col => (
+              <div key={col.key} className="flex flex-col min-w-[260px] w-full">
+                {/* Staff header */}
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 bg-slate-50/60 flex-shrink-0">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0 select-none"
+                    style={{ background: col.color }}
+                  >
+                    {col.label.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 text-sm truncate">{col.label}</p>
+                    {col.absent ? (
+                      <p className="text-xs text-rose-500 font-medium">Absent aujourd&apos;hui</p>
+                    ) : (
+                      <p className="text-xs text-slate-400">{col.bookings.length} RDV</p>
+                    )}
+                  </div>
+                </div>
 
-        {/* FAB — Nouveau RDV (links to bookings page with biz param) */}
+                {/* Booking cards */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                  {col.absent ? (
+                    <div className="py-10 text-center">
+                      <p className="text-sm text-slate-400">Absent</p>
+                    </div>
+                  ) : col.bookings.length === 0 ? (
+                    <div className="py-10 text-center">
+                      <p className="text-sm text-slate-300">Aucun RDV</p>
+                    </div>
+                  ) : (
+                    col.bookings.map(booking => {
+                      const dur = booking.service?.duration ?? 60
+                      const colors = STATUS_COLORS[booking.status]
+                      return (
+                        <button
+                          key={booking.id}
+                          onClick={() => setSelectedBooking(booking)}
+                          className="w-full text-left rounded-xl p-3.5 transition-all hover:shadow-sm hover:brightness-95 active:scale-[0.98]"
+                          style={{ background: colors.bg, border: `1px solid ${colors.border}` }}
+                        >
+                          <p className="font-bold text-sm" style={{ color: colors.text }}>
+                            {booking.timeSlot} - {endTime(booking.timeSlot, dur)}
+                          </p>
+                          <p className="text-sm mt-0.5 font-medium" style={{ color: colors.text, opacity: 0.85 }}>
+                            {booking.clientName}
+                          </p>
+                          {booking.service && (
+                            <p className="text-xs mt-1" style={{ color: colors.text, opacity: 0.6 }}>
+                              {booking.service.name}
+                            </p>
+                          )}
+                          {booking.partySize && (
+                            <p className="text-xs mt-1" style={{ color: colors.text, opacity: 0.6 }}>
+                              {booking.partySize} personne{booking.partySize > 1 ? "s" : ""}
+                            </p>
+                          )}
+                          {booking.paymentStatus === "PAID" && (
+                            <span className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-full px-2 py-0.5">
+                              💳 Payé
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* FAB */}
         <a
           href={`/bookings${bizParamLink}`}
           className="absolute bottom-5 right-5 w-12 h-12 rounded-full bg-sky-500 hover:bg-sky-600 text-white shadow-lg flex items-center justify-center transition-colors z-10"
