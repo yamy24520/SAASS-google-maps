@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { TrendingUp, Star, MessageSquare, BarChart2, Search, RefreshCw, MapPin, Pencil, Settings2 } from "lucide-react"
+import { TrendingUp, Star, MessageSquare, BarChart2, Search, RefreshCw, MapPin, Pencil, Settings2, X } from "lucide-react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
