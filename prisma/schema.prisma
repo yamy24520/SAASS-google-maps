@@ -303,9 +303,11 @@ model Service {
 
   name        String
   description String?
+  category    String?
   duration    Int      // minutes
   price       Float
   active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
 
   bookings         Booking[]

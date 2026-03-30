@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
-import { Plus, Trash2, Clock, Euro, Scissors, ToggleLeft, ToggleRight, Link as LinkIcon, CalendarOff, CreditCard, Pencil, Check, X, ExternalLink } from "lucide-react"
+import { Plus, Trash2, Clock, Euro, Scissors, ToggleLeft, ToggleRight, Link as LinkIcon, CalendarOff, CreditCard, Pencil, Check, X, ExternalLink, Download, ChevronDown } from "lucide-react"
 import { toast } from "@/components/ui/toaster"
+import { SERVICE_TEMPLATES } from "@/lib/service-templates"
 
-interface Service { id: string; name: string; description: string | null; duration: number; price: number; active: boolean }
+interface Service { id: string; name: string; description: string | null; category: string | null; duration: number; price: number; active: boolean }
 interface ClosedDate { id: string; date: string; reason: string | null }
 type HourEntry = { open: string; close: string; closed: boolean }
 interface BookingSettings {
@@ -50,12 +51,14 @@ export default function ServicesPage() {
   const [dirty, setDirty]               = useState(false)
 
   // Service form
-  const [form, setForm] = useState({ name: "", description: "", duration: "60", price: "" })
+  const [form, setForm] = useState({ name: "", description: "", duration: "60", price: "", category: "" })
   const [adding, setAdding] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [importingTemplate, setImportingTemplate] = useState(false)
 
   // Service edit
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState({ name: "", description: "", duration: "", price: "" })
+  const [editForm, setEditForm] = useState({ name: "", description: "", duration: "", price: "", category: "" })
   const [savingService, setSavingService] = useState(false)
 
   function markDirty() { setDirty(true) }
@@ -102,15 +105,32 @@ export default function ServicesPage() {
     const res = await fetch(`/api/services${bizParam}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.name, description: form.description || null, duration: Number(form.duration), price: Number(form.price) }),
+      body: JSON.stringify({ name: form.name, description: form.description || null, category: form.category || null, duration: Number(form.duration), price: Number(form.price) }),
     })
     const data = await res.json()
     if (res.ok) {
       setServices(prev => [...prev, data.service])
-      setForm({ name: "", description: "", duration: "60", price: "" })
-      toast({ title: "Prestation ajoutée", variant: "success" })
+      setForm({ name: "", description: "", duration: "60", price: "", category: "" })
+      toast({ title: "Prestation ajoutee", variant: "success" })
     }
     setAdding(false)
+  }
+
+  async function importTemplate(templateId: string) {
+    const tpl = SERVICE_TEMPLATES.find(t => t.id === templateId)
+    if (!tpl) return
+    setImportingTemplate(true)
+    const res = await fetch(`/api/services${bizParam}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ services: tpl.services.map(s => ({ ...s, price: 0 })) }),
+    })
+    if (res.ok) {
+      await fetchData()
+      toast({ title: `${tpl.label} importe`, variant: "success" })
+      setShowTemplates(false)
+    }
+    setImportingTemplate(false)
   }
 
   async function saveServiceEdit(id: string) {
@@ -121,6 +141,7 @@ export default function ServicesPage() {
       body: JSON.stringify({
         name: editForm.name,
         description: editForm.description || null,
+        category: editForm.category || null,
         duration: Number(editForm.duration),
         price: Number(editForm.price),
       }),
@@ -129,11 +150,12 @@ export default function ServicesPage() {
       setServices(prev => prev.map(s => s.id === id ? {
         ...s, name: editForm.name,
         description: editForm.description || null,
+        category: editForm.category || null,
         duration: Number(editForm.duration),
         price: Number(editForm.price),
       } : s))
       setEditingServiceId(null)
-      toast({ title: "Prestation modifiée", variant: "success" })
+      toast({ title: "Prestation modifiee", variant: "success" })
     }
     setSavingService(false)
   }
@@ -225,102 +247,184 @@ export default function ServicesPage() {
         </section>
 
         {/* ── 2a. Prestations (salon seulement) ─────────────────────────────────── */}
-        {bookingType === "appointment" && (
-          <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-              <Scissors className="w-4 h-4 text-sky-500" />
-              <p className="font-semibold text-slate-900">Prestations</p>
-              <span className="ml-auto text-xs text-slate-400">{services.filter(s => s.active).length} active{services.filter(s => s.active).length > 1 ? "s" : ""}</span>
-            </div>
-            <div className="divide-y divide-slate-50">
-              {services.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-8">Aucune prestation. Ajoutez-en une ci-dessous.</p>
-              )}
-              {services.map(svc => {
-                const isEditing = editingServiceId === svc.id
-                return (
-                  <div key={svc.id} className={`px-5 py-3.5 ${!svc.active ? "opacity-50" : ""}`}>
-                    {isEditing ? (
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                            placeholder="Nom" className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
-                          <input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                            placeholder="Description (optionnel)" className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
-                          <div className="relative">
-                            <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <input type="number" value={editForm.duration} onChange={e => setEditForm(f => ({ ...f, duration: e.target.value }))}
-                              placeholder="Durée (min)" className="pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-sky-500" />
-                          </div>
-                          <div className="relative">
-                            <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <input type="number" step="0.01" value={editForm.price} onChange={e => setEditForm(f => ({ ...f, price: e.target.value }))}
-                              placeholder="Prix" className="pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-sky-500" />
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => saveServiceEdit(svc.id)} disabled={savingService}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors disabled:opacity-60">
-                            <Check className="w-3.5 h-3.5" /> Valider
-                          </button>
-                          <button onClick={() => setEditingServiceId(null)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold transition-colors">
-                            <X className="w-3.5 h-3.5" /> Annuler
-                          </button>
-                        </div>
+        {bookingType === "appointment" && (() => {
+          // Group services by category
+          const catMap = new Map<string, Service[]>()
+          const uncategorized: Service[] = []
+          for (const svc of services) {
+            if (svc.category) {
+              if (!catMap.has(svc.category)) catMap.set(svc.category, [])
+              catMap.get(svc.category)!.push(svc)
+            } else {
+              uncategorized.push(svc)
+            }
+          }
+          const existingCategories = Array.from(catMap.keys()).sort()
+
+          function ServiceRow({ svc }: { svc: Service }) {
+            const isEditing = editingServiceId === svc.id
+            return (
+              <div className={`px-5 py-3.5 ${!svc.active ? "opacity-50" : ""}`}>
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                        placeholder="Nom" className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                      <input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                        placeholder="Description (optionnel)" className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                      <input value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
+                        placeholder="Categorie (optionnel)" list="cat-list"
+                        className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                      <div className="relative">
+                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                        <input type="number" value={editForm.duration} onChange={e => setEditForm(f => ({ ...f, duration: e.target.value }))}
+                          placeholder="Duree (min)" className="pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-sky-500" />
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                        <input type="number" step="0.01" value={editForm.price} onChange={e => setEditForm(f => ({ ...f, price: e.target.value }))}
+                          placeholder="Prix" className="pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => saveServiceEdit(svc.id)} disabled={savingService}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors disabled:opacity-60">
+                        <Check className="w-3.5 h-3.5" /> Valider
+                      </button>
+                      <button onClick={() => setEditingServiceId(null)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold transition-colors">
+                        <X className="w-3.5 h-3.5" /> Annuler
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-slate-900 text-sm">{svc.name}</p>
+                      {svc.description && <p className="text-xs text-slate-400 mt-0.5 truncate">{svc.description}</p>}
+                      <div className="flex gap-3 mt-1">
+                        <span className="text-xs text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" />{svc.duration} min</span>
+                        <span className="text-xs font-semibold text-sky-600">{svc.price.toFixed(2)} &euro;</span>
+                        {svc.category && <span className="text-xs text-slate-400 px-1.5 py-0.5 rounded bg-slate-100">{svc.category}</span>}
+                      </div>
+                    </div>
+                    <button onClick={() => { setEditingServiceId(svc.id); setEditForm({ name: svc.name, description: svc.description ?? "", duration: String(svc.duration), price: String(svc.price), category: svc.category ?? "" }) }}
+                      className="p-1.5 text-slate-300 hover:text-sky-500 hover:bg-sky-50 rounded-lg transition-colors">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => toggleActive(svc.id, svc.active)}>
+                      {svc.active ? <ToggleRight className="w-6 h-6 text-sky-500" /> : <ToggleLeft className="w-6 h-6 text-slate-300" />}
+                    </button>
+                    <button onClick={() => deleteService(svc.id)} className="p-1.5 text-slate-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          return (
+            <section className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <datalist id="cat-list">
+                {existingCategories.map(c => <option key={c} value={c} />)}
+              </datalist>
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+                <Scissors className="w-4 h-4 text-sky-500" />
+                <p className="font-semibold text-slate-900">Prestations</p>
+                <span className="ml-auto text-xs text-slate-400">{services.filter(s => s.active).length} active{services.filter(s => s.active).length > 1 ? "s" : ""}</span>
+                <button onClick={() => setShowTemplates(!showTemplates)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                  <Download className="w-3.5 h-3.5" /> Templates
+                </button>
+              </div>
+
+              {/* Template import */}
+              {showTemplates && (
+                <div className="px-5 py-4 bg-sky-50/50 border-b border-sky-100">
+                  <p className="text-xs font-semibold text-sky-700 mb-3">Importer un template metier (les prix sont a 0, modifiez-les ensuite)</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {SERVICE_TEMPLATES.map(tpl => (
+                      <button key={tpl.id} onClick={() => importTemplate(tpl.id)} disabled={importingTemplate}
+                        className="flex items-start gap-3 p-3 rounded-xl border border-sky-200 bg-white hover:border-sky-400 text-left transition-all disabled:opacity-50">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-slate-900 text-sm">{svc.name}</p>
-                          {svc.description && <p className="text-xs text-slate-400 mt-0.5 truncate">{svc.description}</p>}
-                          <div className="flex gap-3 mt-1">
-                            <span className="text-xs text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" />{svc.duration} min</span>
-                            <span className="text-xs font-semibold text-sky-600">{svc.price.toFixed(2)} €</span>
-                          </div>
+                          <p className="font-semibold text-sm text-slate-900">{tpl.label}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{tpl.description}</p>
+                          <p className="text-xs text-sky-600 mt-1">{tpl.services.length} prestations</p>
                         </div>
-                        <button onClick={() => { setEditingServiceId(svc.id); setEditForm({ name: svc.name, description: svc.description ?? "", duration: String(svc.duration), price: String(svc.price) }) }}
-                          className="p-1.5 text-slate-300 hover:text-sky-500 hover:bg-sky-50 rounded-lg transition-colors">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => toggleActive(svc.id, svc.active)}>
-                          {svc.active ? <ToggleRight className="w-6 h-6 text-sky-500" /> : <ToggleLeft className="w-6 h-6 text-slate-300" />}
-                        </button>
-                        <button onClick={() => deleteService(svc.id)} className="p-1.5 text-slate-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <Plus className="w-4 h-4 text-sky-500 flex-shrink-0 mt-1" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Service list grouped by category */}
+              <div>
+                {services.length === 0 && (
+                  <p className="text-sm text-slate-400 text-center py-8">Aucune prestation. Importez un template ou ajoutez-en manuellement.</p>
+                )}
+
+                {/* Categorized services */}
+                {existingCategories.map(cat => (
+                  <div key={cat}>
+                    <div className="px-5 py-2.5 bg-slate-50 border-y border-slate-100 flex items-center gap-2">
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">{cat}</p>
+                      <span className="text-xs text-slate-400 ml-auto">{catMap.get(cat)!.length}</span>
+                    </div>
+                    <div className="divide-y divide-slate-50">
+                      {catMap.get(cat)!.map(svc => <ServiceRow key={svc.id} svc={svc} />)}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Uncategorized services */}
+                {uncategorized.length > 0 && (
+                  <div>
+                    {existingCategories.length > 0 && (
+                      <div className="px-5 py-2.5 bg-slate-50 border-y border-slate-100 flex items-center gap-2">
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                        <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Sans categorie</p>
+                        <span className="text-xs text-slate-400 ml-auto">{uncategorized.length}</span>
                       </div>
                     )}
+                    <div className="divide-y divide-slate-50">
+                      {uncategorized.map(svc => <ServiceRow key={svc.id} svc={svc} />)}
+                    </div>
                   </div>
-                )
-              })}
-            </div>
-            {/* Add form */}
-            <div className="border-t border-dashed border-slate-200 px-5 py-4 space-y-2 bg-slate-50/50">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nouvelle prestation</p>
-              <div className="grid grid-cols-2 gap-2">
-                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nom (ex: Coupe femme)"
-                  className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white" />
-                <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description (optionnel)"
-                  className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white" />
-                <div className="relative">
-                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                  <input type="number" value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} placeholder="Durée (min)"
-                    className="pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white" />
-                </div>
-                <div className="relative">
-                  <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                  <input type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="Prix"
-                    className="pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white" />
-                </div>
+                )}
               </div>
-              <button onClick={addService} disabled={adding || !form.name || !form.price}
-                className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold disabled:opacity-40 transition-colors">
-                <Plus className="w-4 h-4" /> Ajouter la prestation
-              </button>
-            </div>
-          </section>
-        )}
+
+              {/* Add form */}
+              <div className="border-t border-dashed border-slate-200 px-5 py-4 space-y-2 bg-slate-50/50">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nouvelle prestation</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nom (ex: Coupe femme)"
+                    className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white" />
+                  <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Description (optionnel)"
+                    className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white" />
+                  <input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="Categorie (optionnel)" list="cat-list"
+                    className="col-span-2 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white" />
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <input type="number" value={form.duration} onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} placeholder="Duree (min)"
+                      className="pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white" />
+                  </div>
+                  <div className="relative">
+                    <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <input type="number" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="Prix"
+                      className="pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white" />
+                  </div>
+                </div>
+                <button onClick={addService} disabled={adding || !form.name || !form.price}
+                  className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold disabled:opacity-40 transition-colors">
+                  <Plus className="w-4 h-4" /> Ajouter la prestation
+                </button>
+              </div>
+            </section>
+          )
+        })()}
 
         {/* ── 2b. Config restaurant ─────────────────────────────────────────────── */}
         {bookingType === "restaurant" && (

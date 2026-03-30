@@ -15,8 +15,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   const [services, staffs] = await Promise.all([
     prisma.service.findMany({
       where: { businessId: business.id, active: true },
-      select: { id: true, name: true, description: true, duration: true, price: true },
-      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, description: true, category: true, duration: true, price: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     }),
     prisma.staff.findMany({
       where: { businessId: business.id, active: true },

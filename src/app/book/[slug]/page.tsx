@@ -6,7 +6,7 @@ import {
   Star, Sparkles, Lock, Calendar, Users
 } from "lucide-react"
 
-interface Service { id: string; name: string; description: string | null; duration: number; price: number }
+interface Service { id: string; name: string; description: string | null; category: string | null; duration: number; price: number }
 interface Staff   { id: string; name: string; color: string }
 interface BusinessInfo {
   businessId: string; businessName: string; logoDataUrl: string | null
@@ -408,6 +408,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<string>("")
   const [partySize, setPartySize] = useState(2)
+  const [openCats, setOpenCats] = useState<Set<string>>(new Set())
 
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" })
   const [submitting, setSubmitting] = useState(false)
@@ -857,66 +858,127 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           )}
 
           {/* ── STEP: Service ────────────────────────────────────────────────────── */}
-          {step === "service" && !isRestaurant && (
-            <div key="service" className="animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="mb-8">
-                <h2 className="text-3xl font-bold leading-tight" style={{ color: T.textHeading }}>{displayLabels?.service ?? "Quelle prestation ?"}</h2>
-                <p className="mt-2" style={{ color: T.textBody }}>
-                  {orderedServices.length} prestation{orderedServices.length > 1 ? "s" : ""} disponible{orderedServices.length > 1 ? "s" : ""}
-                </p>
-              </div>
+          {step === "service" && !isRestaurant && (() => {
+            // Group services by category
+            const categories: { name: string | null; services: typeof orderedServices }[] = []
+            const catMap = new Map<string | null, typeof orderedServices>()
+            for (const svc of orderedServices) {
+              const key = svc.category || null
+              if (!catMap.has(key)) catMap.set(key, [])
+              catMap.get(key)!.push(svc)
+            }
+            catMap.forEach((svcs, key) => categories.push({ name: key, services: svcs }))
+            const hasCategories = categories.some(c => c.name !== null)
+            // If no categories, auto-expand the single null group
+            const allOpen = !hasCategories
 
-              {orderedServices.length === 0 && (
-                <div className="text-center py-16" style={{ color: T.textMuted }}>
-                  <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                  <p className="text-sm">Aucune prestation disponible</p>
-                </div>
-              )}
+            function toggleCat(catName: string) {
+              setOpenCats(prev => {
+                const next = new Set(prev)
+                if (next.has(catName)) next.delete(catName)
+                else next.add(catName)
+                return next
+              })
+            }
 
-              <div className="space-y-3">
-                {orderedServices.map((svc, idx) => (
-                  <button
-                    key={svc.id}
-                    onClick={() => { setSelectedService(svc); setStep(hasStaff ? "staff" : "datetime") }}
-                    className="w-full hover:shadow-md rounded-2xl overflow-hidden text-left transition-all duration-200 group hover:scale-[1.01] shadow-sm"
-                    style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = T.primary)}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = T.cardBorder)}
-                  >
-                    <div className="flex items-stretch">
-                      {/* Color accent strip */}
-                      <div className={`w-1 flex-shrink-0 ${serviceAccents[idx % serviceAccents.length]}`} />
-                      <div className="flex-1 p-4 flex items-start gap-4">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-base" style={{ color: T.textHeading }}>{svc.name}</p>
-                          {svc.description && (
-                            <p className="text-sm mt-1 line-clamp-2" style={{ color: T.textBody }}>{svc.description}</p>
-                          )}
-                          <div className="flex items-center gap-2 mt-3">
-                            <span
-                              className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border"
-                              style={{ color: T.textMuted, background: T.pageBg, borderColor: T.cardBorder }}
-                            >
-                              <Clock className="w-3 h-3" /> {svc.duration} min
-                            </span>
-                          </div>
+            function ServiceCard({ svc, idx }: { svc: Service; idx: number }) {
+              return (
+                <button
+                  key={svc.id}
+                  onClick={() => { setSelectedService(svc); setStep(hasStaff ? "staff" : "datetime") }}
+                  className="w-full hover:shadow-md rounded-2xl overflow-hidden text-left transition-all duration-200 group hover:scale-[1.01] shadow-sm"
+                  style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = T.primary)}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = T.cardBorder)}
+                >
+                  <div className="flex items-stretch">
+                    <div className={`w-1 flex-shrink-0 ${serviceAccents[idx % serviceAccents.length]}`} />
+                    <div className="flex-1 p-4 flex items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-base" style={{ color: T.textHeading }}>{svc.name}</p>
+                        {svc.description && (
+                          <p className="text-sm mt-1 line-clamp-2" style={{ color: T.textBody }}>{svc.description}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-3">
+                          <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border"
+                            style={{ color: T.textMuted, background: T.pageBg, borderColor: T.cardBorder }}>
+                            <Clock className="w-3 h-3" /> {svc.duration} min
+                          </span>
                         </div>
-                        <div className="flex-shrink-0 flex flex-col items-end gap-2">
-                          <span className="text-lg font-bold" style={{ color: T.textHeading }}>{svc.price.toFixed(2)} €</span>
-                          <div
-                            className="w-7 h-7 rounded-full flex items-center justify-center transition-colors duration-200"
-                            style={{ background: T.stepFuture }}
-                          >
-                            <ChevronRight className="w-4 h-4" style={{ color: T.textMuted }} />
-                          </div>
+                      </div>
+                      <div className="flex-shrink-0 flex flex-col items-end gap-2">
+                        <span className="text-lg font-bold" style={{ color: T.textHeading }}>{svc.price.toFixed(2)} &euro;</span>
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: T.stepFuture }}>
+                          <ChevronRight className="w-4 h-4" style={{ color: T.textMuted }} />
                         </div>
                       </div>
                     </div>
-                  </button>
-                ))}
+                  </div>
+                </button>
+              )
+            }
+
+            return (
+              <div key="service" className="animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="mb-8">
+                  <h2 className="text-3xl font-bold leading-tight" style={{ color: T.textHeading }}>{displayLabels?.service ?? "Quelle prestation ?"}</h2>
+                  <p className="mt-2" style={{ color: T.textBody }}>
+                    {orderedServices.length} prestation{orderedServices.length > 1 ? "s" : ""} disponible{orderedServices.length > 1 ? "s" : ""}
+                  </p>
+                </div>
+
+                {orderedServices.length === 0 && (
+                  <div className="text-center py-16" style={{ color: T.textMuted }}>
+                    <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                    <p className="text-sm">Aucune prestation disponible</p>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {categories.map((cat, ci) => {
+                    const catKey = cat.name ?? "__uncategorized"
+                    const isOpen = allOpen || openCats.has(catKey)
+
+                    if (!hasCategories) {
+                      // No categories — flat list
+                      return (
+                        <div key="flat" className="space-y-3">
+                          {cat.services.map((svc, idx) => <ServiceCard key={svc.id} svc={svc} idx={idx} />)}
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div key={catKey} className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${T.cardBorder}`, background: T.cardBg }}>
+                        <button
+                          onClick={() => toggleCat(catKey)}
+                          className="w-full flex items-center gap-3 px-5 py-4 text-left transition-colors"
+                          style={{ background: isOpen ? `${T.primary}08` : "transparent" }}
+                        >
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ background: `${T.primary}15` }}>
+                            <span className="text-xs font-bold" style={{ color: T.primary }}>{cat.services.length}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm" style={{ color: T.textHeading }}>{cat.name ?? "Autres"}</p>
+                          </div>
+                          <ChevronRight
+                            className="w-4 h-4 transition-transform duration-200 flex-shrink-0"
+                            style={{ color: T.textMuted, transform: isOpen ? "rotate(90deg)" : "rotate(0)" }}
+                          />
+                        </button>
+                        {isOpen && (
+                          <div className="px-3 pb-3 space-y-2">
+                            {cat.services.map((svc, idx) => <ServiceCard key={svc.id} svc={svc} idx={ci * 10 + idx} />)}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* ── STEP: Staff ──────────────────────────────────────────────────────── */}
           {step === "staff" && hasStaff && (

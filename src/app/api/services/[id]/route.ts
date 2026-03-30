@@ -16,7 +16,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Introuvable" }, { status: 404 })
   }
 
-  const { name, description, duration, price, active } = await req.json()
+  const { name, description, duration, price, active, category, sortOrder } = await req.json()
   const updated = await prisma.service.update({
     where: { id },
     data: {
@@ -25,6 +25,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(duration !== undefined && { duration: Number(duration) }),
       ...(price !== undefined && { price: Number(price) }),
       ...(active !== undefined && { active }),
+      ...(category !== undefined && { category: category || null }),
+      ...(sortOrder !== undefined && { sortOrder: Number(sortOrder) }),
     },
   })
 
