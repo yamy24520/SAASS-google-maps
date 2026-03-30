@@ -2,8 +2,8 @@
 
 import { use, useEffect, useRef, useState, useCallback } from "react"
 import {
-  Camera, ChevronRight, GripVertical, MapPin, Pencil, Plus, Save, Trash2, X,
-  Star as StarIcon, Clock, ExternalLink, CalendarDays, ArrowRight
+  Camera, ChevronRight, MapPin, Pencil, Plus, Trash2, X,
+  Star as StarIcon, Clock, ExternalLink, CalendarDays, ArrowRight, Settings
 } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -15,26 +15,145 @@ interface PhotoItem   { dataUrl: string; caption: string }
 interface MenuItem    { id: string; name: string; description: string; price: string; photo?: string }
 interface MenuCategory{ id: string; name: string; items: MenuItem[] }
 interface Section     { id: string; type: string; enabled: boolean; order: number; links?: SocialLink[]; schedule?: Record<string, HourEntry>; address?: string; images?: PhotoItem[]; categories?: MenuCategory[] }
+
 interface PageData {
-  businessId: string; businessName: string; rating: number; reviewCount: number
-  placeId: string | null; reviews: ReviewData[]; logoDataUrl: string | null
-  pageTheme: string; pageTagline: string | null
-  pageConfig: { sections: Section[] }; socialLinks: Record<string, string>
-  bookingEnabled: boolean; bookingPageSlug: string | null
-  isOwner: boolean; reputationPageEnabled: boolean
+  businessId: string
+  businessName: string
+  rating: number
+  reviewCount: number
+  placeId: string | null
+  reviews: ReviewData[]
+  logoDataUrl: string | null
+  pageCoverDataUrl: string | null
+  pageTheme: string
+  pageStyle: string | null
+  pageAccentColor: string | null
+  pageTagline: string | null
+  pageDescription: string | null
+  pageLegalText: string | null
+  pageConfig: { sections: Section[] }
+  socialLinks: Record<string, string>
+  bookingEnabled: boolean
+  bookingPageSlug: string | null
+  isOwner: boolean
+  reputationPageEnabled: boolean
 }
 
-// ── Themes ────────────────────────────────────────────────────────────────────
+// ── Theme system (mirrors booking page) ───────────────────────────────────────
 
-const THEMES = {
-  dark:   { bg: "#09090b", surface: "#18181b", elevated: "#27272a", border: "rgba(255,255,255,0.07)", text: "#fafafa", secondary: "rgba(250,250,250,0.65)", muted: "rgba(250,250,250,0.35)", accent: "#e4e4e7", star: "#f59e0b", btn: "#fafafa", btnText: "#09090b", glow: "rgba(250,250,250,0.04)", gradient: "linear-gradient(135deg, #18181b 0%, #09090b 100%)", heroGradient: "radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.05) 0%, transparent 70%)" },
-  light:  { bg: "#fafafa", surface: "#ffffff", elevated: "#f4f4f5", border: "rgba(0,0,0,0.06)", text: "#09090b", secondary: "rgba(9,9,11,0.65)", muted: "rgba(9,9,11,0.35)", accent: "#18181b", star: "#f59e0b", btn: "#18181b", btnText: "#fafafa", glow: "rgba(0,0,0,0.02)", gradient: "linear-gradient(135deg, #ffffff 0%, #f4f4f5 100%)", heroGradient: "radial-gradient(ellipse at 50% 0%, rgba(0,0,0,0.03) 0%, transparent 70%)" },
-  warm:   { bg: "#0c0a09", surface: "#1c1917", elevated: "#292524", border: "rgba(251,191,36,0.1)", text: "#fef3c7", secondary: "rgba(254,243,199,0.65)", muted: "rgba(254,243,199,0.35)", accent: "#fbbf24", star: "#fbbf24", btn: "#fbbf24", btnText: "#0c0a09", glow: "rgba(251,191,36,0.06)", gradient: "linear-gradient(135deg, #1c1917 0%, #0c0a09 100%)", heroGradient: "radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.06) 0%, transparent 70%)" },
-  ocean:  { bg: "#020617", surface: "#0f172a", elevated: "#1e293b", border: "rgba(56,189,248,0.1)", text: "#e0f2fe", secondary: "rgba(224,242,254,0.65)", muted: "rgba(224,242,254,0.35)", accent: "#38bdf8", star: "#f59e0b", btn: "#38bdf8", btnText: "#020617", glow: "rgba(56,189,248,0.06)", gradient: "linear-gradient(135deg, #0f172a 0%, #020617 100%)", heroGradient: "radial-gradient(ellipse at 50% 0%, rgba(56,189,248,0.08) 0%, transparent 70%)" },
-  forest: { bg: "#052e16", surface: "#14532d", elevated: "#166534", border: "rgba(74,222,128,0.1)", text: "#dcfce7", secondary: "rgba(220,252,231,0.65)", muted: "rgba(220,252,231,0.35)", accent: "#4ade80", star: "#f59e0b", btn: "#4ade80", btnText: "#052e16", glow: "rgba(74,222,128,0.06)", gradient: "linear-gradient(135deg, #14532d 0%, #052e16 100%)", heroGradient: "radial-gradient(ellipse at 50% 0%, rgba(74,222,128,0.08) 0%, transparent 70%)" },
-} as const
-type ThemeKey = keyof typeof THEMES
-type Theme = typeof THEMES[ThemeKey]
+type StyleKey = "minimal" | "modern" | "future" | "luxury"
+
+interface ThemeConfig {
+  bg: string
+  surface: string
+  elevated: string
+  border: string
+  text: string
+  secondary: string
+  muted: string
+  accent: string
+  star: string
+  btn: string
+  btnText: string
+  glow: string
+  heroGradient: string
+  isDark: boolean
+  fontFamily: string
+}
+
+function hexToRgb(hex: string): string {
+  const h = hex.replace("#", "")
+  const r = parseInt(h.slice(0, 2), 16)
+  const g = parseInt(h.slice(2, 4), 16)
+  const b = parseInt(h.slice(4, 6), 16)
+  return `${r},${g},${b}`
+}
+
+function buildTheme(style: StyleKey, accent: string): ThemeConfig {
+  const rgb = hexToRgb(accent)
+
+  const base: Record<StyleKey, Omit<ThemeConfig, "accent" | "btn" | "glow" | "heroGradient">> = {
+    modern: {
+      bg: "#f5f5fa",
+      surface: "#ffffff",
+      elevated: "#f0f0f5",
+      border: "rgba(0,0,0,0.07)",
+      text: "#0f0f14",
+      secondary: "rgba(15,15,20,0.6)",
+      muted: "rgba(15,15,20,0.35)",
+      star: "#f59e0b",
+      btnText: "#ffffff",
+      isDark: false,
+      fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif",
+    },
+    minimal: {
+      bg: "#fafafa",
+      surface: "#ffffff",
+      elevated: "#f4f4f5",
+      border: "rgba(0,0,0,0.06)",
+      text: "#111111",
+      secondary: "rgba(17,17,17,0.55)",
+      muted: "rgba(17,17,17,0.3)",
+      star: "#f59e0b",
+      btnText: "#ffffff",
+      isDark: false,
+      fontFamily: "'Georgia','Times New Roman',serif",
+    },
+    future: {
+      bg: "#070711",
+      surface: "#0e0e1f",
+      elevated: "#14142a",
+      border: `rgba(${rgb},0.18)`,
+      text: "#e8e8ff",
+      secondary: "rgba(232,232,255,0.6)",
+      muted: "rgba(232,232,255,0.3)",
+      star: "#f59e0b",
+      btnText: "#ffffff",
+      isDark: true,
+      fontFamily: "'SF Mono','Fira Code','JetBrains Mono',monospace",
+    },
+    luxury: {
+      bg: "#0a0906",
+      surface: "#13110e",
+      elevated: "#1d1a15",
+      border: `rgba(${rgb},0.12)`,
+      text: "#f0ece4",
+      secondary: "rgba(240,236,228,0.65)",
+      muted: "rgba(240,236,228,0.35)",
+      star: accent,
+      btnText: "#0a0906",
+      isDark: true,
+      fontFamily: "'Didact Gothic','Cormorant Garamond','Playfair Display',Georgia,serif",
+    },
+  }
+
+  const b = base[style]
+
+  return {
+    ...b,
+    accent,
+    btn: accent,
+    glow: `rgba(${rgb},0.25)`,
+    heroGradient: b.isDark
+      ? `radial-gradient(ellipse at 50% 0%, rgba(${rgb},0.12) 0%, transparent 65%)`
+      : `radial-gradient(ellipse at 50% 0%, rgba(${rgb},0.06) 0%, transparent 65%)`,
+  }
+}
+
+const LEGACY_THEME_MAP: Record<string, { style: StyleKey; accent: string }> = {
+  dark:        { style: "modern",  accent: "#6366f1" },
+  light:       { style: "minimal", accent: "#6366f1" },
+  warm:        { style: "luxury",  accent: "#fbbf24" },
+  ocean:       { style: "future",  accent: "#38bdf8" },
+  forest:      { style: "modern",  accent: "#4ade80" },
+  default:     { style: "modern",  accent: "#6366f1" },
+}
+
+function resolveTheme(data: PageData): ThemeConfig {
+  const style = (data.pageStyle as StyleKey | null) ?? LEGACY_THEME_MAP[data.pageTheme]?.style ?? "modern"
+  const accent = data.pageAccentColor ?? LEGACY_THEME_MAP[data.pageTheme]?.accent ?? "#6366f1"
+  return buildTheme(style, accent)
+}
 
 // ── Social icons ──────────────────────────────────────────────────────────────
 
@@ -127,21 +246,6 @@ const TODAY_KEY = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1]?
 
 function uid() { return Math.random().toString(36).slice(2, 9) }
 
-// ── Scroll Reveal Hook ───────────────────────────────────────────────────────
-
-function useReveal() {
-  const ref = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } }, { threshold: 0.1 })
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
-  return { ref, style: { opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(24px)", transition: "opacity 0.6s ease, transform 0.6s ease" } as React.CSSProperties }
-}
-
 // ── CSS Keyframes ────────────────────────────────────────────────────────────
 
 const GLOBAL_CSS = `
@@ -149,7 +253,8 @@ const GLOBAL_CSS = `
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-@keyframes pulse-ring{0%{transform:scale(0.8);opacity:1}100%{transform:scale(2);opacity:0}}
+@keyframes glow-pulse{0%,100%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}
+@keyframes reveal-up{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.5}
@@ -157,10 +262,32 @@ input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.5
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:4px}
 `
 
+// ── Scroll Reveal Hook ───────────────────────────────────────────────────────
+
+function useReveal(delay = 0) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } }, { threshold: 0.08 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+  return {
+    ref,
+    style: {
+      opacity: visible ? 1 : 0,
+      transform: visible ? "translateY(0)" : "translateY(28px)",
+      transition: `opacity 0.65s ease ${delay}ms, transform 0.65s ease ${delay}ms`,
+    } as React.CSSProperties,
+  }
+}
+
 // ── Section: Menu ─────────────────────────────────────────────────────────────
 
-function MenuCategoryTabs({ categories, activeCatId, t, isEditing, onSelect, onAdd }: { categories: MenuCategory[]; activeCatId: string | null; t: Theme; isEditing: boolean; onSelect: (id: string) => void; onAdd?: () => void }) {
-  if (!categories.length && !isEditing) return null
+function MenuCategoryTabs({ categories, activeCatId, t, onSelect }: { categories: MenuCategory[]; activeCatId: string | null; t: ThemeConfig; onSelect: (id: string) => void }) {
+  if (!categories.length) return null
   return (
     <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none", marginBottom: 20 }}>
       {categories.map(cat => {
@@ -171,16 +298,47 @@ function MenuCategoryTabs({ categories, activeCatId, t, isEditing, onSelect, onA
           </button>
         )
       })}
-      {isEditing && (
-        <button onClick={onAdd} style={{ flexShrink: 0, padding: "10px 16px", borderRadius: 50, border: `1.5px dashed ${t.border}`, background: "transparent", color: t.muted, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
-          <Plus size={13} /> Ajouter
-        </button>
+    </div>
+  )
+}
+
+function MenuSection({ categories, t }: { categories: MenuCategory[]; t: ThemeConfig }) {
+  const [activeCatId, setActiveCatId] = useState<string | null>(categories[0]?.id ?? null)
+  const activeCat = categories.find(c => c.id === activeCatId) ?? categories[0] ?? null
+
+  useEffect(() => {
+    if (!activeCatId || !categories.find(c => c.id === activeCatId)) setActiveCatId(categories[0]?.id ?? null)
+  }, [categories, activeCatId])
+
+  if (!categories.length) return null
+
+  return (
+    <div>
+      <MenuCategoryTabs categories={categories} activeCatId={activeCat?.id ?? null} t={t} onSelect={setActiveCatId} />
+      {activeCat && (
+        <div style={{ borderRadius: 20, overflow: "hidden", background: t.surface, border: `1px solid ${t.border}` }}>
+          {activeCat.items.map((item, i) => (
+            <div key={item.id} style={{ display: "flex", gap: 14, padding: "16px 20px", borderBottom: i < activeCat.items.length - 1 ? `1px solid ${t.border}` : "none", alignItems: "flex-start" }}>
+              {item.photo && <img src={item.photo} alt={item.name} style={{ width: 68, height: 68, borderRadius: 14, objectFit: "cover", flexShrink: 0 }} />}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                  <p style={{ color: t.text, fontWeight: 600, fontSize: 15, lineHeight: 1.35 }}>{item.name}</p>
+                  {item.price && <span style={{ color: t.accent, fontWeight: 700, fontSize: 15, flexShrink: 0 }}>{item.price}</span>}
+                </div>
+                {item.description && <p style={{ color: t.secondary, fontSize: 13, margin: "4px 0 0", lineHeight: 1.45 }}>{item.description}</p>}
+              </div>
+            </div>
+          ))}
+          {activeCat.items.length === 0 && <p style={{ padding: 24, textAlign: "center", color: t.muted, fontSize: 14 }}>Aucun plat</p>}
+        </div>
       )}
     </div>
   )
 }
 
-function MenuSection({ categories, t, isEditing, onChange }: { categories: MenuCategory[]; t: Theme; isEditing: boolean; onChange?: (c: MenuCategory[]) => void }) {
+// ── Section: Menu (edit) ──────────────────────────────────────────────────────
+
+function MenuSectionEdit({ categories, t, onChange }: { categories: MenuCategory[]; t: ThemeConfig; onChange: (c: MenuCategory[]) => void }) {
   const [scanning, setScanning] = useState(false)
   const [scanProgress, setScanProgress] = useState("")
   const [activeCatId, setActiveCatId] = useState<string | null>(categories[0]?.id ?? null)
@@ -225,40 +383,12 @@ function MenuSection({ categories, t, isEditing, onChange }: { categories: MenuC
         else { accumulated.push(newCat); if (!firstNewId) firstNewId = newCat.id }
       }
     }
-    onChange?.(accumulated)
+    onChange(accumulated)
     if (firstNewId) setActiveCatId(firstNewId)
     setScanProgress("")
     setScanning(false)
   }
 
-  // Public view
-  if (!isEditing) {
-    if (!categories.length) return null
-    return (
-      <div>
-        <MenuCategoryTabs categories={categories} activeCatId={activeCat?.id ?? null} t={t} isEditing={false} onSelect={setActiveCatId} />
-        {activeCat && (
-          <div style={{ borderRadius: 20, overflow: "hidden", background: t.surface, border: `1px solid ${t.border}` }}>
-            {activeCat.items.map((item, i) => (
-              <div key={item.id} style={{ display: "flex", gap: 14, padding: "16px 20px", borderBottom: i < activeCat.items.length - 1 ? `1px solid ${t.border}` : "none", alignItems: "flex-start" }}>
-                {item.photo && <img src={item.photo} alt={item.name} style={{ width: 68, height: 68, borderRadius: 14, objectFit: "cover", flexShrink: 0 }} />}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                    <p style={{ color: t.text, fontWeight: 600, fontSize: 15, lineHeight: 1.35 }}>{item.name}</p>
-                    {item.price && <span style={{ color: t.accent, fontWeight: 700, fontSize: 15, flexShrink: 0 }}>{item.price}</span>}
-                  </div>
-                  {item.description && <p style={{ color: t.secondary, fontSize: 13, margin: "4px 0 0", lineHeight: 1.45 }}>{item.description}</p>}
-                </div>
-              </div>
-            ))}
-            {activeCat.items.length === 0 && <p style={{ padding: 24, textAlign: "center", color: t.muted, fontSize: 14 }}>Aucun plat</p>}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // Edit view
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: 16, borderRadius: 16, border: `1.5px dashed ${t.border}`, cursor: scanning ? "default" : "pointer", background: t.surface, opacity: scanning ? 0.7 : 1 }}>
@@ -277,13 +407,28 @@ function MenuSection({ categories, t, isEditing, onChange }: { categories: MenuC
         <input type="file" accept="image/*" multiple style={{ display: "none" }} disabled={scanning}
           onChange={e => { if (e.target.files?.length) handleScans(e.target.files); e.target.value = "" }} />
       </label>
-      <MenuCategoryTabs categories={categories} activeCatId={activeCat?.id ?? null} t={t} isEditing onSelect={setActiveCatId} onAdd={() => { const cat = { id: uid(), name: "Nouvelle carte", items: [] }; onChange?.([...categories, cat]); setActiveCatId(cat.id) }} />
+
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
+        {categories.map(cat => {
+          const active = cat.id === activeCatId
+          return (
+            <button key={cat.id} onClick={() => setActiveCatId(cat.id)} style={{ flexShrink: 0, padding: "10px 22px", borderRadius: 50, border: "none", background: active ? t.accent : t.elevated, color: active ? t.btnText : t.secondary, fontSize: 14, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+              {cat.name}
+            </button>
+          )
+        })}
+        <button onClick={() => { const cat = { id: uid(), name: "Nouvelle carte", items: [] }; onChange([...categories, cat]); setActiveCatId(cat.id) }}
+          style={{ flexShrink: 0, padding: "10px 16px", borderRadius: 50, border: `1.5px dashed ${t.border}`, background: "transparent", color: t.muted, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
+          <Plus size={13} /> Ajouter
+        </button>
+      </div>
+
       {activeCat && (
         <div style={{ background: t.surface, borderRadius: 16, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderBottom: `1px solid ${t.border}`, background: t.elevated }}>
-            <input value={activeCat.name} onChange={e => onChange?.(categories.map(c => c.id === activeCat.id ? { ...c, name: e.target.value } : c))}
+            <input value={activeCat.name} onChange={e => onChange(categories.map(c => c.id === activeCat.id ? { ...c, name: e.target.value } : c))}
               style={{ flex: 1, background: "transparent", border: "none", color: t.text, fontWeight: 700, fontSize: 14, outline: "none" }} />
-            <button onClick={() => onChange?.(categories.filter(c => c.id !== activeCat.id))}
+            <button onClick={() => onChange(categories.filter(c => c.id !== activeCat.id))}
               style={{ background: "none", border: "none", cursor: "pointer", color: "#f87171", padding: 4 }}><Trash2 size={14} /></button>
           </div>
           {activeCat.items.map((item, ii) => {
@@ -294,25 +439,25 @@ function MenuSection({ categories, t, isEditing, onChange }: { categories: MenuC
                   <label style={{ width: 52, height: 52, borderRadius: 10, overflow: "hidden", flexShrink: 0, cursor: "pointer", background: t.elevated, display: "flex", alignItems: "center", justifyContent: "center", border: `1px dashed ${t.border}` }}>
                     {item.photo ? <img src={item.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Camera size={16} style={{ color: t.muted }} />}
                     <input type="file" accept="image/*" style={{ display: "none" }}
-                      onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const photo = await compressDish(f); onChange?.(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, photo } : it) } : c)); e.target.value = "" }} />
+                      onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const photo = await compressDish(f); onChange(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, photo } : it) } : c)); e.target.value = "" }} />
                   </label>
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <input value={item.name} placeholder="Nom" onChange={e => onChange?.(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, name: e.target.value } : it) } : c))}
+                      <input value={item.name} placeholder="Nom" onChange={e => onChange(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, name: e.target.value } : it) } : c))}
                         style={{ flex: 1, background: t.elevated, border: "none", borderRadius: 8, padding: "6px 10px", color: t.text, fontSize: 14, fontWeight: 600, outline: "none" }} />
-                      <input value={item.price} placeholder="Prix" onChange={e => onChange?.(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, price: e.target.value } : it) } : c))}
+                      <input value={item.price} placeholder="Prix" onChange={e => onChange(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, price: e.target.value } : it) } : c))}
                         style={{ width: 72, background: t.elevated, border: "none", borderRadius: 8, padding: "6px 10px", color: t.accent, fontSize: 14, fontWeight: 700, outline: "none", textAlign: "right" }} />
                     </div>
-                    <input value={item.description} placeholder="Description" onChange={e => onChange?.(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, description: e.target.value } : it) } : c))}
+                    <input value={item.description} placeholder="Description" onChange={e => onChange(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.map((it, ii2) => ii2 === ii ? { ...it, description: e.target.value } : it) } : c))}
                       style={{ background: t.elevated, border: "none", borderRadius: 8, padding: "6px 10px", color: t.secondary, fontSize: 13, outline: "none" }} />
                   </div>
-                  <button onClick={() => onChange?.(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.filter((_, ii2) => ii2 !== ii) } : c))}
+                  <button onClick={() => onChange(categories.map((c, ci2) => ci2 === ci ? { ...c, items: c.items.filter((_, ii2) => ii2 !== ii) } : c))}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "#f87171", padding: 4, flexShrink: 0 }}><X size={14} /></button>
                 </div>
               </div>
             )
           })}
-          <button onClick={() => { const ci = categories.findIndex(c => c.id === activeCat.id); onChange?.(categories.map((c, ci2) => ci2 === ci ? { ...c, items: [...c.items, { id: uid(), name: "", description: "", price: "" }] } : c)) }}
+          <button onClick={() => { const ci = categories.findIndex(c => c.id === activeCat.id); onChange(categories.map((c, ci2) => ci2 === ci ? { ...c, items: [...c.items, { id: uid(), name: "", description: "", price: "" }] } : c)) }}
             style={{ width: "100%", padding: "12px 16px", background: "none", border: "none", cursor: "pointer", color: t.accent, fontSize: 13, fontWeight: 600, textAlign: "left", display: "flex", alignItems: "center", gap: 6 }}>
             <Plus size={14} /> Ajouter un plat
           </button>
@@ -324,12 +469,11 @@ function MenuSection({ categories, t, isEditing, onChange }: { categories: MenuC
 
 // ── Section: Reviews ──────────────────────────────────────────────────────────
 
-function ReviewsSection({ reviews, placeId, t, track }: { reviews: ReviewData[]; placeId: string | null; t: Theme; track: (e: string) => void }) {
+function ReviewsSection({ reviews, placeId, t, track }: { reviews: ReviewData[]; placeId: string | null; t: ThemeConfig; track: (e: string) => void }) {
   const url = placeId ? `https://search.google.com/local/writereview?placeid=${placeId}` : null
   if (!reviews.length && !url) return null
   return (
     <div>
-      {/* Review CTA */}
       {url && (
         <a href={url} target="_blank" rel="noopener noreferrer" onClick={() => track("cta_review")}
           style={{
@@ -348,7 +492,6 @@ function ReviewsSection({ reviews, placeId, t, track }: { reviews: ReviewData[];
         </a>
       )}
 
-      {/* Scrollable review cards */}
       {reviews.length > 0 && (
         <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8, scrollSnapType: "x mandatory", scrollbarWidth: "none" }}>
           {reviews.map((r, i) => (
@@ -357,17 +500,15 @@ function ReviewsSection({ reviews, placeId, t, track }: { reviews: ReviewData[];
               background: t.surface, borderRadius: 20, padding: 24,
               border: `1px solid ${t.border}`, position: "relative",
             }}>
-              {/* Quote mark */}
               <svg width={32} height={32} viewBox="0 0 24 24" fill={t.border} style={{ position: "absolute", top: 18, right: 18, opacity: 0.5 }}>
                 <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
               </svg>
-
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
                 <div style={{
                   width: 44, height: 44, borderRadius: "50%",
                   background: `linear-gradient(135deg, ${t.accent}60, ${t.star}60)`,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  color: t.text, fontWeight: 700, fontSize: 17, flexShrink: 0,
+                  color: t.isDark ? "#fff" : "#111", fontWeight: 700, fontSize: 17, flexShrink: 0,
                 }}>
                   {r.reviewerName.charAt(0).toUpperCase()}
                 </div>
@@ -395,63 +536,37 @@ function ReviewsSection({ reviews, placeId, t, track }: { reviews: ReviewData[];
 
 // ── Section: Social ───────────────────────────────────────────────────────────
 
-function SocialSection({ links, t, track, isEditing, onChange }: { links: SocialLink[]; t: Theme; track: (e: string) => void; isEditing: boolean; onChange?: (l: SocialLink[]) => void }) {
-  if (!isEditing && !links.some(l => l.url)) return null
-
-  // Public: grid of social buttons
-  if (!isEditing) {
-    return (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        {links.filter(l => l.url).map((link) => (
-          <a key={link.platform} href={link.url.startsWith("http") ? link.url : `https://${link.url}`}
-            target="_blank" rel="noopener noreferrer" onClick={() => track(`cta_social_${link.platform}`)}
-            style={{
-              display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
-              borderRadius: 16, background: t.surface, border: `1px solid ${t.border}`,
-              textDecoration: "none", transition: "all 0.2s",
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.transform = "translateY(-1px)" }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = "translateY(0)" }}
-          >
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: t.elevated, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <SocialIcon p={link.platform} color={SOCIALS[link.platform]?.color ?? t.text} size={18} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ color: t.text, fontSize: 14, fontWeight: 600, margin: 0 }}>{link.label || SOCIALS[link.platform]?.label}</p>
-            </div>
-            <ExternalLink size={14} style={{ color: t.muted, flexShrink: 0 }} />
-          </a>
-        ))}
-      </div>
-    )
-  }
-
-  // Edit: list with inputs
+function SocialSection({ links, t, track }: { links: SocialLink[]; t: ThemeConfig; track: (e: string) => void }) {
+  if (!links.some(l => l.url)) return null
   return (
-    <div style={{ background: t.surface, borderRadius: 16, overflow: "hidden" }}>
-      {links.map((link, i, arr) => (
-        <div key={link.platform} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: i < arr.length - 1 ? `1px solid ${t.border}` : "none" }}>
-          <SocialIcon p={link.platform} color={SOCIALS[link.platform]?.color ?? t.text} size={16} />
-          <span style={{ color: t.text, fontSize: 13, fontWeight: 500, flex: "0 0 80px" }}>{SOCIALS[link.platform]?.label ?? link.platform}</span>
-          <input value={link.url} onChange={e => onChange?.(links.map((l, j) => j === i ? { ...l, url: e.target.value } : l))}
-            placeholder="https://..." style={{ flex: 1, background: t.elevated, border: "none", borderRadius: 8, padding: "7px 10px", color: t.text, fontSize: 13, outline: "none" }} />
-          <button onClick={() => onChange?.(links.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "#f87171", padding: 4 }}><Trash2 size={14}/></button>
-        </div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      {links.filter(l => l.url).map((link) => (
+        <a key={link.platform} href={link.url.startsWith("http") ? link.url : `https://${link.url}`}
+          target="_blank" rel="noopener noreferrer" onClick={() => track(`cta_social_${link.platform}`)}
+          style={{
+            display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
+            borderRadius: 16, background: t.surface, border: `1px solid ${t.border}`,
+            textDecoration: "none", transition: "all 0.2s",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.transform = "translateY(-1px)" }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = "translateY(0)" }}
+        >
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: t.elevated, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <SocialIcon p={link.platform} color={SOCIALS[link.platform]?.color ?? t.text} size={18} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ color: t.text, fontSize: 14, fontWeight: 600, margin: 0 }}>{link.label || SOCIALS[link.platform]?.label}</p>
+          </div>
+          <ExternalLink size={14} style={{ color: t.muted, flexShrink: 0 }} />
+        </a>
       ))}
-      <div style={{ padding: "10px 14px", borderTop: links.length ? `1px solid ${t.border}` : "none" }}>
-        <select onChange={e => { const p = e.target.value; if (!p || links.find(l => l.platform === p)) return; onChange?.([...links, { platform: p, url: "", label: SOCIALS[p]?.label ?? p }]); e.target.value = "" }} defaultValue=""
-          style={{ width: "100%", background: t.elevated, border: "none", borderRadius: 8, padding: "8px 12px", color: t.muted, fontSize: 13, cursor: "pointer" }}>
-          <option value="">+ Ajouter un reseau...</option>
-          {Object.keys(SOCIALS).filter(p => !links.find(l => l.platform === p)).map(p => <option key={p} value={p}>{SOCIALS[p].label}</option>)}
-        </select>
-      </div>
     </div>
   )
 }
 
 // ── Section: Hours ────────────────────────────────────────────────────────────
 
-function HoursSection({ schedule, t, isEditing, onChange }: { schedule: Record<string, HourEntry>; t: Theme; isEditing: boolean; onChange?: (s: Record<string, HourEntry>) => void }) {
+function HoursSection({ schedule, t }: { schedule: Record<string, HourEntry>; t: ThemeConfig }) {
   const isOpen = (() => {
     const e = schedule[TODAY_KEY]; if (!e || e.closed) return false
     const [oh, om] = e.open.split(":").map(Number), [ch, cm] = e.close.split(":").map(Number)
@@ -469,7 +584,7 @@ function HoursSection({ schedule, t, isEditing, onChange }: { schedule: Record<s
           border: `1px solid ${isOpen ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`,
         }}>
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: isOpen ? "#22c55e" : "#ef4444" }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: isOpen ? "#22c55e" : "#ef4444" }}>{isOpen ? "Ouvert" : "Ferme"}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: isOpen ? "#22c55e" : "#ef4444" }}>{isOpen ? "Ouvert" : "Fermé"}</span>
         </div>
       </div>
       <div style={{ borderRadius: 20, overflow: "hidden", background: t.surface, border: `1px solid ${t.border}` }}>
@@ -484,17 +599,10 @@ function HoursSection({ schedule, t, isEditing, onChange }: { schedule: Record<s
             }}>
               <span style={{ width: 90, fontSize: 14, fontWeight: isToday ? 700 : 400, color: isToday ? t.accent : t.text }}>{label}</span>
               {e.closed ? (
-                <span style={{ color: t.muted, fontSize: 14 }}>Ferme</span>
-              ) : isEditing ? (
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input type="time" value={e.open} onChange={ev => onChange?.({ ...schedule, [key]: { ...e, open: ev.target.value } })} style={{ background: t.elevated, border: "none", borderRadius: 8, padding: "4px 8px", color: t.text, fontSize: 13 }} />
-                  <span style={{ color: t.muted }}>-</span>
-                  <input type="time" value={e.close} onChange={ev => onChange?.({ ...schedule, [key]: { ...e, close: ev.target.value } })} style={{ background: t.elevated, border: "none", borderRadius: 8, padding: "4px 8px", color: t.text, fontSize: 13 }} />
-                </div>
+                <span style={{ color: t.muted, fontSize: 14 }}>Fermé</span>
               ) : (
                 <span style={{ color: t.secondary, fontSize: 14, fontWeight: 500 }}>{e.open} - {e.close}</span>
               )}
-              {isEditing && <label style={{ marginLeft: "auto", display: "flex", gap: 6, fontSize: 12, color: t.muted, cursor: "pointer", alignItems: "center" }}><input type="checkbox" checked={!!e.closed} onChange={ev => onChange?.({ ...schedule, [key]: { ...e, closed: ev.target.checked } })} />Ferme</label>}
             </div>
           )
         })}
@@ -505,24 +613,19 @@ function HoursSection({ schedule, t, isEditing, onChange }: { schedule: Record<s
 
 // ── Section: Location ─────────────────────────────────────────────────────────
 
-function LocationSection({ address, placeId, t, isEditing, onChange, track }: { address: string; placeId: string | null; t: Theme; isEditing: boolean; onChange?: (a: string) => void; track: (e: string) => void }) {
+function LocationSection({ address, placeId, t, track }: { address: string; placeId: string | null; t: ThemeConfig; track: (e: string) => void }) {
   const mapsUrl = placeId ? `https://www.google.com/maps/place/?q=place_id:${placeId}` : address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : null
   return (
     <div style={{ borderRadius: 20, overflow: "hidden", background: t.surface, border: `1px solid ${t.border}` }}>
       <div style={{ padding: "20px 22px" }}>
-        {isEditing ? (
-          <input value={address} onChange={e => onChange?.(e.target.value)} placeholder="12 Rue de la Paix, 75002 Paris"
-            style={{ width: "100%", background: t.elevated, border: "none", borderRadius: 10, padding: "10px 14px", color: t.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
-        ) : (
-          <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <MapPin size={18} style={{ color: t.accent }} />
-            </div>
-            <p style={{ color: t.text, fontSize: 15, margin: "8px 0 0", lineHeight: 1.5, fontWeight: 500 }}>{address || "Adresse non renseignee"}</p>
+        <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <MapPin size={18} style={{ color: t.accent }} />
           </div>
-        )}
+          <p style={{ color: t.text, fontSize: 15, margin: "8px 0 0", lineHeight: 1.5, fontWeight: 500 }}>{address || "Adresse non renseignée"}</p>
+        </div>
       </div>
-      {mapsUrl && !isEditing && (
+      {mapsUrl && (
         <a href={mapsUrl} target="_blank" rel="noopener noreferrer" onClick={() => track("cta_maps")}
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "15px 22px", borderTop: `1px solid ${t.border}`, color: t.accent, fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "background 0.2s" }}
           onMouseEnter={e => e.currentTarget.style.background = t.elevated}
@@ -537,7 +640,7 @@ function LocationSection({ address, placeId, t, isEditing, onChange, track }: { 
 
 // ── Section: Photos ───────────────────────────────────────────────────────────
 
-function PhotosSection({ images, t, isEditing, onChange }: { images: PhotoItem[]; t: Theme; isEditing: boolean; onChange?: (i: PhotoItem[]) => void }) {
+function PhotosSection({ images, t }: { images: PhotoItem[]; t: ThemeConfig }) {
   const [lb, setLb] = useState<string | null>(null)
   return (
     <div>
@@ -556,37 +659,20 @@ function PhotosSection({ images, t, isEditing, onChange }: { images: PhotoItem[]
             aspectRatio: images.length === 1 ? "16/9" : "1",
             gridColumn: i === 0 && images.length === 3 ? "1 / -1" : undefined,
           }}>
-            <img src={img.dataUrl} alt="" onClick={() => !isEditing && setLb(img.dataUrl)}
-              style={{ width: "100%", height: "100%", objectFit: "cover", cursor: isEditing ? "default" : "pointer", display: "block", transition: "transform 0.3s" }}
-              onMouseEnter={e => { if (!isEditing) e.currentTarget.style.transform = "scale(1.03)" }}
+            <img src={img.dataUrl} alt="" onClick={() => setLb(img.dataUrl)}
+              style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "pointer", display: "block", transition: "transform 0.3s" }}
+              onMouseEnter={e => e.currentTarget.style.transform = "scale(1.03)"}
               onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"} />
-            {isEditing && (
-              <button onClick={() => onChange?.(images.filter((_, j) => j !== i))}
-                style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", backdropFilter: "blur(4px)" }}>
-                <X size={13} />
-              </button>
-            )}
           </div>
         ))}
-        {isEditing && images.length < 6 && (
-          <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", aspectRatio: "1", borderRadius: 18, border: `2px dashed ${t.border}`, cursor: "pointer", gap: 6, background: t.surface, transition: "border-color 0.2s" }}>
-            <Plus size={24} style={{ color: t.muted }} />
-            <span style={{ fontSize: 13, color: t.muted }}>Ajouter</span>
-            <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => {
-              const file = e.target.files?.[0]; if (!file) return
-              const dataUrl = await compressImage(file, 800)
-              onChange?.([...images, { dataUrl, caption: "" }]); e.target.value = ""
-            }} />
-          </label>
-        )}
       </div>
     </div>
   )
 }
 
-// ── Edit wrapper ──────────────────────────────────────────────────────────────
+// ── Editable section wrappers ─────────────────────────────────────────────────
 
-const SECTION_LABELS: Record<string, string> = { reviews: "Avis clients", menu: "Carte & Menu", social: "Reseaux sociaux", hours: "Horaires", location: "Adresse", photos: "Photos" }
+const SECTION_LABELS: Record<string, string> = { reviews: "Avis clients", menu: "Carte & Menu", social: "Réseaux sociaux", hours: "Horaires", location: "Adresse", photos: "Photos" }
 const SECTION_ICONS: Record<string, React.ReactNode> = {
   reviews: <StarIcon size={14} />,
   menu: <Camera size={14} />,
@@ -594,35 +680,6 @@ const SECTION_ICONS: Record<string, React.ReactNode> = {
   hours: <Clock size={14} />,
   location: <MapPin size={14} />,
   photos: <Camera size={14} />,
-}
-
-function EditWrapper({ section, t, onToggle, dragIdx, myIdx, onDragStart, onDrop, children }: { section: Section; t: Theme; onToggle: () => void; dragIdx: number | null; myIdx: number; onDragStart: () => void; onDrop: () => void; children: React.ReactNode }) {
-  return (
-    <div draggable onDragStart={onDragStart} onDragOver={e => e.preventDefault()} onDrop={onDrop}
-      style={{ opacity: dragIdx === myIdx ? 0.3 : 1, transition: "opacity 0.15s" }}>
-      <div style={{
-        display: "flex", alignItems: "center", gap: 10, marginBottom: 10, padding: "8px 14px",
-        background: t.surface, borderRadius: 12, border: `1px solid ${t.border}`,
-      }}>
-        <GripVertical size={14} style={{ color: t.muted, cursor: "grab" }} />
-        <span style={{ color: t.accent, display: "flex" }}>{SECTION_ICONS[section.type]}</span>
-        <span style={{ fontSize: 13, color: t.text, fontWeight: 600, flex: 1 }}>{SECTION_LABELS[section.type] ?? section.type}</span>
-        <button onClick={onToggle} style={{
-          fontSize: 11, padding: "4px 12px", borderRadius: 20, border: "none",
-          background: section.enabled ? t.accent : t.elevated,
-          color: section.enabled ? t.btnText : t.muted,
-          cursor: "pointer", fontWeight: 600, transition: "all 0.2s",
-        }}>
-          {section.enabled ? "Visible" : "Masque"}
-        </button>
-      </div>
-      {section.enabled ? children : (
-        <div style={{ height: 44, borderRadius: 14, border: `1.5px dashed ${t.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: 12, color: t.muted }}>Section masquee</span>
-        </div>
-      )}
-    </div>
-  )
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -636,21 +693,26 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
   const [isEditing, setEditing] = useState(false)
   const [saving, setSaving]     = useState(false)
   const [sections, setSections] = useState<Section[]>([])
-  const [logo, setLogo]         = useState<string | null>(null)
-  const [tagline, setTagline]   = useState<string | null>(null)
-  const [theme, setTheme]       = useState<string>("dark")
-  const [dragIdx, setDragIdx]   = useState<number | null>(null)
-  const tracked                 = useRef(false)
   const [showStickyBar, setShowStickyBar] = useState(false)
-  const heroRef                 = useRef<HTMLDivElement>(null)
+  const tracked                 = useRef(false)
 
-  // Reveal hooks for each section
-  const heroReveal = useReveal()
-  const ratingReveal = useReveal()
+  // Live preview overrides — reçus via postMessage depuis /personnalisation
+  const [preview, setPreview] = useState<Partial<PageData> | null>(null)
 
-  // Sticky CTA bar on scroll
+  const heroReveal  = useReveal(0)
+  const ratingReveal = useReveal(120)
+
   useEffect(() => {
-    const onScroll = () => setShowStickyBar(window.scrollY > 400)
+    function onMessage(e: MessageEvent) {
+      if (e.data?.type !== "REPUTIX_PREVIEW") return
+      setPreview(e.data.overrides ?? null)
+    }
+    window.addEventListener("message", onMessage)
+    return () => window.removeEventListener("message", onMessage)
+  }, [])
+
+  useEffect(() => {
+    const onScroll = () => setShowStickyBar(window.scrollY > 350)
     window.addEventListener("scroll", onScroll, { passive: true })
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
@@ -669,15 +731,15 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
         return s
       })
       setSections(merged)
-      setLogo(d.logoDataUrl)
-      setTagline(d.pageTagline)
-      setTheme(d.pageTheme ?? "dark")
       setLoading(false)
     }).catch(() => { setError("Page introuvable"); setLoading(false) })
   }, [slug])
 
   useEffect(() => {
-    if (data && !tracked.current) { tracked.current = true; fetch(`/api/r/${slug}/track`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "view" }) }) }
+    if (data && !tracked.current) {
+      tracked.current = true
+      fetch(`/api/r/${slug}/track`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "view" }) })
+    }
   }, [data, slug])
 
   const track = useCallback((type: string) => {
@@ -691,19 +753,13 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
   async function save() {
     setSaving(true)
     const config = { sections: sections.map((s, i) => ({ ...s, order: i })) }
-    await fetch("/api/page", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pageConfig: config, logoDataUrl: logo, pageTagline: tagline, pageTheme: theme, reputationPageEnabled: true }) })
+    await fetch("/api/page", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pageConfig: config, reputationPageEnabled: true }) })
     setSaving(false)
     setEditing(false)
-    setData(prev => prev ? { ...prev, pageConfig: config, logoDataUrl: logo, pageTagline: tagline, pageTheme: theme } : prev)
+    setData(prev => prev ? { ...prev, pageConfig: config } : prev)
   }
 
-  function drop(toIdx: number) {
-    if (dragIdx === null || dragIdx === toIdx) { setDragIdx(null); return }
-    const next = [...sections]; const [m] = next.splice(dragIdx, 1); next.splice(toIdx, 0, m)
-    setSections(next); setDragIdx(null)
-  }
-
-  // Loading state
+  // Loading
   if (loading) return (
     <div style={{ minHeight: "100svh", background: "#09090b", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
@@ -713,6 +769,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
       <style>{GLOBAL_CSS}</style>
     </div>
   )
+
   if (error) return (
     <div style={{ minHeight: "100svh", background: "#09090b", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
       <div style={{ width: 48, height: 48, borderRadius: 16, background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -722,222 +779,297 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
       <style>{GLOBAL_CSS}</style>
     </div>
   )
+
   if (!data) return null
 
-  const t: Theme = (THEMES as unknown as Record<string, Theme>)[theme] ?? THEMES.dark
-  const bookingUrl = data.bookingEnabled && data.bookingPageSlug ? `/book/${data.bookingPageSlug}` : null
-  const reviewUrl = data.placeId ? `https://search.google.com/local/writereview?placeid=${data.placeId}` : null
+  // Merge preview overrides on top of fetched data
+  const d: PageData = preview ? { ...data, ...preview } : data
 
-  const renderSection = (section: Section) => {
+  const t = resolveTheme(d)
+  const rgb = hexToRgb(t.accent)
+  const bookingUrl = d.bookingEnabled && d.bookingPageSlug ? `/book/${d.bookingPageSlug}` : null
+  const reviewUrl  = d.placeId ? `https://search.google.com/local/writereview?placeid=${d.placeId}` : null
+
+  const renderSectionContent = (section: Section) => {
     switch (section.type) {
-      case "reviews":  return <ReviewsSection reviews={data.reviews} placeId={data.placeId} t={t} track={track} />
-      case "social":   return <SocialSection links={section.links ?? []} t={t} track={track} isEditing={isEditing} onChange={l => updateSection(section.id, { links: l })} />
-      case "hours":    return <HoursSection schedule={section.schedule ?? {}} t={t} isEditing={isEditing} onChange={s => updateSection(section.id, { schedule: s })} />
-      case "location": return <LocationSection address={section.address ?? ""} placeId={data.placeId} t={t} isEditing={isEditing} onChange={a => updateSection(section.id, { address: a })} track={track} />
-      case "photos":   return <PhotosSection images={section.images ?? []} t={t} isEditing={isEditing} onChange={imgs => updateSection(section.id, { images: imgs })} />
-      case "menu":     return <MenuSection categories={section.categories ?? []} t={t} isEditing={isEditing} onChange={c => updateSection(section.id, { categories: c })} />
+      case "reviews":  return <ReviewsSection reviews={d.reviews} placeId={d.placeId} t={t} track={track} />
+      case "social":   return <SocialSection links={section.links ?? []} t={t} track={track} />
+      case "hours":    return isEditing
+        ? <HoursSectionEdit schedule={section.schedule ?? {}} t={t} onChange={s => updateSection(section.id, { schedule: s })} />
+        : <HoursSection schedule={section.schedule ?? {}} t={t} />
+      case "location": return <LocationSection address={section.address ?? ""} placeId={d.placeId} t={t} track={track} />
+      case "photos":   return isEditing
+        ? <PhotosSectionEdit images={section.images ?? []} t={t} onChange={imgs => updateSection(section.id, { images: imgs })} />
+        : <PhotosSection images={section.images ?? []} t={t} />
+      case "menu":     return isEditing
+        ? <MenuSectionEdit categories={section.categories ?? []} t={t} onChange={c => updateSection(section.id, { categories: c })} />
+        : <MenuSection categories={section.categories ?? []} t={t} />
       default: return null
     }
   }
 
   return (
-    <div style={{ minHeight: "100svh", background: t.bg, fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif", WebkitFontSmoothing: "antialiased" }}>
+    <div style={{ minHeight: "100svh", background: t.bg, fontFamily: t.fontFamily, WebkitFontSmoothing: "antialiased" }}>
       <style>{GLOBAL_CSS}</style>
 
-      {/* ── Edit bar ── */}
-      {isEditing && (
-        <div style={{
-          position: "sticky", top: 0, zIndex: 50,
-          background: `${t.surface}ee`, backdropFilter: "blur(20px) saturate(1.8)",
-          borderBottom: `1px solid ${t.border}`, padding: "12px 20px",
-          display: "flex", alignItems: "center", gap: 12,
-        }}>
-          <span style={{ color: t.text, fontWeight: 700, fontSize: 14, flex: 1 }}>Mode edition</span>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            {(Object.keys(THEMES) as ThemeKey[]).map(k => (
-              <button key={k} onClick={() => setTheme(k)} style={{
-                width: 20, height: 20, borderRadius: "50%", background: THEMES[k].bg,
-                border: theme === k ? `2.5px solid ${t.text}` : `2px solid ${t.border}`,
-                cursor: "pointer", outline: "none", transition: "all 0.15s",
-              }} />
-            ))}
-          </div>
-          <button onClick={() => setEditing(false)} style={{ background: "none", border: `1px solid ${t.border}`, borderRadius: 12, padding: "8px 16px", color: t.secondary, fontSize: 13, cursor: "pointer", fontWeight: 500 }}>Annuler</button>
-          <button onClick={save} disabled={saving} style={{ background: t.btn, border: "none", borderRadius: 12, padding: "8px 20px", color: t.btnText, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, opacity: saving ? 0.6 : 1, transition: "opacity 0.2s" }}>
-            <Save size={14} />{saving ? "..." : "Sauvegarder"}
-          </button>
-        </div>
-      )}
-
-      {/* ── Sticky CTA bar (appears on scroll) ── */}
+      {/* ── Sticky CTA bar ── */}
       {!isEditing && (reviewUrl || bookingUrl) && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, zIndex: 40,
-          background: `${t.surface}ee`, backdropFilter: "blur(20px) saturate(1.8)",
+          background: t.isDark ? `${t.surface}ee` : `${t.surface}f0`,
+          backdropFilter: "blur(20px) saturate(1.8)",
           borderBottom: `1px solid ${t.border}`,
           padding: "10px 20px", display: "flex", alignItems: "center", gap: 10,
           transform: showStickyBar ? "translateY(0)" : "translateY(-100%)",
           transition: "transform 0.3s ease",
         }}>
-          {logo ? (
-            <img src={logo} style={{ width: 32, height: 32, borderRadius: 8, objectFit: "cover" }} />
-          ) : (
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: t.elevated, display: "flex", alignItems: "center", justifyContent: "center", color: t.text, fontWeight: 700, fontSize: 14 }}>
-              {data.businessName.charAt(0)}
-            </div>
-          )}
-          <span style={{ color: t.text, fontWeight: 600, fontSize: 14, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{data.businessName}</span>
+          {d.logoDataUrl ? (
+            <img src={d.logoDataUrl} style={{ width: 32, height: 32, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
+          ) : null}
+          <span style={{ color: t.text, fontWeight: 600, fontSize: 14, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.businessName}</span>
           {bookingUrl && (
-            <a href={bookingUrl} style={{
-              padding: "8px 18px", borderRadius: 10, background: t.btn, color: t.btnText,
-              fontSize: 13, fontWeight: 700, textDecoration: "none", display: "flex", alignItems: "center", gap: 6,
-            }}>
-              <CalendarDays size={14} /> Reserver
+            <a href={bookingUrl} style={{ padding: "8px 18px", borderRadius: 10, background: t.btn, color: t.btnText, fontSize: 13, fontWeight: 700, textDecoration: "none", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              <CalendarDays size={14} /> Réserver
             </a>
           )}
           {reviewUrl && (
-            <a href={reviewUrl} target="_blank" rel="noopener noreferrer" onClick={() => track("cta_review")} style={{
-              padding: "8px 18px", borderRadius: 10, border: `1.5px solid ${t.border}`,
-              background: "transparent", color: t.text,
-              fontSize: 13, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: 6,
-            }}>
-              <StarIcon size={13} fill={t.star} stroke={t.star} /> Avis
+            <a href={reviewUrl} target="_blank" rel="noopener noreferrer" onClick={() => track("cta_review")} style={{ padding: "8px 16px", borderRadius: 10, border: `1.5px solid ${t.border}`, background: "transparent", color: t.text, fontSize: 13, fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              <StarIcon size={13} fill={t.star} stroke={t.star} />
             </a>
           )}
         </div>
       )}
 
+      {/* ── Edit mode bar ── */}
+      {isEditing && (
+        <div style={{
+          position: "sticky", top: 0, zIndex: 50,
+          background: t.isDark ? `${t.surface}ee` : `${t.surface}f2`,
+          backdropFilter: "blur(20px) saturate(1.8)",
+          borderBottom: `1px solid ${t.border}`, padding: "12px 20px",
+          display: "flex", alignItems: "center", gap: 12,
+        }}>
+          <span style={{ color: t.text, fontWeight: 700, fontSize: 14, flex: 1 }}>Sections</span>
+          <button onClick={() => setEditing(false)} style={{ background: "none", border: `1px solid ${t.border}`, borderRadius: 12, padding: "8px 16px", color: t.secondary, fontSize: 13, cursor: "pointer", fontWeight: 500 }}>Annuler</button>
+          <button onClick={save} disabled={saving} style={{ background: t.btn, border: "none", borderRadius: 12, padding: "8px 20px", color: t.btnText, fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: saving ? 0.6 : 1, transition: "opacity 0.2s" }}>
+            {saving ? "..." : "Sauvegarder"}
+          </button>
+        </div>
+      )}
+
       <div style={{ maxWidth: 520, margin: "0 auto", padding: "0 0 120px" }}>
 
-        {/* ── Hero ── */}
-        <div ref={heroRef} style={{ padding: "0 0 40px", position: "relative", overflow: "hidden" }}>
-          {/* Background glow */}
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 300, background: t.heroGradient, pointerEvents: "none" }} />
-          <div style={{ position: "absolute", top: -60, left: "50%", transform: "translateX(-50%)", width: 300, height: 300, borderRadius: "50%", background: t.accent, opacity: 0.04, filter: "blur(80px)", pointerEvents: "none" }} />
+        {/* ── Cover image hero ── */}
+        {d.pageCoverDataUrl && (
+          <div style={{ position: "relative", width: "100%", overflow: "hidden", aspectRatio: "21/9", maxHeight: 220, minHeight: 100 }}>
+            <img src={d.pageCoverDataUrl} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} alt="" />
+            <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.6) 100%)` }} />
+            {/* Logo + name overlay at bottom */}
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "16px 24px", display: "flex", alignItems: "flex-end", gap: 12 }}>
+              {d.logoDataUrl && (
+                <img src={d.logoDataUrl} style={{ width: 52, height: 52, borderRadius: 14, objectFit: "cover", border: "2px solid rgba(255,255,255,0.2)", flexShrink: 0 }} />
+              )}
+              <div>
+                <p style={{ color: "#fff", fontWeight: 800, fontSize: 20, letterSpacing: "-0.4px", lineHeight: 1.2, textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>{d.businessName}</p>
+                {d.pageTagline && <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, marginTop: 2, lineHeight: 1.4 }}>{d.pageTagline}</p>}
+              </div>
+            </div>
+          </div>
+        )}
 
-          <div ref={heroReveal.ref} style={{ ...heroReveal.style, textAlign: "center", padding: "60px 24px 0", position: "relative" }}>
-            {/* Logo */}
-            {isEditing ? (
-              <label style={{ cursor: "pointer", display: "inline-block", marginBottom: 24, position: "relative" }}>
-                {logo ? (
-                  <img src={logo} style={{ width: 96, height: 96, borderRadius: 26, objectFit: "cover", display: "block", boxShadow: `0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px ${t.border}` }} />
-                ) : (
-                  <div style={{ width: 96, height: 96, borderRadius: 26, background: t.elevated, border: `2px dashed ${t.border}`, display: "flex", alignItems: "center", justifyContent: "center", color: t.muted, fontSize: 36, fontWeight: 800 }}>
-                    {data.businessName.charAt(0)}
-                  </div>
-                )}
-                <div style={{ position: "absolute", bottom: -4, right: -4, width: 28, height: 28, borderRadius: "50%", background: t.accent, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>
-                  <Pencil size={12} style={{ color: t.btnText }} />
+        {/* ── Hero (no cover) ── */}
+        {!d.pageCoverDataUrl && (
+          <div style={{ position: "relative", overflow: "hidden", padding: "0 0 32px" }}>
+            {/* Ambient glow bg */}
+            <div style={{ position: "absolute", inset: 0, background: t.heroGradient, pointerEvents: "none" }} />
+            <div style={{ position: "absolute", top: -80, left: "50%", transform: "translateX(-50%)", width: 320, height: 320, borderRadius: "50%", background: t.accent, opacity: t.isDark ? 0.06 : 0.04, filter: "blur(90px)", pointerEvents: "none" }} />
+
+            <div ref={heroReveal.ref} style={{ ...heroReveal.style, textAlign: "center", padding: "64px 24px 0", position: "relative" }}>
+              {/* Logo */}
+              {d.logoDataUrl ? (
+                <div style={{ display: "inline-block", marginBottom: 24, animation: "float 4s ease-in-out infinite" }}>
+                  <img src={d.logoDataUrl} style={{
+                    width: 96, height: 96, borderRadius: 26, objectFit: "cover", display: "block",
+                    boxShadow: `0 12px 40px rgba(${rgb},0.3), 0 0 0 1px ${t.border}`,
+                  }} />
                 </div>
-                <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => {
-                  const file = e.target.files?.[0]; if (!file) return; setLogo(await compressImage(file, 256)); e.target.value = ""
-                }} />
-              </label>
-            ) : logo ? (
-              <div style={{ display: "inline-block", marginBottom: 24, position: "relative" }}>
-                <img src={logo} style={{ width: 96, height: 96, borderRadius: 26, objectFit: "cover", display: "block", boxShadow: `0 12px 40px rgba(0,0,0,0.35), 0 0 0 1px ${t.border}` }} />
-              </div>
-            ) : null}
+              ) : null}
 
-            {/* Business name */}
-            <h1 style={{
-              color: t.text, fontSize: "clamp(28px, 7vw, 38px)", fontWeight: 800,
-              margin: "0 0 12px", letterSpacing: "-0.8px", lineHeight: 1.1,
+              <h1 style={{ color: t.text, fontSize: "clamp(28px, 7vw, 38px)", fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.8px", lineHeight: 1.1 }}>
+                {d.businessName}
+              </h1>
+
+              {d.pageTagline && (
+                <p style={{ color: t.secondary, fontSize: 16, margin: "0 0 20px", lineHeight: 1.55, maxWidth: 380, marginLeft: "auto", marginRight: "auto" }}>
+                  {d.pageTagline}
+                </p>
+              )}
+
+              {/* Rating badge */}
+              {d.rating > 0 && (
+                <div ref={ratingReveal.ref} style={{
+                  ...ratingReveal.style,
+                  display: "inline-flex", alignItems: "center", gap: 10,
+                  background: t.isDark ? `${t.surface}cc` : `${t.surface}ee`,
+                  backdropFilter: "blur(12px)",
+                  border: `1px solid ${t.border}`, borderRadius: 50,
+                  padding: "10px 20px", marginTop: d.pageTagline ? 0 : 8,
+                }}>
+                  <Stars n={d.rating} color={t.star} size={15} />
+                  <span style={{ color: t.text, fontWeight: 700, fontSize: 17, letterSpacing: "-0.3px" }}>{d.rating.toFixed(1)}</span>
+                  <span style={{ width: 1, height: 14, background: t.border }} />
+                  <span style={{ color: t.secondary, fontSize: 14, fontWeight: 500 }}>{d.reviewCount} avis</span>
+                </div>
+              )}
+
+              {/* CTA buttons */}
+              {(bookingUrl || reviewUrl) && (
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 28, flexWrap: "wrap", padding: "0 16px" }}>
+                  {bookingUrl && (
+                    <a href={bookingUrl} style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "14px 28px", borderRadius: 16, background: t.btn, color: t.btnText,
+                      fontWeight: 700, fontSize: 15, textDecoration: "none",
+                      transition: "transform 0.2s, box-shadow 0.2s",
+                      boxShadow: `0 4px 24px ${t.glow}`,
+                    }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 8px 32px ${t.glow}` }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = `0 4px 24px ${t.glow}` }}
+                    >
+                      <CalendarDays size={17} /> Réserver
+                    </a>
+                  )}
+                  {reviewUrl && (
+                    <a href={reviewUrl} target="_blank" rel="noopener noreferrer" onClick={() => track("cta_review")} style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "14px 28px", borderRadius: 16,
+                      background: "transparent", border: `1.5px solid ${t.border}`, color: t.text,
+                      fontWeight: 600, fontSize: 15, textDecoration: "none", transition: "all 0.2s",
+                    }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.background = t.surface }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = "transparent" }}
+                    >
+                      <StarIcon size={16} fill={t.star} stroke={t.star} /> Avis
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Rating bar (when cover is present) */}
+        {d.pageCoverDataUrl && d.rating > 0 && (
+          <div style={{ padding: "20px 24px 0", display: "flex", justifyContent: "center" }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 10,
+              background: t.isDark ? `${t.surface}cc` : `${t.surface}ee`,
+              backdropFilter: "blur(12px)",
+              border: `1px solid ${t.border}`, borderRadius: 50,
+              padding: "10px 20px",
             }}>
-              {data.businessName}
-            </h1>
+              <Stars n={d.rating} color={t.star} size={15} />
+              <span style={{ color: t.text, fontWeight: 700, fontSize: 17, letterSpacing: "-0.3px" }}>{d.rating.toFixed(1)}</span>
+              <span style={{ width: 1, height: 14, background: t.border }} />
+              <span style={{ color: t.secondary, fontSize: 14, fontWeight: 500 }}>{d.reviewCount} avis</span>
+            </div>
+          </div>
+        )}
 
-            {/* Tagline */}
-            {isEditing ? (
-              <input value={tagline ?? ""} onChange={e => setTagline(e.target.value || null)} placeholder="Ajoutez une accroche..."
-                style={{ textAlign: "center", background: t.elevated, border: `1px solid ${t.border}`, borderRadius: 12, padding: "10px 18px", color: t.secondary, fontSize: 15, outline: "none", width: "calc(100% - 40px)", marginBottom: 20 }} />
-            ) : tagline ? (
-              <p style={{ color: t.secondary, fontSize: 16, margin: "0 0 20px", lineHeight: 1.55, maxWidth: 380, marginLeft: "auto", marginRight: "auto" }}>{tagline}</p>
-            ) : null}
-
-            {/* Rating badge */}
-            {data.rating > 0 && (
-              <div ref={ratingReveal.ref} style={{
-                ...ratingReveal.style,
-                display: "inline-flex", alignItems: "center", gap: 10,
-                background: `${t.surface}cc`, backdropFilter: "blur(12px)",
-                border: `1px solid ${t.border}`, borderRadius: 50,
-                padding: "10px 20px", marginTop: tagline || isEditing ? 0 : 8,
-              }}>
-                <Stars n={data.rating} color={t.star} size={15} />
-                <span style={{ color: t.text, fontWeight: 700, fontSize: 17, letterSpacing: "-0.3px" }}>{data.rating.toFixed(1)}</span>
-                <span style={{ width: 1, height: 14, background: t.border }} />
-                <span style={{ color: t.secondary, fontSize: 14, fontWeight: 500 }}>{data.reviewCount} avis</span>
-              </div>
+        {/* CTA row (when cover is present) */}
+        {d.pageCoverDataUrl && (bookingUrl || reviewUrl) && (
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", padding: "20px 24px 0", flexWrap: "wrap" }}>
+            {bookingUrl && (
+              <a href={bookingUrl} style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "14px 28px", borderRadius: 16, background: t.btn, color: t.btnText,
+                fontWeight: 700, fontSize: 15, textDecoration: "none",
+                transition: "transform 0.2s, box-shadow 0.2s",
+                boxShadow: `0 4px 24px ${t.glow}`,
+              }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 8px 32px ${t.glow}` }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = `0 4px 24px ${t.glow}` }}
+              >
+                <CalendarDays size={17} /> Réserver
+              </a>
             )}
-
-            {/* CTA Buttons */}
-            {!isEditing && (bookingUrl || reviewUrl) && (
-              <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 28, flexWrap: "wrap", padding: "0 16px" }}>
-                {bookingUrl && (
-                  <a href={bookingUrl} style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    padding: "14px 28px", borderRadius: 16, background: t.btn, color: t.btnText,
-                    fontWeight: 700, fontSize: 15, textDecoration: "none", letterSpacing: "-0.2px",
-                    transition: "transform 0.2s, box-shadow 0.2s",
-                    boxShadow: `0 4px 24px ${t.glow}`,
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 8px 32px ${t.glow}` }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = `0 4px 24px ${t.glow}` }}
-                  >
-                    <CalendarDays size={17} /> Reserver
-                  </a>
-                )}
-                {reviewUrl && (
-                  <a href={reviewUrl} target="_blank" rel="noopener noreferrer" onClick={() => track("cta_review")} style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    padding: "14px 28px", borderRadius: 16,
-                    background: "transparent", border: `1.5px solid ${t.border}`, color: t.text,
-                    fontWeight: 600, fontSize: 15, textDecoration: "none",
-                    transition: "all 0.2s",
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.background = t.surface }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = "transparent" }}
-                  >
-                    <StarIcon size={16} fill={t.star} stroke={t.star} /> Laisser un avis
-                  </a>
-                )}
-              </div>
+            {reviewUrl && (
+              <a href={reviewUrl} target="_blank" rel="noopener noreferrer" onClick={() => track("cta_review")} style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "14px 28px", borderRadius: 16,
+                background: "transparent", border: `1.5px solid ${t.border}`, color: t.text,
+                fontWeight: 600, fontSize: 15, textDecoration: "none", transition: "all 0.2s",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = t.accent; e.currentTarget.style.background = t.surface }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = "transparent" }}
+              >
+                <StarIcon size={16} fill={t.star} stroke={t.star} /> Avis
+              </a>
             )}
           </div>
-        </div>
+        )}
+
+        {/* ── Description ── */}
+        {d.pageDescription && !isEditing && (
+          <div style={{ padding: "28px 24px 0" }}>
+            <p style={{ color: t.secondary, fontSize: 15, lineHeight: 1.7, textAlign: "center" }}>{d.pageDescription}</p>
+          </div>
+        )}
 
         {/* ── Sections ── */}
         {isEditing ? (
-          <div style={{ padding: "0 20px", display: "flex", flexDirection: "column", gap: 32 }}>
-            {sections.map((section, i) => {
-              const content = renderSection(section)
+          <div style={{ padding: "32px 20px 0", display: "flex", flexDirection: "column", gap: 32 }}>
+            {sections.map((section) => {
+              const content = renderSectionContent(section)
               if (!content) return null
               return (
-                <EditWrapper key={section.id} section={section} t={t} onToggle={() => updateSection(section.id, { enabled: !section.enabled })} dragIdx={dragIdx} myIdx={i} onDragStart={() => setDragIdx(i)} onDrop={() => drop(i)}>
-                  {content}
-                </EditWrapper>
+                <div key={section.id}>
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 10, marginBottom: 12, padding: "8px 14px",
+                    background: t.surface, borderRadius: 12, border: `1px solid ${t.border}`,
+                  }}>
+                    <span style={{ color: t.accent, display: "flex" }}>{SECTION_ICONS[section.type]}</span>
+                    <span style={{ fontSize: 13, color: t.text, fontWeight: 600, flex: 1 }}>{SECTION_LABELS[section.type] ?? section.type}</span>
+                    <button onClick={() => updateSection(section.id, { enabled: !section.enabled })} style={{
+                      fontSize: 11, padding: "4px 12px", borderRadius: 20, border: "none",
+                      background: section.enabled ? t.accent : t.elevated,
+                      color: section.enabled ? t.btnText : t.muted,
+                      cursor: "pointer", fontWeight: 600, transition: "all 0.2s",
+                    }}>
+                      {section.enabled ? "Visible" : "Masqué"}
+                    </button>
+                  </div>
+                  {section.enabled ? content : (
+                    <div style={{ height: 44, borderRadius: 14, border: `1.5px dashed ${t.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: 12, color: t.muted }}>Section masquée</span>
+                    </div>
+                  )}
+                </div>
               )
             })}
           </div>
         ) : (
           <div>
             {sections.filter(s => s.enabled).map((section, i) => {
-              const content = renderSection(section)
+              const content = renderSectionContent(section)
               if (!content) return null
               const showLabel = section.type !== "reviews"
-              return <RevealSection key={section.id} idx={i} section={section} showLabel={showLabel} t={t}>{content}</RevealSection>
+              return (
+                <RevealSection key={section.id} idx={i} section={section} showLabel={showLabel} t={t}>
+                  {content}
+                </RevealSection>
+              )
             })}
           </div>
         )}
 
-        {/* ── Bottom CTA ── */}
+        {/* ── Bottom booking CTA ── */}
         {!isEditing && bookingUrl && (
-          <div style={{ padding: "48px 20px 0", textAlign: "center" }}>
-            <div style={{ background: t.surface, borderRadius: 24, padding: "36px 28px", border: `1px solid ${t.border}`, position: "relative", overflow: "hidden" }}>
-              <div style={{ position: "absolute", top: -40, right: -40, width: 120, height: 120, borderRadius: "50%", background: t.accent, opacity: 0.05, filter: "blur(40px)" }} />
+          <div style={{ padding: "48px 20px 0" }}>
+            <div style={{ background: t.surface, borderRadius: 24, padding: "36px 28px", border: `1px solid ${t.border}`, position: "relative", overflow: "hidden", textAlign: "center" }}>
+              <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: t.accent, opacity: 0.06, filter: "blur(50px)", pointerEvents: "none" }} />
               <h2 style={{ color: t.text, fontSize: 22, fontWeight: 700, marginBottom: 8, letterSpacing: "-0.3px" }}>Envie de nous rendre visite ?</h2>
-              <p style={{ color: t.secondary, fontSize: 15, marginBottom: 24, lineHeight: 1.5 }}>Reservez directement en ligne en quelques clics.</p>
+              <p style={{ color: t.secondary, fontSize: 15, marginBottom: 24, lineHeight: 1.5 }}>Réservez directement en ligne en quelques clics.</p>
               <a href={bookingUrl} style={{
                 display: "inline-flex", alignItems: "center", gap: 8,
                 padding: "16px 32px", borderRadius: 16, background: t.btn, color: t.btnText,
@@ -947,7 +1079,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
                 onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
                 onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
               >
-                <CalendarDays size={18} /> Reserver maintenant <ArrowRight size={16} />
+                <CalendarDays size={18} /> Réserver maintenant <ArrowRight size={16} />
               </a>
             </div>
           </div>
@@ -957,40 +1089,54 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
         {!isEditing && (
           <div style={{ textAlign: "center", padding: "48px 20px 0" }}>
             <p style={{ color: t.muted, fontSize: 12, opacity: 0.5, fontWeight: 500 }}>
-              Propulse par <span style={{ fontWeight: 700 }}>Reputix</span>
+              Propulsé par <span style={{ fontWeight: 700 }}>Reputix</span>
             </p>
           </div>
         )}
       </div>
 
-      {/* ── Edit FAB ── */}
-      {data.isOwner && !isEditing && (
-        <button onClick={() => setEditing(true)} style={{
-          position: "fixed", bottom: 24, right: 20,
-          background: t.btn, border: "none", borderRadius: 50,
-          padding: "14px 24px", color: t.btnText, fontWeight: 700, fontSize: 15,
-          cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
-          boxShadow: `0 8px 32px rgba(0,0,0,0.5)`, letterSpacing: "-0.2px",
-          transition: "transform 0.2s, box-shadow 0.2s",
-        }}
-          onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.6)" }}
-          onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,0,0,0.5)" }}
-        >
-          <Pencil size={16} /> Modifier
-        </button>
+      {/* ── Owner FABs ── */}
+      {data.isOwner && !isEditing && !preview && (
+        <div style={{ position: "fixed", bottom: 24, right: 20, display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
+          {/* Sections edit button */}
+          <button onClick={() => setEditing(true)} style={{
+            background: t.btn, border: "none", borderRadius: 50,
+            padding: "12px 20px", color: t.btnText, fontWeight: 700, fontSize: 14,
+            cursor: "pointer", display: "flex", alignItems: "center", gap: 7,
+            boxShadow: `0 8px 32px rgba(0,0,0,0.4)`,
+            transition: "transform 0.2s",
+          }}
+            onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
+            onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
+          >
+            <Pencil size={15} /> Sections
+          </button>
+          {/* Full customization */}
+          <a href="/personnalisation" style={{
+            background: t.surface, border: `1px solid ${t.border}`, borderRadius: 50,
+            padding: "10px 18px", color: t.secondary, fontWeight: 600, fontSize: 13,
+            textDecoration: "none", display: "flex", alignItems: "center", gap: 6,
+            boxShadow: `0 4px 16px rgba(0,0,0,0.25)`,
+            transition: "transform 0.2s",
+          }}
+            onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
+            onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
+          >
+            <Settings size={13} /> Personnaliser
+          </a>
+        </div>
       )}
     </div>
   )
 }
 
-// ── Reveal section wrapper ───────────────────────────────────────────────────
+// ── Reveal section wrapper ────────────────────────────────────────────────────
 
-function RevealSection({ children, idx, section, showLabel, t }: { children: React.ReactNode; idx: number; section: Section; showLabel: boolean; t: Theme }) {
-  const reveal = useReveal()
+function RevealSection({ children, idx, section, showLabel, t }: { children: React.ReactNode; idx: number; section: Section; showLabel: boolean; t: ThemeConfig }) {
+  const reveal = useReveal(idx * 80)
   return (
     <div ref={reveal.ref} style={{
       ...reveal.style,
-      transitionDelay: `${idx * 80}ms`,
       borderTop: idx > 0 ? `1px solid ${t.border}` : "none",
       padding: "32px 20px 0",
     }}>
@@ -1003,6 +1149,64 @@ function RevealSection({ children, idx, section, showLabel, t }: { children: Rea
         </div>
       )}
       {children}
+    </div>
+  )
+}
+
+// ── Hours section (edit mode) ─────────────────────────────────────────────────
+
+function HoursSectionEdit({ schedule, t, onChange }: { schedule: Record<string, HourEntry>; t: ThemeConfig; onChange: (s: Record<string, HourEntry>) => void }) {
+  return (
+    <div style={{ borderRadius: 20, overflow: "hidden", background: t.surface, border: `1px solid ${t.border}` }}>
+      {DAYS.map(([key, label], i) => {
+        const e = schedule[key] ?? { open: "09:00", close: "22:00", closed: false }
+        return (
+          <div key={key} style={{ display: "flex", alignItems: "center", padding: "13px 20px", borderBottom: i < 6 ? `1px solid ${t.border}` : "none" }}>
+            <span style={{ width: 90, fontSize: 14, fontWeight: 400, color: t.text }}>{label}</span>
+            {e.closed ? (
+              <span style={{ color: t.muted, fontSize: 14, flex: 1 }}>Fermé</span>
+            ) : (
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flex: 1 }}>
+                <input type="time" value={e.open} onChange={ev => onChange({ ...schedule, [key]: { ...e, open: ev.target.value } })} style={{ background: t.elevated, border: "none", borderRadius: 8, padding: "4px 8px", color: t.text, fontSize: 13 }} />
+                <span style={{ color: t.muted }}>-</span>
+                <input type="time" value={e.close} onChange={ev => onChange({ ...schedule, [key]: { ...e, close: ev.target.value } })} style={{ background: t.elevated, border: "none", borderRadius: 8, padding: "4px 8px", color: t.text, fontSize: 13 }} />
+              </div>
+            )}
+            <label style={{ marginLeft: "auto", display: "flex", gap: 6, fontSize: 12, color: t.muted, cursor: "pointer", alignItems: "center" }}>
+              <input type="checkbox" checked={!!e.closed} onChange={ev => onChange({ ...schedule, [key]: { ...e, closed: ev.target.checked } })} />Fermé
+            </label>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Photos section (edit mode) ────────────────────────────────────────────────
+
+function PhotosSectionEdit({ images, t, onChange }: { images: PhotoItem[]; t: ThemeConfig; onChange: (i: PhotoItem[]) => void }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      {images.map((img, i) => (
+        <div key={i} style={{ position: "relative", borderRadius: 18, overflow: "hidden", aspectRatio: "1" }}>
+          <img src={img.dataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <button onClick={() => onChange(images.filter((_, j) => j !== i))}
+            style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.7)", border: "none", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", backdropFilter: "blur(4px)" }}>
+            <X size={13} />
+          </button>
+        </div>
+      ))}
+      {images.length < 6 && (
+        <label style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", aspectRatio: "1", borderRadius: 18, border: `2px dashed ${t.border}`, cursor: "pointer", gap: 6, background: t.surface }}>
+          <Plus size={24} style={{ color: t.muted }} />
+          <span style={{ fontSize: 13, color: t.muted }}>Ajouter</span>
+          <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => {
+            const file = e.target.files?.[0]; if (!file) return
+            const dataUrl = await compressImage(file, 800)
+            onChange([...images, { dataUrl, caption: "" }]); e.target.value = ""
+          }} />
+        </label>
+      )}
     </div>
   )
 }

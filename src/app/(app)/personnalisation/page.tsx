@@ -106,14 +106,18 @@ export default function PersonnalisationPage() {
   const searchParams = useSearchParams()
   const bizParam = searchParams.get("biz") ? `?biz=${searchParams.get("biz")}` : ""
 
-  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const iframeRef    = useRef<HTMLIFrameElement>(null)
+  const repIframeRef = useRef<HTMLIFrameElement>(null)
   const [slug, setSlug]               = useState<string | null>(null)
+  const [repSlug, setRepSlug]         = useState<string | null>(null)
   const [loading, setLoading]         = useState(true)
   const [saving, setSaving]           = useState(false)
   const [iframeReady, setIframeReady] = useState(false)
+  const [repIframeReady, setRepIframeReady] = useState(false)
   const [viewport, setViewport]       = useState<"desktop" | "mobile">("desktop")
   const [services, setServices]       = useState<ServiceItem[]>([])
   const [openSection, setOpenSection] = useState<string>("theme")
+  const [tab, setTab]                 = useState<"booking" | "reputation">("booking")
 
   const [state, setState] = useState<PreviewState>({
     pageTheme: "default",
@@ -150,10 +154,9 @@ export default function PersonnalisationPage() {
   const activePrimary = state.pageAccentColor ?? STYLES.find(s => s.key === state.pageStyle)?.preview.btn ?? "#6366f1"
 
   const sendPreview = useCallback((overrides: PreviewState) => {
-    iframeRef.current?.contentWindow?.postMessage(
-      { type: "REPUTIX_PREVIEW", overrides },
-      window.location.origin
-    )
+    const msg = { type: "REPUTIX_PREVIEW", overrides }
+    iframeRef.current?.contentWindow?.postMessage(msg, window.location.origin)
+    repIframeRef.current?.contentWindow?.postMessage(msg, window.location.origin)
   }, [])
 
   // Fetch current settings + services
@@ -183,6 +186,7 @@ export default function PersonnalisationPage() {
         setSaved(initial)
       }
       setSlug(pData.pageSlug ?? null)
+      setRepSlug(pData.pageSlug ?? null)
       setServices((svcData.services ?? svcData ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })))
       setLoading(false)
     })
@@ -297,8 +301,13 @@ export default function PersonnalisationPage() {
   }
 
   function reloadIframe() {
-    setIframeReady(false)
-    if (iframeRef.current) iframeRef.current.src = iframeRef.current.src
+    if (tab === "reputation") {
+      setRepIframeReady(false)
+      if (repIframeRef.current) repIframeRef.current.src = repIframeRef.current.src
+    } else {
+      setIframeReady(false)
+      if (iframeRef.current) iframeRef.current.src = iframeRef.current.src
+    }
   }
 
   if (loading) return (
@@ -318,6 +327,7 @@ export default function PersonnalisationPage() {
   )
 
   const iframeUrl = `/book/${slug}`
+  const repIframeUrl = `/r/${repSlug}`
 
   // Ordered services for display
   const displayOrder = state.pageServiceOrder ?? services.map(s => s.id)
@@ -332,9 +342,19 @@ export default function PersonnalisationPage() {
 
       {/* Topbar */}
       <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 flex-shrink-0">
+        {/* Tab switcher */}
+        <div className="flex rounded-xl border border-slate-200 overflow-hidden flex-shrink-0">
+          <button onClick={() => setTab("booking")}
+            className={`px-3 py-1.5 text-xs font-semibold transition-colors ${tab === "booking" ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
+            Réservation
+          </button>
+          <button onClick={() => { setTab("reputation"); setRepIframeReady(false) }}
+            className={`px-3 py-1.5 text-xs font-semibold transition-colors ${tab === "reputation" ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
+            Réputation
+          </button>
+        </div>
         <div className="flex-1 min-w-0">
-          <h1 className="font-bold text-slate-900 text-sm">Apparence de la page reservation</h1>
-          {dirty && <p className="text-xs text-amber-500 font-medium">Modifications non sauvegardees</p>}
+          {dirty && <p className="text-xs text-amber-500 font-medium">Modifications non sauvegardées</p>}
         </div>
         <div className="flex rounded-lg border border-slate-200 overflow-hidden">
           <button onClick={() => setViewport("desktop")}
@@ -349,7 +369,7 @@ export default function PersonnalisationPage() {
         <button onClick={reloadIframe} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors" title="Recharger">
           <RefreshCw className="w-4 h-4" />
         </button>
-        <a href={iframeUrl} target="_blank" rel="noopener noreferrer"
+        <a href={tab === "booking" ? iframeUrl : repIframeUrl} target="_blank" rel="noopener noreferrer"
           className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors" title="Nouvel onglet">
           <ExternalLink className="w-4 h-4" />
         </a>
@@ -518,8 +538,8 @@ export default function PersonnalisationPage() {
             <p className="text-xs text-slate-400">Affichee en haut de la sidebar sur desktop</p>
           </SectionAccordion>
 
-          {/* ─ Labels custom ─ */}
-          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="labels" label="Labels des etapes" icon={Type}>
+          {/* ─ Labels custom (réservation only) ─ */}
+          {tab === "booking" && <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="labels" label="Labels des etapes" icon={Type}>
             <p className="text-xs text-slate-400 mb-2">Personnalisez le texte des titres de chaque etape. Laissez vide pour le texte par defaut.</p>
             {Object.entries(DEFAULT_LABELS).map(([key, placeholder]) => (
               <div key={key}>
@@ -532,10 +552,10 @@ export default function PersonnalisationPage() {
                 />
               </div>
             ))}
-          </SectionAccordion>
+          </SectionAccordion>}
 
-          {/* ─ Ordre des services ─ */}
-          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="services" label="Ordre des services" icon={ListOrdered}>
+          {/* ─ Ordre des services (réservation only) ─ */}
+          {tab === "booking" && <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="services" label="Ordre des services" icon={ListOrdered}>
             {orderedSvcs.length === 0 ? (
               <p className="text-xs text-slate-400">Aucun service actif</p>
             ) : (
@@ -562,10 +582,10 @@ export default function PersonnalisationPage() {
                 <X className="w-3 h-3" /> Reinitialiser l&apos;ordre
               </button>
             )}
-          </SectionAccordion>
+          </SectionAccordion>}
 
-          {/* ─ Horaires ─ */}
-          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="hours" label="Afficher les horaires" icon={Clock}>
+          {/* ─ Horaires (réservation only) ─ */}
+          {tab === "booking" && <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="hours" label="Afficher les horaires" icon={Clock}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-700 font-medium">Horaires dans la sidebar</p>
@@ -581,22 +601,22 @@ export default function PersonnalisationPage() {
             {state.pageShowHours && (
               <p className="text-xs text-slate-400">Les horaires proviennent de votre <a href="/services" className="text-sky-500 hover:underline">Configuration</a>.</p>
             )}
-          </SectionAccordion>
+          </SectionAccordion>}
 
-          {/* ─ Mentions legales ─ */}
-          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="legal" label="Mentions legales" icon={FileText}>
+          {/* ─ Mentions legales (réservation only) ─ */}
+          {tab === "booking" && <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="legal" label="Mentions légales" icon={FileText}>
             <textarea
               value={state.pageLegalText ?? ""}
               onChange={e => update("pageLegalText", e.target.value || null)}
-              placeholder="CGV, politique d'annulation, mentions legales..."
+              placeholder="CGV, politique d'annulation, mentions légales..."
               rows={4}
               className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
             />
-            <p className="text-xs text-slate-400">Affiche en bas de la sidebar de reservation</p>
-          </SectionAccordion>
+            <p className="text-xs text-slate-400">Affiché en bas de la sidebar de réservation</p>
+          </SectionAccordion>}
         </div>
 
-        {/* Right iframe */}
+        {/* Right iframe(s) */}
         <div className="flex-1 flex items-start justify-center overflow-auto bg-slate-200 p-4">
           <div
             className="relative bg-white shadow-2xl rounded-2xl overflow-hidden transition-all duration-300"
@@ -607,24 +627,51 @@ export default function PersonnalisationPage() {
               minHeight: viewport === "desktop" ? "calc(100vh - 140px)" : "none",
             }}
           >
-            {!iframeReady && (
-              <div className="absolute inset-0 bg-slate-100 flex items-center justify-center z-10">
-                <div className="text-center space-y-3">
-                  <Loader2 className="w-8 h-8 text-sky-500 animate-spin mx-auto" />
-                  <p className="text-sm text-slate-400">Chargement de l&apos;apercu...</p>
+            {/* Booking iframe */}
+            <div className={tab === "booking" ? "absolute inset-0" : "hidden"}>
+              {!iframeReady && tab === "booking" && (
+                <div className="absolute inset-0 bg-slate-100 flex items-center justify-center z-10">
+                  <div className="text-center space-y-3">
+                    <Loader2 className="w-8 h-8 text-sky-500 animate-spin mx-auto" />
+                    <p className="text-sm text-slate-400">Chargement de l&apos;aperçu...</p>
+                  </div>
                 </div>
-              </div>
-            )}
-            <iframe
-              ref={iframeRef}
-              src={iframeUrl}
-              className="w-full h-full border-0"
-              onLoad={() => {
-                setIframeReady(true)
-                setTimeout(() => sendPreview(state), 200)
-              }}
-              title="Apercu page reservation"
-            />
+              )}
+              <iframe
+                ref={iframeRef}
+                src={iframeUrl}
+                className="w-full h-full border-0"
+                onLoad={() => {
+                  setIframeReady(true)
+                  setTimeout(() => sendPreview(state), 200)
+                }}
+                title="Aperçu page réservation"
+              />
+            </div>
+
+            {/* Reputation iframe */}
+            <div className={tab === "reputation" ? "absolute inset-0" : "hidden"}>
+              {!repIframeReady && tab === "reputation" && (
+                <div className="absolute inset-0 bg-slate-100 flex items-center justify-center z-10">
+                  <div className="text-center space-y-3">
+                    <Loader2 className="w-8 h-8 text-sky-500 animate-spin mx-auto" />
+                    <p className="text-sm text-slate-400">Chargement de l&apos;aperçu...</p>
+                  </div>
+                </div>
+              )}
+              {repSlug && (
+                <iframe
+                  ref={repIframeRef}
+                  src={repIframeUrl}
+                  className="w-full h-full border-0"
+                  onLoad={() => {
+                    setRepIframeReady(true)
+                    setTimeout(() => sendPreview(state), 200)
+                  }}
+                  title="Aperçu page réputation"
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
