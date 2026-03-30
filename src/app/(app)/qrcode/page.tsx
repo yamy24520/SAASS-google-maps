@@ -158,12 +158,12 @@ export default function QRCodePage() {
                   Prévisualiser la page
                 </Button>
               </a>
-              <Link href="/settings">
+              <a href={`/r/${data.businessId}?edit=1`} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm" className="gap-2 text-xs">
                   <Settings className="w-3.5 h-3.5" />
                   Configurer
                 </Button>
-              </Link>
+              </a>
             </div>
           )}
         </CardContent>
