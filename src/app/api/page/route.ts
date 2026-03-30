@@ -2,17 +2,20 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { Prisma } from "@prisma/client"
+
 import { generateUniqueSlug } from "@/lib/page-slug"
 
 export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
+  const bizId = new URL(req.url).searchParams.get("biz")
   const body = await req.json()
   const { pageConfig, logoDataUrl, pageTagline, pageTheme, reputationPageEnabled } = body
 
-  const business = await prisma.business.findFirst({ where: { userId: session.user.id } })
+  const business = bizId
+    ? await prisma.business.findFirst({ where: { id: bizId, userId: session.user.id } })
+    : await prisma.business.findFirst({ where: { userId: session.user.id } })
   if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
 
   // Auto-generate slug if not set
@@ -25,7 +28,8 @@ export async function PUT(req: NextRequest) {
     where: { id: business.id },
     data: {
       pageSlug,
-      pageConfig: pageConfig as Prisma.InputJsonValue,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      pageConfig: pageConfig as any,
       logoDataUrl: logoDataUrl ?? business.logoDataUrl,
       pageTagline: pageTagline ?? business.pageTagline,
       pageTheme: pageTheme ?? business.pageTheme,
@@ -41,10 +45,10 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
-  const business = await prisma.business.findFirst({
-    where: { userId: session.user.id },
-    select: { id: true, pageSlug: true, reputationPageEnabled: true },
-  })
+  const bizId = new URL(req.url).searchParams.get("biz")
+  const business = bizId
+    ? await prisma.business.findFirst({ where: { id: bizId, userId: session.user.id }, select: { id: true, pageSlug: true, reputationPageEnabled: true, pageConfig: true } })
+    : await prisma.business.findFirst({ where: { userId: session.user.id }, select: { id: true, pageSlug: true, reputationPageEnabled: true, pageConfig: true } })
   if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
 
   // Ensure slug exists

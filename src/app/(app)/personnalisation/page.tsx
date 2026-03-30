@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import {
   Save, Loader2, Monitor, Smartphone, RefreshCw, Upload, X, ExternalLink,
-  GripVertical, ChevronDown, ChevronUp, Clock, Type, Image, FileText, Tag, ListOrdered
+  GripVertical, ChevronDown, ChevronUp, Clock, Type, FileText, Tag, ListOrdered,
+  Image as ImageIcon, Camera, MapPin, Star, Globe, LayoutGrid, Eye, EyeOff,
 } from "lucide-react"
 import { toast } from "@/components/ui/toaster"
 
@@ -21,6 +22,18 @@ interface PreviewState {
   pageServiceOrder: string[] | null
   pageShowHours: boolean
   businessName: string
+}
+
+interface RepSection {
+  id: string
+  type: string
+  enabled: boolean
+  order: number
+  links?: { platform: string; url: string; label: string }[]
+  schedule?: Record<string, { open: string; close: string; closed: boolean }>
+  address?: string
+  images?: { dataUrl: string; caption: string }[]
+  categories?: { id: string; name: string; items: { id: string; name: string; description: string; price: string; photo?: string }[] }[]
 }
 
 interface ServiceItem { id: string; name: string }
@@ -74,12 +87,32 @@ const SECTIONS = [
   { id: "theme",       label: "Theme",       icon: Tag },
   { id: "colors",      label: "Couleurs",    icon: Tag },
   { id: "identity",    label: "Identite",    icon: Type },
-  { id: "cover",       label: "Banniere",    icon: Image },
+  { id: "cover",       label: "Banniere",    icon: ImageIcon },
   { id: "labels",      label: "Labels",      icon: Type },
   { id: "services",    label: "Services",    icon: ListOrdered },
   { id: "hours",       label: "Horaires",    icon: Clock },
   { id: "legal",       label: "Mentions",    icon: FileText },
 ] as const
+
+const DEFAULT_REP_SECTIONS: RepSection[] = [
+  { id: "reviews",  type: "reviews",  enabled: true,  order: 0 },
+  { id: "menu",     type: "menu",     enabled: false, order: 1, categories: [] },
+  { id: "social",   type: "social",   enabled: true,  order: 2, links: [] },
+  { id: "hours",    type: "hours",    enabled: false, order: 3, schedule: {} },
+  { id: "location", type: "location", enabled: false, order: 4, address: "" },
+  { id: "photos",   type: "photos",   enabled: false, order: 5, images: [] },
+]
+
+const REP_SECTION_META: Record<string, { label: string; icon: React.ElementType; desc: string }> = {
+  reviews:  { label: "Avis clients",     icon: Star,       desc: "Bouton Google + carrousel d'avis" },
+  menu:     { label: "Carte & Menu",     icon: Camera,     desc: "Menu avec scan IA" },
+  social:   { label: "Réseaux sociaux",  icon: Globe,      desc: "Liens vers vos réseaux" },
+  hours:    { label: "Horaires",         icon: Clock,      desc: "Horaires d'ouverture" },
+  location: { label: "Adresse",          icon: MapPin,     desc: "Localisation et Google Maps" },
+  photos:   { label: "Photos",           icon: ImageIcon,  desc: "Galerie photos" },
+}
+
+const SOCIALS_LIST = ["google","facebook","instagram","tripadvisor","x","whatsapp","website"] as const
 
 function SectionAccordion({ id, label, icon: Icon, openSection, setOpenSection, children }: {
   id: string; label: string; icon: React.ElementType
@@ -119,6 +152,11 @@ export default function PersonnalisationPage() {
   const [services, setServices]       = useState<ServiceItem[]>([])
   const [openSection, setOpenSection] = useState<string>("theme")
   const [tab, setTab]                 = useState<"booking" | "reputation">("booking")
+  const [repSections, setRepSections] = useState<RepSection[]>(DEFAULT_REP_SECTIONS)
+  const [savedRepSections, setSavedRepSections] = useState<RepSection[]>(DEFAULT_REP_SECTIONS)
+  const [savingRep, setSavingRep]     = useState(false)
+  const [scanningMenu, setScanningMenu] = useState(false)
+  const [expandedRepSection, setExpandedRepSection] = useState<string | null>(null)
 
   const [state, setState] = useState<PreviewState>({
     pageTheme: "default",
@@ -160,6 +198,68 @@ export default function PersonnalisationPage() {
     repIframeRef.current?.contentWindow?.postMessage(msg, window.location.origin)
   }, [])
 
+  const sendRepSectionsPreview = useCallback((sections: RepSection[]) => {
+    repIframeRef.current?.contentWindow?.postMessage(
+      { type: "REPUTIX_SECTIONS", sections },
+      window.location.origin
+    )
+  }, [])
+
+  async function saveRepSections() {
+    setSavingRep(true)
+    try {
+      const config = { sections: repSections.map((s, i) => ({ ...s, order: i })) }
+      await fetch(`/api/page${bizParam}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageConfig: config, reputationPageEnabled: true }),
+      })
+      setSavedRepSections([...repSections])
+      toast({ title: "Sections sauvegardées", variant: "success" })
+    } catch {
+      toast({ title: "Erreur lors de la sauvegarde", variant: "destructive" })
+    }
+    setSavingRep(false)
+  }
+
+  function updateRepSection(id: string, patch: Partial<RepSection>) {
+    setRepSections(prev => {
+      const next = prev.map(s => s.id === id ? { ...s, ...patch } : s)
+      setTimeout(() => sendRepSectionsPreview(next), 50)
+      return next
+    })
+  }
+
+  function moveRepSection(idx: number, dir: -1 | 1) {
+    setRepSections(prev => {
+      const next = [...prev]
+      const target = idx + dir
+      if (target < 0 || target >= next.length) return prev
+      ;[next[idx], next[target]] = [next[target], next[idx]]
+      setTimeout(() => sendRepSectionsPreview(next), 50)
+      return next
+    })
+  }
+
+  async function scanMenuFromFile(file: File): Promise<{ id: string; name: string; items: { id: string; name: string; description: string; price: string }[] }[] | null> {
+    return new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onload = async ev => {
+        const raw = (ev.target?.result as string).split(",")[1]
+        try {
+          const res = await fetch("/api/menu-scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageBase64: raw, mediaType: file.type }) })
+          const data = await res.json()
+          if (data.error) { resolve(null); return }
+          resolve((data.categories ?? []).map((c: { name: string; items: { name: string; description: string; price: string }[] }) => ({
+            id: crypto.randomUUID(), name: c.name,
+            items: (c.items ?? []).map((item: { name: string; description: string; price: string }) => ({ id: crypto.randomUUID(), name: item.name, description: item.description ?? "", price: item.price ?? "" })),
+          })))
+        } catch { resolve(null) }
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
   // Fetch current settings + services
   useEffect(() => {
     Promise.all([
@@ -188,6 +288,15 @@ export default function PersonnalisationPage() {
       }
       setSlug(pData.pageSlug ?? null)
       setRepSlug(pData.pageSlug ?? null)
+      // Load rep sections from pageConfig
+      if (pData.pageConfig?.sections?.length) {
+        const saved = (pData.pageConfig.sections as RepSection[]).sort((a, b) => a.order - b.order)
+        const savedTypes = new Set(saved.map((s: RepSection) => s.type))
+        const missing = DEFAULT_REP_SECTIONS.filter(s => !savedTypes.has(s.type))
+        const merged = [...saved, ...missing]
+        setRepSections(merged)
+        setSavedRepSections(merged)
+      }
       setServices((svcData.services ?? svcData ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })))
       setLoading(false)
     })
@@ -514,7 +623,7 @@ export default function PersonnalisationPage() {
           </SectionAccordion>
 
           {/* ─ Banniere / Cover ─ */}
-          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="cover" label="Banniere" icon={Image}>
+          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="cover" label="Banniere" icon={ImageIcon}>
             {state.pageCoverDataUrl ? (
               <div className="space-y-3">
                 <img src={state.pageCoverDataUrl} className="w-full h-24 rounded-xl object-cover border border-slate-200" alt="cover" />
@@ -531,12 +640,12 @@ export default function PersonnalisationPage() {
               </div>
             ) : (
               <label className="flex flex-col items-center gap-2 w-full py-8 rounded-xl border-2 border-dashed border-slate-200 hover:border-sky-300 hover:bg-sky-50/30 cursor-pointer transition-all">
-                <Image className="w-6 h-6 text-slate-400" />
-                <span className="text-xs text-slate-500">Image de couverture (recommande : 1200x400)</span>
+                <ImageIcon className="w-6 h-6 text-slate-400" />
+                <span className="text-xs text-slate-500">Image de couverture (recommandé : 1200x400)</span>
                 <input type="file" accept="image/*" onChange={handleImageUpload("pageCoverDataUrl")} className="hidden" />
               </label>
             )}
-            <p className="text-xs text-slate-400">Affichee en haut de la sidebar sur desktop</p>
+            <p className="text-xs text-slate-400">Affichée en haut de la page réputation et dans la sidebar réservation</p>
           </SectionAccordion>
 
           {/* ─ Labels custom (réservation only) ─ */}
@@ -615,6 +724,156 @@ export default function PersonnalisationPage() {
             />
             <p className="text-xs text-slate-400">Affiché en bas de la sidebar de réservation</p>
           </SectionAccordion>}
+
+          {/* ─ Modules (réputation only) ─ */}
+          {tab === "reputation" && (
+            <div className="border-t border-slate-100">
+              <div className="px-5 py-3.5 flex items-center gap-2">
+                <LayoutGrid className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex-1">Modules</span>
+                {JSON.stringify(repSections) !== JSON.stringify(savedRepSections) && (
+                  <button onClick={saveRepSections} disabled={savingRep}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-500 text-white text-xs font-semibold disabled:opacity-50">
+                    {savingRep ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                    Sauver
+                  </button>
+                )}
+              </div>
+              <div className="px-3 pb-4 space-y-2">
+                {repSections.map((sec, idx) => {
+                  const meta = REP_SECTION_META[sec.type]
+                  if (!meta) return null
+                  const Icon = meta.icon
+                  const isExpanded = expandedRepSection === sec.id
+                  return (
+                    <div key={sec.id} className={`rounded-xl border transition-all ${sec.enabled ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50"}`}>
+                      {/* Header row */}
+                      <div className="flex items-center gap-2 px-3 py-2.5">
+                        <div className="flex flex-col gap-0.5">
+                          <button onClick={() => moveRepSection(idx, -1)} disabled={idx === 0}
+                            className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-20 transition-colors">
+                            <ChevronUp className="w-3 h-3 text-slate-400" />
+                          </button>
+                          <button onClick={() => moveRepSection(idx, 1)} disabled={idx === repSections.length - 1}
+                            className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-20 transition-colors">
+                            <ChevronDown className="w-3 h-3 text-slate-400" />
+                          </button>
+                        </div>
+                        <Icon className={`w-4 h-4 flex-shrink-0 ${sec.enabled ? "text-sky-500" : "text-slate-300"}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-semibold ${sec.enabled ? "text-slate-800" : "text-slate-400"}`}>{meta.label}</p>
+                          <p className="text-[10px] text-slate-400 truncate">{meta.desc}</p>
+                        </div>
+                        {/* Toggle visible */}
+                        <button onClick={() => updateRepSection(sec.id, { enabled: !sec.enabled })}
+                          className={`p-1.5 rounded-lg transition-colors ${sec.enabled ? "bg-sky-50 text-sky-500 hover:bg-sky-100" : "bg-slate-100 text-slate-400 hover:bg-slate-200"}`}>
+                          {sec.enabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                        </button>
+                        {/* Expand for settings */}
+                        {(sec.type === "menu" || sec.type === "social" || sec.type === "location") && (
+                          <button onClick={() => setExpandedRepSection(isExpanded ? null : sec.id)}
+                            className="p-1.5 rounded-lg bg-slate-100 text-slate-400 hover:bg-slate-200 transition-colors">
+                            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Expanded settings */}
+                      {isExpanded && (
+                        <div className="px-3 pb-3 pt-1 border-t border-slate-100 space-y-3">
+
+                          {/* Menu: scan IA */}
+                          {sec.type === "menu" && (
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium text-slate-500">Scanner la carte via IA</p>
+                              <label className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 border-dashed border-slate-200 hover:border-sky-300 hover:bg-sky-50/30 cursor-pointer transition-all ${scanningMenu ? "opacity-60 pointer-events-none" : ""}`}>
+                                {scanningMenu ? (
+                                  <><Loader2 className="w-4 h-4 text-sky-500 animate-spin" /><span className="text-xs text-slate-500">Analyse en cours...</span></>
+                                ) : (
+                                  <><Camera className="w-4 h-4 text-slate-400" /><span className="text-xs text-slate-600 font-medium">Photo(s) du menu</span><span className="text-xs text-slate-400">— IA détecte tout</span></>
+                                )}
+                                <input type="file" accept="image/*" multiple className="hidden" disabled={scanningMenu}
+                                  onChange={async e => {
+                                    const files = Array.from(e.target.files ?? [])
+                                    if (!files.length) return
+                                    setScanningMenu(true)
+                                    const accumulated = [...(sec.categories ?? [])]
+                                    for (const file of files) {
+                                      const cats = await scanMenuFromFile(file)
+                                      if (!cats) continue
+                                      for (const cat of cats) {
+                                        const ex = accumulated.find(c => c.name.toLowerCase().trim() === cat.name.toLowerCase().trim())
+                                        if (ex) ex.items = [...ex.items, ...cat.items]
+                                        else accumulated.push(cat)
+                                      }
+                                    }
+                                    updateRepSection(sec.id, { categories: accumulated, enabled: true })
+                                    setScanningMenu(false)
+                                    e.target.value = ""
+                                  }} />
+                              </label>
+                              {sec.categories && sec.categories.length > 0 && (
+                                <div className="space-y-1">
+                                  {sec.categories.map(cat => (
+                                    <div key={cat.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-100">
+                                      <span className="text-xs text-slate-700 flex-1 truncate font-medium">{cat.name}</span>
+                                      <span className="text-[10px] text-slate-400">{cat.items.length} plats</span>
+                                      <button onClick={() => updateRepSection(sec.id, { categories: sec.categories!.filter(c => c.id !== cat.id) })}
+                                        className="p-0.5 text-red-400 hover:text-red-600"><X className="w-3 h-3" /></button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Social links */}
+                          {sec.type === "social" && (
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium text-slate-500">Liens</p>
+                              {SOCIALS_LIST.map(platform => {
+                                const existing = sec.links?.find(l => l.platform === platform)
+                                return (
+                                  <div key={platform} className="flex items-center gap-2">
+                                    <span className="text-xs text-slate-500 w-20 capitalize flex-shrink-0">{platform}</span>
+                                    <input
+                                      value={existing?.url ?? ""}
+                                      onChange={e => {
+                                        const url = e.target.value
+                                        const newLinks = [...(sec.links ?? []).filter(l => l.platform !== platform)]
+                                        if (url) newLinks.push({ platform, url, label: platform })
+                                        updateRepSection(sec.id, { links: newLinks })
+                                      }}
+                                      placeholder="https://..."
+                                      className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-500"
+                                    />
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+
+                          {/* Location */}
+                          {sec.type === "location" && (
+                            <div className="space-y-1.5">
+                              <p className="text-xs font-medium text-slate-500">Adresse</p>
+                              <input
+                                value={sec.address ?? ""}
+                                onChange={e => updateRepSection(sec.id, { address: e.target.value })}
+                                placeholder="12 Rue de la Paix, 75002 Paris"
+                                className="w-full px-2.5 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-500"
+                              />
+                            </div>
+                          )}
+
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right iframe(s) */}

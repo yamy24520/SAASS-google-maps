@@ -704,8 +704,11 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
-      if (e.data?.type !== "REPUTIX_PREVIEW") return
-      setPreview(e.data.overrides ?? null)
+      if (e.data?.type === "REPUTIX_PREVIEW") {
+        setPreview(e.data.overrides ?? null)
+      } else if (e.data?.type === "REPUTIX_SECTIONS" && e.data.sections) {
+        setSections(e.data.sections)
+      }
     }
     window.addEventListener("message", onMessage)
     return () => window.removeEventListener("message", onMessage)
