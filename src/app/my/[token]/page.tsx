@@ -17,7 +17,7 @@ type Booking = {
 
 type PortalData = {
   email: string
-  business: { id: string; name: string; slug: string; bookingType: string }
+  business: { id: string; name: string; pageSlug: string | null; bookingType: string }
   upcoming: Booking[]
   past: Booking[]
 }
@@ -86,7 +86,7 @@ export default function ClientPortalPage() {
     const params = new URLSearchParams()
     if (b.service?.id) params.set("service", b.service.id)
     if (b.staff?.id) params.set("staff", b.staff.id)
-    return `/book/${data.business.slug}?${params.toString()}`
+    return `/book/${data.business.pageSlug}?${params.toString()}`
   }
 
   if (loading) {
@@ -162,7 +162,7 @@ export default function ClientPortalPage() {
             </p>
             {tab === "upcoming" && (
               <a
-                href={`/book/${data.business.slug}`}
+                href={`/book/${data.business.pageSlug}`}
                 className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-500 text-white text-sm font-semibold hover:bg-sky-600 transition-colors"
               >
                 Prendre un RDV <ChevronRight className="w-4 h-4" />
@@ -286,7 +286,7 @@ export default function ClientPortalPage() {
         {/* CTA nouveau RDV */}
         {tab === "upcoming" && allUpcoming.length > 0 && (
           <a
-            href={`/book/${data.business.slug}`}
+            href={`/book/${data.business.pageSlug}`}
             className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-sky-500 text-white font-semibold text-sm hover:bg-sky-600 transition-colors"
           >
             <Calendar className="w-4 h-4" /> Nouveau rendez-vous

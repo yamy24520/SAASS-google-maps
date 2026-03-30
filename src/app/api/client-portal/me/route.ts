@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
 
   const session = await prisma.clientSession.findUnique({
     where: { token },
-    include: { business: { select: { id: true, name: true, slug: true, bookingType: true } } },
+    include: { business: { select: { id: true, name: true, pageSlug: true, bookingType: true } } },
   })
 
   if (!session || session.expiresAt < new Date()) {
