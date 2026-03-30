@@ -550,7 +550,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
       ? ["service", "staff", "datetime", "form", ...paymentStep]
       : ["service", "datetime", "form", ...paymentStep]
   const LABELS: Record<Step, string> = {
-    service: "Prestation", staff: "Prestataire", datetime: "Date & heure",
+    service: "Prestation", staff: "Avec qui ?", datetime: "Date & heure",
     form: "Coordonnées", payment: "Paiement", done: "Confirmé"
   }
 

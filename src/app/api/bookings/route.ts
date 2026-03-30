@@ -94,6 +94,52 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Auto-assign : si pas de staffId fourni + mode salon + staff existe → prendre le moins chargé dispo
+  let resolvedStaffId: string | null = staffId || null
+  if (!resolvedStaffId && !isRestaurant) {
+    const activeStaffs = await prisma.staff.findMany({
+      where: { businessId: businessId2, active: true },
+      select: { id: true },
+    })
+    if (activeStaffs.length > 0) {
+      const today = date
+      // Exclure les staff absents ce jour
+      const absences = await prisma.staffAbsence.findMany({
+        where: {
+          staffId: { in: activeStaffs.map(s => s.id) },
+          startDate: { lte: today },
+          endDate:   { gte: today },
+        },
+        select: { staffId: true },
+      })
+      const absentIds = new Set(absences.map(a => a.staffId))
+      // Exclure les staff déjà bookés sur ce créneau
+      const slotConflicts = await prisma.booking.findMany({
+        where: {
+          businessId: businessId2,
+          date,
+          timeSlot,
+          status: { not: "CANCELLED" },
+          staffId: { in: activeStaffs.map(s => s.id) },
+        },
+        select: { staffId: true },
+      })
+      const bookedIds = new Set(slotConflicts.map(b => b.staffId).filter(Boolean) as string[])
+      const available = activeStaffs.filter(s => !absentIds.has(s.id) && !bookedIds.has(s.id))
+      if (available.length > 0) {
+        // Compter les RDVs de chaque dispo ce jour → prendre le moins chargé
+        const counts = await prisma.booking.groupBy({
+          by: ["staffId"],
+          where: { businessId: businessId2, date, status: { not: "CANCELLED" }, staffId: { in: available.map(s => s.id) } },
+          _count: { id: true },
+        })
+        const countMap = new Map(counts.map(c => [c.staffId, c._count.id]))
+        const sorted = available.sort((a, b) => (countMap.get(a.id) ?? 0) - (countMap.get(b.id) ?? 0))
+        resolvedStaffId = sorted[0].id
+      }
+    }
+  }
+
   // Récurrence : générer toutes les dates
   const dates: string[] = [date]
   if (recurrence && recurrenceEnd) {
@@ -119,7 +165,7 @@ export async function POST(req: NextRequest) {
   const bookingsData = dates.map((d, i) => ({
     businessId: businessId2,
     serviceId: serviceId || null,
-    staffId: staffId || null,
+    staffId: resolvedStaffId,
     clientName,
     clientEmail,
     clientPhone: clientPhone || null,
