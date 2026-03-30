@@ -825,14 +825,33 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         {/* ── Right content ─────────────────────────────────────────────────────── */}
         <main className="flex-1 px-4 lg:px-12 pt-8 pb-32 lg:pb-16">
 
-          {/* Mobile-only: cover + description (hidden on desktop where sidebar shows them) */}
-          {stepIdx === 0 && (displayCover || displayDescription) && (
-            <div className="lg:hidden mb-6">
+          {/* Mobile-only: cover, tagline, description, hours (hidden on desktop where sidebar shows them) */}
+          {stepIdx === 0 && (displayCover || displayDescription || displayTagline || displayShowHours) && (
+            <div className="lg:hidden mb-6 space-y-3">
               {displayCover && (
-                <img src={displayCover} className="w-full h-40 rounded-2xl object-cover mb-4" alt="" />
+                <img src={displayCover} className="w-full h-40 rounded-2xl object-cover" alt="" />
+              )}
+              {displayTagline && (
+                <p className="text-sm font-medium" style={{ color: T.textMuted }}>{displayTagline}</p>
               )}
               {displayDescription && (
                 <p className="text-sm leading-relaxed" style={{ color: T.textBody }}>{displayDescription}</p>
+              )}
+              {displayShowHours && info?.bookingHours && (
+                <div className="rounded-xl p-3" style={{ background: `${T.primary}08`, border: `1px solid ${T.primary}15` }}>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: T.textMuted }}>Horaires</p>
+                  <div className="space-y-0.5">
+                    {(["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"] as const).map(day => {
+                      const h = (info.bookingHours as Record<string, { open: string; close: string }> | null)?.[day]
+                      return (
+                        <div key={day} className="flex justify-between text-xs" style={{ color: T.textBody }}>
+                          <span className="capitalize">{day}</span>
+                          <span>{h ? `${h.open} – ${h.close}` : "Ferme"}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           )}
