@@ -26,11 +26,6 @@ interface Booking {
 }
 
 interface Service { id: string; name: string; duration: number; price: number }
-interface WaitlistEntry {
-  id: string; clientName: string; clientEmail: string; clientPhone: string | null
-  preferredDate: string | null; notifiedAt: string | null
-  service: { name: string } | null; createdAt: string
-}
 interface Stats {
   caMonth: number; caConfirmed: number; cancellationRate: number
   bookingsThisWeek: number; upcomingBookings: number; monthTotal: number; monthCancelled: number
@@ -70,11 +65,9 @@ export default function BookingsPage() {
 
   const [bookings, setBookings] = useState<Booking[]>([])
   const [services, setServices] = useState<Service[]>([])
-  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<"ALL" | "PENDING" | "CONFIRMED" | "CANCELLED">("ALL")
-  const [activeTab, setActiveTab] = useState<"bookings" | "waitlist">("bookings")
   const [updating, setUpdating] = useState<string | null>(null)
 
   // Modal nouveau RDV
@@ -89,16 +82,14 @@ export default function BookingsPage() {
   const [submittingModal, setSubmittingModal] = useState(false)
 
   const fetchAll = useCallback(async () => {
-    const [bRes, sRes, wRes, stRes] = await Promise.all([
+    const [bRes, sRes, stRes] = await Promise.all([
       fetch(`/api/bookings${bizParam}`),
       fetch(`/api/services${bizParam}`),
-      fetch(`/api/waitlist${bizParam}`),
       fetch(`/api/stats${bizParam}`),
     ])
-    const [bData, sData, wData, stData] = await Promise.all([bRes.json(), sRes.json(), wRes.json(), stRes.json()])
+    const [bData, sData, stData] = await Promise.all([bRes.json(), sRes.json(), stRes.json()])
     setBookings(bData.bookings ?? [])
     setServices(sData.services ?? [])
-    setWaitlist(wData.entries ?? [])
     setStats(stData.caMonth !== undefined ? stData : null)
     setLoading(false)
   }, [bizParam])
@@ -210,20 +201,6 @@ export default function BookingsPage() {
     setSubmittingModal(false)
   }
 
-  async function notifyWaitlist(id: string) {
-    const res = await fetch(`/api/waitlist/${id}`, { method: "POST" })
-    if (res.ok) {
-      setWaitlist(prev => prev.map(e => e.id === id ? { ...e, notifiedAt: new Date().toISOString() } : e))
-      toast({ title: "Notification envoyée", variant: "success" })
-    } else {
-      toast({ title: "Erreur envoi", variant: "destructive" })
-    }
-  }
-
-  async function removeWaitlist(id: string) {
-    const res = await fetch(`/api/waitlist/${id}`, { method: "DELETE" })
-    if (res.ok) { setWaitlist(prev => prev.filter(e => e.id !== id)); toast({ title: "Supprimé", variant: "success" }) }
-  }
 
   const filtered = bookings.filter(b => filter === "ALL" || b.status === filter)
   const pendingCount = bookings.filter(b => b.status === "PENDING").length
@@ -289,23 +266,7 @@ export default function BookingsPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200">
-        {[
-          { key: "bookings", label: "Réservations", count: bookings.filter(b => b.status !== "CANCELLED").length },
-          { key: "waitlist", label: "Liste d'attente", count: waitlist.length },
-        ].map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === tab.key ? "border-sky-500 text-sky-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}>
-            {tab.label}
-            {tab.count > 0 && <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? "bg-sky-100 text-sky-600" : "bg-slate-100 text-slate-500"}`}>{tab.count}</span>}
-          </button>
-        ))}
-      </div>
-
-      {/* Onglet Réservations */}
-      {activeTab === "bookings" && (
-        <>
+      <>
           {/* Filter pills */}
           <div className="flex gap-2 flex-wrap">
             {(["ALL", "PENDING", "CONFIRMED", "CANCELLED"] as const).map(f => (
@@ -445,46 +406,7 @@ export default function BookingsPage() {
               })}
             </div>
           )}
-        </>
-      )}
-
-      {/* Onglet Liste d'attente */}
-      {activeTab === "waitlist" && (
-        <div className="space-y-2">
-          {waitlist.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <Users className="w-10 h-10 text-slate-200 mb-3" />
-              <p className="text-slate-400 text-sm">Aucun client en liste d&apos;attente</p>
-            </div>
-          ) : waitlist.map(entry => (
-            <div key={entry.id} className="bg-white rounded-xl border border-slate-100 px-4 py-3 hover:shadow-sm transition-shadow">
-              <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <p className="font-semibold text-slate-900 text-sm">{entry.clientName}</p>
-                    {entry.notifiedAt && <span className="text-xs bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-medium">Notifié</span>}
-                  </div>
-                  <p className="text-xs text-sky-600 font-medium">{entry.service?.name ?? "Toute prestation"}</p>
-                  <div className="flex flex-wrap gap-3 text-xs text-slate-400 mt-1">
-                    <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{entry.clientEmail}</span>
-                    {entry.clientPhone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{entry.clientPhone}</span>}
-                    {entry.preferredDate && <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{formatDate(entry.preferredDate)}</span>}
-                  </div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => notifyWaitlist(entry.id)}
-                    disabled={!!entry.notifiedAt}>
-                    {entry.notifiedAt ? "Notifié" : "Notifier"}
-                  </Button>
-                  <button onClick={() => removeWaitlist(entry.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition-colors">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      </>
 
       {/* Modal Nouveau / Modifier RDV */}
       {showModal && (
