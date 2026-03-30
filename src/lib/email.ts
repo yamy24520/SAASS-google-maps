@@ -291,9 +291,16 @@ function emailShell(bizName: string, headline: string, subline: string, _accentC
                 </td></tr>
               </table>
 
+              <!-- Header illustration -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td style="padding:0;line-height:0;font-size:0;">
+                  <img src="https://reputix.net/2026-VDay-Email-Header.gif" width="560" height="auto" alt="" style="display:block;width:100%;height:auto;max-width:560px;" />
+                </td></tr>
+              </table>
+
               <!-- Hero text -->
               <table width="100%" cellpadding="0" cellspacing="0">
-                <tr><td style="padding:40px 48px 8px;" class="mpad">
+                <tr><td style="padding:36px 48px 8px;" class="mpad">
                   <p style="margin:0 0 10px;font-family:sans-serif;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#9C9589;">${subline}</p>
                   <h1 class="headline" style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:36px;line-height:42px;font-weight:400;color:#1A1714;">${headline}</h1>
                 </td></tr>
