@@ -151,7 +151,8 @@ export default function ReviewDetailPage() {
     )
   }
 
-  const isPublished = review!.status === "PUBLISHED"
+  const r = review as Review
+  const isPublished = r.status === "PUBLISHED"
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -165,35 +166,35 @@ export default function ReviewDetailPage() {
         <CardHeader>
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-full gradient-bg flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
-              {review.reviewerPhotoUrl ? (
+              {r.reviewerPhotoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={review.reviewerPhotoUrl} alt="" className="w-12 h-12 rounded-full object-cover" />
+                <img src={r.reviewerPhotoUrl} alt="" className="w-12 h-12 rounded-full object-cover" />
               ) : (
-                review.reviewerName[0]
+                r.reviewerName[0]
               )}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-slate-900 text-lg">{review.reviewerName}</span>
+                <span className="font-semibold text-slate-900 text-lg">{r.reviewerName}</span>
                 <Badge
-                  variant={review.status === "PUBLISHED" ? "success" : review.status === "PENDING" ? "warning" : "info"}
+                  variant={r.status === "PUBLISHED" ? "success" : r.status === "PENDING" ? "warning" : "info"}
                 >
-                  {getStatusLabel(review.status)}
+                  {getStatusLabel(r.status)}
                 </Badge>
               </div>
               <div className="flex items-center gap-2 mt-1">
-                <span className={`text-xl font-bold ${getRatingColor(review.rating)}`}>
-                  {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}
+                <span className={`text-xl font-bold ${getRatingColor(r.rating)}`}>
+                  {"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}
                 </span>
-                <span className="text-sm text-slate-400">{formatDate(review.reviewPublishedAt)}</span>
+                <span className="text-sm text-slate-400">{formatDate(r.reviewPublishedAt)}</span>
               </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {review.comment ? (
+          {r.comment ? (
             <p className="text-slate-700 leading-relaxed bg-slate-50 rounded-xl p-4 italic">
-              &ldquo;{review.comment}&rdquo;
+              &ldquo;{r.comment}&rdquo;
             </p>
           ) : (
             <p className="text-slate-400 italic text-sm">Aucun commentaire écrit.</p>
