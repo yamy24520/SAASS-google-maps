@@ -55,6 +55,9 @@ export default function ServicesPage() {
   const [adding, setAdding] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
   const [importingTemplate, setImportingTemplate] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
+  const [selectedServices, setSelectedServices] = useState<Set<number>>(new Set())
+  const [expandedTplCats, setExpandedTplCats] = useState<Set<string>>(new Set())
 
   // Service edit
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
@@ -116,19 +119,52 @@ export default function ServicesPage() {
     setAdding(false)
   }
 
-  async function importTemplate(templateId: string) {
+  function openTemplate(templateId: string) {
     const tpl = SERVICE_TEMPLATES.find(t => t.id === templateId)
     if (!tpl) return
+    setSelectedTemplate(templateId)
+    // Select all by default
+    setSelectedServices(new Set(tpl.services.map((_, i) => i)))
+    setExpandedTplCats(new Set())
+  }
+
+  function toggleTplCategory(catName: string) {
+    const tpl = SERVICE_TEMPLATES.find(t => t.id === selectedTemplate)
+    if (!tpl) return
+    const catIndices = tpl.services.map((s, i) => s.category === catName ? i : -1).filter(i => i !== -1)
+    const allSelected = catIndices.every(i => selectedServices.has(i))
+    setSelectedServices(prev => {
+      const next = new Set(prev)
+      if (allSelected) catIndices.forEach(i => next.delete(i))
+      else catIndices.forEach(i => next.add(i))
+      return next
+    })
+  }
+
+  function toggleTplService(idx: number) {
+    setSelectedServices(prev => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx)
+      else next.add(idx)
+      return next
+    })
+  }
+
+  async function importSelected() {
+    const tpl = SERVICE_TEMPLATES.find(t => t.id === selectedTemplate)
+    if (!tpl || selectedServices.size === 0) return
     setImportingTemplate(true)
+    const items = tpl.services.filter((_, i) => selectedServices.has(i)).map(s => ({ ...s, price: 0 }))
     const res = await fetch(`/api/services${bizParam}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ services: tpl.services.map(s => ({ ...s, price: 0 })) }),
+      body: JSON.stringify({ services: items }),
     })
     if (res.ok) {
       await fetchData()
-      toast({ title: `${tpl.label} importe`, variant: "success" })
+      toast({ title: `${items.length} prestations importees`, variant: "success" })
       setShowTemplates(false)
+      setSelectedTemplate(null)
     }
     setImportingTemplate(false)
   }
@@ -342,20 +378,97 @@ export default function ServicesPage() {
               {/* Template import */}
               {showTemplates && (
                 <div className="px-5 py-4 bg-sky-50/50 border-b border-sky-100">
-                  <p className="text-xs font-semibold text-sky-700 mb-3">Importer un template metier (les prix sont a 0, modifiez-les ensuite)</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {SERVICE_TEMPLATES.map(tpl => (
-                      <button key={tpl.id} onClick={() => importTemplate(tpl.id)} disabled={importingTemplate}
-                        className="flex items-start gap-3 p-3 rounded-xl border border-sky-200 bg-white hover:border-sky-400 text-left transition-all disabled:opacity-50">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-slate-900">{tpl.label}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">{tpl.description}</p>
-                          <p className="text-xs text-sky-600 mt-1">{tpl.services.length} prestations</p>
+                  {!selectedTemplate ? (
+                    <>
+                      <p className="text-xs font-semibold text-sky-700 mb-3">Choisissez un template metier</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {SERVICE_TEMPLATES.map(tpl => (
+                          <button key={tpl.id} onClick={() => openTemplate(tpl.id)}
+                            className="flex items-start gap-3 p-3 rounded-xl border border-sky-200 bg-white hover:border-sky-400 text-left transition-all">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm text-slate-900">{tpl.label}</p>
+                              <p className="text-xs text-slate-500 mt-0.5">{tpl.description}</p>
+                              <p className="text-xs text-sky-600 mt-1">{tpl.services.length} prestations</p>
+                            </div>
+                            <ChevronDown className="w-4 h-4 text-sky-500 flex-shrink-0 mt-1 -rotate-90" />
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (() => {
+                    const tpl = SERVICE_TEMPLATES.find(t => t.id === selectedTemplate)!
+                    // Group template services by category
+                    const tplCats = new Map<string, { indices: number[]; services: typeof tpl.services }>()
+                    tpl.services.forEach((s, i) => {
+                      if (!tplCats.has(s.category)) tplCats.set(s.category, { indices: [], services: [] })
+                      const entry = tplCats.get(s.category)!
+                      entry.indices.push(i)
+                      entry.services.push(s)
+                    })
+
+                    return (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <button onClick={() => setSelectedTemplate(null)} className="text-xs text-sky-600 hover:text-sky-800 font-medium">&larr; Retour</button>
+                          <p className="text-sm font-bold text-slate-900 flex-1">{tpl.label}</p>
+                          <span className="text-xs text-sky-600 font-medium">{selectedServices.size}/{tpl.services.length} selectionnees</span>
                         </div>
-                        <Plus className="w-4 h-4 text-sky-500 flex-shrink-0 mt-1" />
-                      </button>
-                    ))}
-                  </div>
+
+                        <div className="space-y-1.5 max-h-96 overflow-y-auto">
+                          {Array.from(tplCats.entries()).map(([catName, { indices, services: catSvcs }]) => {
+                            const allChecked = indices.every(i => selectedServices.has(i))
+                            const someChecked = indices.some(i => selectedServices.has(i))
+                            const isExpanded = expandedTplCats.has(catName)
+                            return (
+                              <div key={catName} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                                <div className="flex items-center gap-2 px-3 py-2.5">
+                                  <input type="checkbox" checked={allChecked} ref={el => { if (el) el.indeterminate = someChecked && !allChecked }}
+                                    onChange={() => toggleTplCategory(catName)}
+                                    className="w-4 h-4 rounded border-slate-300 text-sky-500 focus:ring-sky-500" />
+                                  <button onClick={() => setExpandedTplCats(prev => { const n = new Set(prev); n.has(catName) ? n.delete(catName) : n.add(catName); return n })}
+                                    className="flex-1 text-left flex items-center gap-2">
+                                    <p className="text-sm font-semibold text-slate-800">{catName}</p>
+                                    <span className="text-xs text-slate-400">{indices.filter(i => selectedServices.has(i)).length}/{catSvcs.length}</span>
+                                  </button>
+                                  <button onClick={() => setExpandedTplCats(prev => { const n = new Set(prev); n.has(catName) ? n.delete(catName) : n.add(catName); return n })}
+                                    className="p-1 text-slate-400">
+                                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                  </button>
+                                </div>
+                                {isExpanded && (
+                                  <div className="border-t border-slate-100">
+                                    {catSvcs.map((s, j) => {
+                                      const idx = indices[j]
+                                      return (
+                                        <label key={idx} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm">
+                                          <input type="checkbox" checked={selectedServices.has(idx)} onChange={() => toggleTplService(idx)}
+                                            className="w-3.5 h-3.5 rounded border-slate-300 text-sky-500 focus:ring-sky-500" />
+                                          <span className="flex-1 text-slate-700">{s.name}</span>
+                                          <span className="text-xs text-slate-400">{s.duration} min</span>
+                                        </label>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+
+                        <div className="flex gap-2 mt-3">
+                          <button onClick={importSelected} disabled={importingTemplate || selectedServices.size === 0}
+                            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold disabled:opacity-40 transition-colors">
+                            {importingTemplate ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Download className="w-4 h-4" />}
+                            Importer {selectedServices.size} prestation{selectedServices.size > 1 ? "s" : ""}
+                          </button>
+                          <button onClick={() => { setSelectedTemplate(null); setShowTemplates(false) }}
+                            className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
 
