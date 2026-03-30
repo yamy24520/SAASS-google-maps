@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
-import { LayoutDashboard, CalendarDays, LayoutGrid, UserRound, MoreHorizontal, X, MessageSquare, TrendingUp, Users, Search, Sparkles, QrCode, Gift, Scissors, Settings, CreditCard, Building2, Plus, ShieldCheck, LogOut } from "lucide-react"
+import { LayoutDashboard, CalendarDays, LayoutGrid, UserRound, MoreHorizontal, X, MessageSquare, TrendingUp, Users, Search, Sparkles, QrCode, Gift, Scissors, Settings, CreditCard, Building2, Plus, ShieldCheck, LogOut, UsersRound } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 
@@ -16,15 +16,16 @@ const BOTTOM_NAV = [
 ]
 
 const DRAWER_NAV = [
-  { href: "/reviews",     label: "Avis",            icon: MessageSquare },
-  { href: "/reputation",  label: "Réputation",       icon: TrendingUp },
-  { href: "/competitors", label: "Concurrents",      icon: Users },
-  { href: "/seo-local",   label: "SEO Local",        icon: Search },
-  { href: "/insights",    label: "Insights IA",      icon: Sparkles },
-  { href: "/qrcode",      label: "QR Code",          icon: QrCode },
-  { href: "/campaigns",   label: "Campagne avis",    icon: Gift },
-  { href: "/services",    label: "Services & Horaires", icon: Scissors },
-  { href: "/settings",    label: "Paramètres",       icon: Settings },
+  { href: "/reviews",     label: "Avis",           icon: MessageSquare },
+  { href: "/reputation",  label: "Réputation",      icon: TrendingUp },
+  { href: "/competitors", label: "Concurrents",     icon: Users },
+  { href: "/seo-local",   label: "SEO Local",       icon: Search },
+  { href: "/insights",    label: "Insights IA",     icon: Sparkles },
+  { href: "/qrcode",      label: "QR Code",         icon: QrCode },
+  { href: "/campaigns",   label: "Campagne avis",   icon: Gift },
+  { href: "/equipe",      label: "Équipe",          icon: UsersRound },
+  { href: "/services",    label: "Configuration",   icon: Scissors },
+  { href: "/settings",    label: "Paramètres",      icon: Settings },
 ]
 
 interface MobileNavProps {
