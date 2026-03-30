@@ -212,27 +212,43 @@ export default function PersonnalisationPage() {
 
   async function save() {
     setSaving(true)
-    const res = await fetch(`/api/settings${bizParam}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pageTheme:        state.pageTheme,
-        pageStyle:        state.pageStyle,
-        pageAccentColor:  state.pageAccentColor,
-        pageTagline:      state.pageTagline || null,
-        logoDataUrl:      state.logoDataUrl,
-        pageCoverDataUrl: state.pageCoverDataUrl,
-        pageDescription:  state.pageDescription || null,
-        pageLegalText:    state.pageLegalText || null,
-        pageLabels:       state.pageLabels,
-        pageServiceOrder: state.pageServiceOrder,
-        pageShowHours:    state.pageShowHours,
-      }),
-    })
-    if (res.ok) {
+    try {
+      // 1. Save text/config fields (lightweight)
+      const textRes = await fetch(`/api/settings${bizParam}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pageTheme:        state.pageTheme,
+          pageStyle:        state.pageStyle,
+          pageAccentColor:  state.pageAccentColor,
+          pageTagline:      state.pageTagline || null,
+          pageDescription:  state.pageDescription || null,
+          pageLegalText:    state.pageLegalText || null,
+          pageLabels:       state.pageLabels,
+          pageServiceOrder: state.pageServiceOrder,
+          pageShowHours:    state.pageShowHours,
+        }),
+      })
+      if (!textRes.ok) throw new Error("text")
+
+      // 2. Save images separately only if they changed (heavy payload)
+      const logoChanged = state.logoDataUrl !== saved.logoDataUrl
+      const coverChanged = state.pageCoverDataUrl !== saved.pageCoverDataUrl
+      if (logoChanged || coverChanged) {
+        const imgRes = await fetch(`/api/settings${bizParam}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...(logoChanged  ? { logoDataUrl:      state.logoDataUrl }      : {}),
+            ...(coverChanged ? { pageCoverDataUrl: state.pageCoverDataUrl } : {}),
+          }),
+        })
+        if (!imgRes.ok) throw new Error("images")
+      }
+
       setSaved({ ...state })
       toast({ title: "Apparence sauvegardee", variant: "success" })
-    } else {
+    } catch {
       toast({ title: "Erreur lors de la sauvegarde", variant: "destructive" })
     }
     setSaving(false)

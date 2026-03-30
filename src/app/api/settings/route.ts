@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { Prisma } from "@prisma/client"
 import { z } from "zod"
 
+
 const schema = z.object({
   name: z.string().min(2).optional(),
   category: z.enum(["RESTAURANT", "HOTEL", "BAR", "CAFE", "SPA", "RETAIL", "SERVICE", "OTHER"]).optional(),
