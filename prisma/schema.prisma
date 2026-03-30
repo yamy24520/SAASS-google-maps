@@ -163,6 +163,15 @@ model Business {
   clientSessions       ClientSession[]
   clientOtps           ClientOtp[]
 
+  // Email customization
+  emailHeaderUrl       String?
+  emailAccentColor     String?
+  emailButtonColor     String?
+  emailBgColor         String?
+  emailGreeting        String?
+  emailFooterMessage   String?
+  emailSenderName      String?
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

@@ -41,6 +41,13 @@ const schema = z.object({
   pageLabels: z.record(z.string(), z.string()).nullable().optional(),
   pageServiceOrder: z.array(z.string()).nullable().optional(),
   pageShowHours: z.boolean().optional(),
+  emailHeaderUrl: z.string().nullable().optional(),
+  emailAccentColor: z.string().nullable().optional(),
+  emailButtonColor: z.string().nullable().optional(),
+  emailBgColor: z.string().nullable().optional(),
+  emailGreeting: z.string().nullable().optional(),
+  emailFooterMessage: z.string().nullable().optional(),
+  emailSenderName: z.string().nullable().optional(),
 })
 
 async function getBusinessForUser(userId: string, bizId: string | null) {
