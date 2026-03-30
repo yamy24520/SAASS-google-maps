@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { sendBookingCancelledClient, sendBookingCancelledOwner } from "@/lib/email"
+
+const APP_URL = process.env.NEXTAUTH_URL ?? "https://reputix.net"
 
 export async function DELETE(
   req: NextRequest,
@@ -16,7 +19,15 @@ export async function DELETE(
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    select: { id: true, businessId: true, clientEmail: true, status: true, date: true },
+    include: {
+      business: {
+        select: {
+          name: true, bookingType: true,
+          user: { select: { email: true } },
+        },
+      },
+      service: { select: { name: true, duration: true, price: true } },
+    },
   })
 
   if (!booking) return NextResponse.json({ error: "RDV introuvable" }, { status: 404 })
@@ -33,6 +44,45 @@ export async function DELETE(
   }
 
   await prisma.booking.update({ where: { id: bookingId }, data: { status: "CANCELLED" } })
+
+  const isRestaurant = booking.business.bookingType === "restaurant"
+  const dateLabel = new Date(booking.date + "T12:00:00").toLocaleDateString("fr-FR", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  })
+  const serviceName = isRestaurant
+    ? `Table pour ${booking.partySize ?? 1}`
+    : (booking.service?.name ?? "Réservation")
+
+  // Mail client
+  sendBookingCancelledClient({
+    clientEmail: booking.clientEmail,
+    clientName: booking.clientName,
+    businessName: booking.business.name,
+    serviceName,
+    date: dateLabel,
+    timeSlot: booking.timeSlot,
+  }).catch(console.error)
+
+  // Mail proprio
+  const ownerEmail = booking.business.user?.email
+  if (ownerEmail) {
+    sendBookingCancelledOwner({
+      ownerEmail,
+      businessName: booking.business.name,
+      clientName: booking.clientName,
+      clientEmail: booking.clientEmail,
+      clientPhone: booking.clientPhone ?? undefined,
+      serviceName,
+      date: dateLabel,
+      timeSlot: booking.timeSlot,
+      duration: booking.service?.duration ?? 0,
+      price: isRestaurant ? 0 : (booking.service?.price ?? 0),
+      isRestaurant,
+      partySize: booking.partySize,
+      cancelledBy: "client",
+      dashboardUrl: `${APP_URL}/bookings`,
+    }).catch(console.error)
+  }
 
   return NextResponse.json({ ok: true })
 }

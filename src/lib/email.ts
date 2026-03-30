@@ -413,6 +413,114 @@ export async function sendBookingCancelledClient(params: {
   })
 }
 
+// ─── OWNER NOTIFICATIONS ─────────────────────────────────────────────────────
+
+function ownerBookingBlock(params: {
+  clientName: string; clientEmail: string; clientPhone?: string | null
+  serviceName: string; date: string; timeSlot: string
+  duration: number; price: number; isRestaurant?: boolean; partySize?: number | null
+  notes?: string | null; dashboardUrl: string
+}) {
+  const serviceRows = params.isRestaurant ? [
+    { icon: "👥", label: "Couverts", value: `${params.partySize ?? 1} personne${(params.partySize ?? 1) > 1 ? "s" : ""}` },
+  ] : [
+    { icon: "✂️", label: "Prestation", value: params.serviceName },
+    { icon: "⏱️", label: "Durée", value: `${params.duration} min` },
+    ...(params.price > 0 ? [{ icon: "💶", label: "Prix", value: `${params.price.toFixed(2)} €` }] : []),
+  ]
+  const rows = [
+    { icon: "🗓️", label: "Date", value: params.date },
+    { icon: "🕐", label: "Heure", value: params.timeSlot },
+    ...serviceRows,
+    ...(params.notes ? [{ icon: "📝", label: "Notes", value: params.notes }] : []),
+  ]
+  const rowsHtml = rows.map(r => `
+    <tr>
+      <td style="padding:10px 16px;width:40px;font-size:16px;vertical-align:middle;">${r.icon}</td>
+      <td style="padding:10px 0;color:#64748b;font-size:13px;vertical-align:middle;">${r.label}</td>
+      <td style="padding:10px 16px 10px 0;color:#0f172a;font-size:14px;font-weight:600;text-align:right;vertical-align:middle;">${r.value}</td>
+    </tr>
+  `).join(`<tr><td colspan="3" style="padding:0;"><div style="height:1px;background:#f1f5f9;margin:0 16px;"></div></td></tr>`)
+
+  return `
+    <div style="background:#f8fafc;border-radius:14px;overflow:hidden;margin:0 0 16px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rowsHtml}</table>
+    </div>
+    <div style="background:#f1f5f9;border-radius:12px;padding:14px 16px;margin-bottom:20px;">
+      <p style="font-weight:700;color:#1e293b;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 8px;">Client</p>
+      <table cellpadding="0" cellspacing="0">
+        <tr><td style="padding:0 10px 5px 0;font-size:15px;">👤</td><td style="color:#334155;font-size:13px;padding-bottom:5px;">${params.clientName}</td></tr>
+        <tr><td style="padding:0 10px 5px 0;font-size:15px;">✉️</td><td style="color:#334155;font-size:13px;padding-bottom:5px;">${params.clientEmail}</td></tr>
+        ${params.clientPhone ? `<tr><td style="padding:0 10px 0 0;font-size:15px;">📞</td><td style="color:#334155;font-size:13px;">${params.clientPhone}</td></tr>` : ""}
+      </table>
+    </div>
+    <a href="${params.dashboardUrl}" style="display:block;background:${BRAND_GRADIENT};color:white;text-decoration:none;text-align:center;padding:13px 20px;border-radius:12px;font-weight:600;font-size:14px;">
+      Voir dans le dashboard →
+    </a>`
+}
+
+export async function sendBookingConfirmedOwner(params: {
+  ownerEmail: string; businessName: string; clientName: string; clientEmail: string; clientPhone?: string | null
+  serviceName: string; date: string; timeSlot: string; duration: number; price: number
+  isRestaurant?: boolean; partySize?: number | null; notes?: string | null; dashboardUrl: string
+}) {
+  await getResend().emails.send({
+    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    to: params.ownerEmail,
+    subject: `✅ RDV confirmé — ${params.clientName}`,
+    html: emailShell(params.businessName, "Réservation confirmée", "linear-gradient(135deg,#10b981,#059669)", `
+      <p style="color:#475569;margin:0 0 20px;font-size:14px;line-height:1.6;">
+        Vous avez confirmé le rendez-vous de <strong>${params.clientName}</strong>.
+      </p>
+      ${ownerBookingBlock(params)}
+    `),
+  })
+}
+
+export async function sendBookingCancelledOwner(params: {
+  ownerEmail: string; businessName: string; clientName: string; clientEmail: string; clientPhone?: string | null
+  serviceName: string; date: string; timeSlot: string; duration: number; price: number
+  isRestaurant?: boolean; partySize?: number | null; cancelledBy: "owner" | "client"; dashboardUrl: string
+}) {
+  const byLabel = params.cancelledBy === "client" ? "Le client a annulé" : "Vous avez annulé"
+  const accentColor = "linear-gradient(135deg,#ef4444,#dc2626)"
+  await getResend().emails.send({
+    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    to: params.ownerEmail,
+    subject: `❌ RDV annulé — ${params.clientName}`,
+    html: emailShell(params.businessName, "Réservation annulée", accentColor, `
+      <div style="background:#fee2e2;border-radius:12px;padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">❌</span>
+        <p style="color:#991b1b;font-size:13px;font-weight:600;margin:0;">${byLabel} ce rendez-vous</p>
+      </div>
+      ${ownerBookingBlock(params)}
+    `),
+  })
+}
+
+export async function sendBookingModifiedOwner(params: {
+  ownerEmail: string; businessName: string; clientName: string; clientEmail: string; clientPhone?: string | null
+  serviceName: string; date: string; timeSlot: string; duration: number; price: number
+  isRestaurant?: boolean; partySize?: number | null; notes?: string | null
+  changes: string[]; dashboardUrl: string
+}) {
+  const changesHtml = params.changes.map(c =>
+    `<li style="color:#475569;font-size:13px;margin-bottom:4px;">${c}</li>`
+  ).join("")
+  await getResend().emails.send({
+    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    to: params.ownerEmail,
+    subject: `✏️ RDV modifié — ${params.clientName}`,
+    html: emailShell(params.businessName, "Réservation modifiée", "linear-gradient(135deg,#8b5cf6,#7c3aed)", `
+      <div style="background:#f5f3ff;border-radius:12px;padding:14px 16px;margin-bottom:20px;">
+        <p style="font-weight:700;color:#5b21b6;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 8px;">Modifications</p>
+        <ul style="margin:0;padding-left:16px;">${changesHtml}</ul>
+      </div>
+      ${ownerBookingBlock(params)}
+    `),
+  })
+}
+
 export async function sendMonthlyReport(params: {
   userEmail: string
   userName: string
