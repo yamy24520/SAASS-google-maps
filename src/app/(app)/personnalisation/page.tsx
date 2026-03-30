@@ -157,6 +157,8 @@ export default function PersonnalisationPage() {
   const [savedRepSections, setSavedRepSections] = useState<RepSection[]>(DEFAULT_REP_SECTIONS)
   const [savingRep, setSavingRep]     = useState(false)
   const [scanningMenu, setScanningMenu] = useState(false)
+  const [mobileScanToken, setMobileScanToken] = useState<string | null>(null)
+  const [generatingScanToken, setGeneratingScanToken] = useState(false)
   const [expandedRepSection, setExpandedRepSection] = useState<string | null>(null)
 
   const [state, setState] = useState<PreviewState>({
@@ -813,6 +815,57 @@ export default function PersonnalisationPage() {
                                     e.target.value = ""
                                   }} />
                               </label>
+
+                              {/* Mobile scan */}
+                              {!mobileScanToken ? (
+                                <button
+                                  disabled={generatingScanToken}
+                                  onClick={async () => {
+                                    setGeneratingScanToken(true)
+                                    const res = await fetch(`/api/scan-token${bizParam}`, { method: "POST" })
+                                    const json = await res.json()
+                                    if (json.token) setMobileScanToken(json.token)
+                                    setGeneratingScanToken(false)
+                                  }}
+                                  className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl border border-slate-200 hover:border-violet-300 hover:bg-violet-50/30 transition-all text-left"
+                                >
+                                  {generatingScanToken ? (
+                                    <><Loader2 className="w-4 h-4 text-violet-500 animate-spin" /><span className="text-xs text-slate-500">Génération du lien...</span></>
+                                  ) : (
+                                    <><Smartphone className="w-4 h-4 text-slate-400" /><span className="text-xs text-slate-600 font-medium">Scanner depuis mobile</span><span className="text-xs text-slate-400">— lien QR partageble</span></>
+                                  )}
+                                </button>
+                              ) : (
+                                <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-3 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-violet-800">Lien mobile (2h)</span>
+                                    <button onClick={() => setMobileScanToken(null)} className="text-violet-400 hover:text-violet-600"><X className="w-3.5 h-3.5" /></button>
+                                  </div>
+                                  <div className="flex justify-center">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : ""}/scan/${mobileScanToken}`)}`}
+                                      alt="QR code"
+                                      width={140}
+                                      height={140}
+                                      className="rounded-lg"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      readOnly
+                                      value={`${typeof window !== "undefined" ? window.location.origin : ""}/scan/${mobileScanToken}`}
+                                      className="flex-1 px-2 py-1.5 text-[10px] border border-slate-200 rounded-lg bg-white text-slate-600 overflow-ellipsis"
+                                    />
+                                    <button
+                                      onClick={() => navigator.clipboard.writeText(`${window.location.origin}/scan/${mobileScanToken}`)}
+                                      className="px-2 py-1.5 text-xs bg-violet-600 text-white rounded-lg hover:bg-violet-700 font-medium flex-shrink-0"
+                                    >
+                                      Copier
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                               {sec.categories && sec.categories.length > 0 && (
                                 <div className="space-y-1">
                                   {sec.categories.map(cat => (
