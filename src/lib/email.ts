@@ -208,22 +208,26 @@ export async function sendReviewRequestWithOffer(params: {
 
 // ─── BOOKING EMAILS ───────────────────────────────────────────────────────────
 
-// SVG icons inline (email-safe, no external deps)
-const ICO = {
-  cal: `<img src="https://reputix.net/email-icons/calendar.png" width="16" height="16" alt="" style="vertical-align:middle;opacity:0.5;" />`,
-  clock: `<img src="https://reputix.net/email-icons/clock.png" width="16" height="16" alt="" style="vertical-align:middle;opacity:0.5;" />`,
-  scissors: `<img src="https://reputix.net/email-icons/scissors.png" width="16" height="16" alt="" style="vertical-align:middle;opacity:0.5;" />`,
-  users: `<img src="https://reputix.net/email-icons/users.png" width="16" height="16" alt="" style="vertical-align:middle;opacity:0.5;" />`,
+// Inline SVG icons (email-safe, no img tags needed)
+const SVG = {
+  cal:      `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+  clock:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  scissors: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`,
+  users:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  timer:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  euro:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M4 10h12M4 14h12M19.5 8.5A7 7 0 1 0 19.5 15.5"/></svg>`,
+  user:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  mail:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
+  phone:    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6.08 6.08l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`,
+  note:     `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
 }
 
-// Clean separator row
-const SEP = `<tr><td colspan="3" style="padding:0 20px;"><div style="height:1px;background:#f3f4f6;"></div></td></tr>`
-
-function infoRow(label: string, value: string) {
-  return `<tr>
-    <td style="padding:14px 20px;color:#6b7280;font-size:13px;white-space:nowrap;width:1%;">${label}</td>
-    <td style="padding:14px 0;"></td>
-    <td style="padding:14px 20px;color:#111827;font-size:13px;font-weight:600;text-align:right;">${value}</td>
+function infoRow(icon: string, label: string, value: string, last = false) {
+  const border = last ? "" : `border-bottom:1px solid #f3f4f6;`
+  return `<tr style="${border}">
+    <td style="padding:13px 20px;width:36px;color:#9ca3af;vertical-align:middle;">${icon}</td>
+    <td style="padding:13px 0;color:#6b7280;font-size:13px;vertical-align:middle;">${label}</td>
+    <td style="padding:13px 20px;color:#111827;font-size:13px;font-weight:600;text-align:right;vertical-align:middle;">${value}</td>
   </tr>`
 }
 
@@ -232,78 +236,80 @@ function bookingInfoBlock(params: {
   duration: number; price: number; isRestaurant?: boolean; partySize?: number | null
 }) {
   const covers = params.partySize ?? 1
-  const rows = [
-    infoRow("Date", `<strong>${params.date}</strong>`),
-    SEP,
-    infoRow("Heure", params.timeSlot),
-    ...(params.isRestaurant ? [SEP, infoRow("Couverts", `${covers} personne${covers > 1 ? "s" : ""}`)] : [
-      SEP,
-      infoRow("Prestation", params.serviceName),
-      SEP,
-      infoRow("Durée", `${params.duration} min`),
-      ...(params.price > 0 ? [SEP, infoRow("Prix", `${params.price.toFixed(2)} €`)] : []),
-    ]),
-  ].join("")
+  const rows = params.isRestaurant ? [
+    infoRow(SVG.cal,   "Date",     `<strong>${params.date}</strong>`),
+    infoRow(SVG.clock, "Heure",    params.timeSlot),
+    infoRow(SVG.users, "Couverts", `${covers} personne${covers > 1 ? "s" : ""}`, true),
+  ] : [
+    infoRow(SVG.cal,      "Date",       `<strong>${params.date}</strong>`),
+    infoRow(SVG.clock,    "Heure",      params.timeSlot),
+    infoRow(SVG.scissors, "Prestation", params.serviceName),
+    infoRow(SVG.timer,    "Durée",      `${params.duration} min`,
+      params.price <= 0),
+    ...(params.price > 0 ? [infoRow(SVG.euro, "Prix", `${params.price.toFixed(2)} €`, true)] : []),
+  ]
 
   return `
-    <div style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin:24px 0;">
+    <div style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin:20px 0 0;">
       <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-        ${rows}
+        ${rows.join("")}
       </table>
     </div>`
 }
 
 function clientInfoBlock(name: string, email: string, phone?: string | null, notes?: string | null) {
+  const rows = [
+    infoRow(SVG.user,  "Nom",       name),
+    infoRow(SVG.mail,  "Email",     email, !phone && !notes),
+    ...(phone  ? [infoRow(SVG.phone, "Tél.",  phone,  !notes)] : []),
+    ...(notes  ? [infoRow(SVG.note,  "Notes", notes,  true)]   : []),
+  ]
   return `
-    <div style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin:16px 0 20px;">
-      <div style="background:#f9fafb;padding:10px 20px;border-bottom:1px solid #e5e7eb;">
-        <span style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.6px;">Client</span>
+    <div style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin:16px 0 0;">
+      <div style="background:#f9fafb;padding:9px 20px;border-bottom:1px solid #e5e7eb;">
+        <span style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.8px;">Client</span>
       </div>
       <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-        ${infoRow("Nom", name)}
-        ${SEP}
-        ${infoRow("Email", email)}
-        ${phone ? SEP + infoRow("Téléphone", phone) : ""}
-        ${notes ? SEP + infoRow("Notes", notes) : ""}
+        ${rows.join("")}
       </table>
     </div>`
 }
 
-function emailShell(bizName: string, statusLine: string, statusColor: string, body: string) {
+function emailShell(bizName: string, statusLine: string, accentColor: string, body: string) {
+  // Top accent bar + clean white card
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${bizName}</title>
 </head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 16px 48px;">
     <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
-
-        <!-- Logo / Brand -->
-        <tr><td style="text-align:center;padding-bottom:20px;">
-          <span style="font-size:13px;font-weight:600;color:#9ca3af;letter-spacing:0.5px;">REPUTIX</span>
-        </td></tr>
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;">
 
         <!-- Card -->
-        <tr><td style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06),0 4px 16px rgba(0,0,0,0.06);">
+        <tr><td style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.07),0 8px 32px rgba(0,0,0,0.05);">
 
-          <!-- Status header -->
+          <!-- Top accent bar -->
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td style="background:${accentColor};height:5px;font-size:0;line-height:0;">&nbsp;</td></tr>
+          </table>
+
+          <!-- Header: biz name + status -->
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr><td style="padding:28px 32px 24px;text-align:center;border-bottom:1px solid #f3f4f6;">
-              <div style="width:44px;height:44px;border-radius:10px;background:#f3f4f6;margin:0 auto 14px;display:inline-block;text-align:center;line-height:44px;font-size:20px;font-weight:800;color:#374151;">
+              <div style="width:48px;height:48px;border-radius:12px;background:${accentColor};margin:0 auto 14px;text-align:center;line-height:48px;font-size:22px;font-weight:800;color:#ffffff;">
                 ${bizName.charAt(0).toUpperCase()}
               </div>
-              <div style="font-size:16px;font-weight:700;color:#111827;margin-bottom:4px;">${bizName}</div>
-              <div style="display:inline-block;background:${statusColor};color:white;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;letter-spacing:0.3px;">${statusLine}</div>
+              <div style="font-size:17px;font-weight:700;color:#111827;letter-spacing:-0.3px;margin-bottom:8px;">${bizName}</div>
+              <div style="display:inline-block;background:${accentColor}18;color:${accentColor};font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:0.4px;text-transform:uppercase;">${statusLine}</div>
             </td></tr>
           </table>
 
           <!-- Body -->
           <table width="100%" cellpadding="0" cellspacing="0">
-            <tr><td style="padding:24px 28px 28px;">
+            <tr><td style="padding:24px 28px 32px;">
               ${body}
             </td></tr>
           </table>
@@ -312,8 +318,8 @@ function emailShell(bizName: string, statusLine: string, statusColor: string, bo
 
         <!-- Footer -->
         <tr><td style="text-align:center;padding-top:20px;">
-          <p style="color:#9ca3af;font-size:11px;margin:0;">
-            Propulsé par <a href="https://reputix.net" style="color:#9ca3af;text-decoration:underline;">Reputix</a>
+          <p style="color:#9ca3af;font-size:11px;margin:0;letter-spacing:0.2px;">
+            Propulsé par <a href="https://reputix.net" style="color:#6b7280;font-weight:600;text-decoration:none;">Reputix</a>
           </p>
         </td></tr>
 
@@ -324,11 +330,13 @@ function emailShell(bizName: string, statusLine: string, statusColor: string, bo
 </html>`
 }
 
-function ctaButton(label: string, url: string, style: "primary" | "secondary" = "primary") {
+function ctaButton(label: string, url: string, color: string, style: "primary" | "secondary" = "primary") {
   if (style === "secondary") {
-    return `<a href="${url}" style="display:block;text-align:center;padding:10px;font-size:12px;color:#9ca3af;text-decoration:underline;">${label}</a>`
+    return `<div style="text-align:center;margin-top:12px;">
+      <a href="${url}" style="font-size:12px;color:#9ca3af;text-decoration:underline;">${label}</a>
+    </div>`
   }
-  return `<a href="${url}" style="display:block;background:#111827;color:#ffffff;text-decoration:none;text-align:center;padding:13px 24px;border-radius:10px;font-weight:600;font-size:14px;margin-top:20px;">${label} →</a>`
+  return `<a href="${url}" style="display:block;background:${color};color:#ffffff;text-decoration:none;text-align:center;padding:14px 24px;border-radius:10px;font-weight:700;font-size:14px;margin-top:24px;letter-spacing:0.2px;">${label} →</a>`
 }
 
 export async function sendBookingRequestClient(params: {
@@ -349,8 +357,8 @@ export async function sendBookingRequestClient(params: {
         Vous recevrez une confirmation dès validation par l'établissement.
       </p>
       ${bookingInfoBlock(params)}
-      ${params.portalUrl ? ctaButton("Gérer mes réservations", params.portalUrl) : ""}
-      ${params.cancelUrl ? ctaButton("Annuler cette réservation", params.cancelUrl, "secondary") : ""}
+      ${params.portalUrl ? ctaButton("Gérer mes réservations", params.portalUrl, "#f59e0b") : ""}
+      ${params.cancelUrl ? ctaButton("Annuler cette réservation", params.cancelUrl, "#f59e0b", "secondary") : ""}
     `),
   })
 }
@@ -370,7 +378,7 @@ export async function sendBookingRequestOwner(params: {
       </p>
       ${bookingInfoBlock(params)}
       ${clientInfoBlock(params.clientName, params.clientEmail, params.clientPhone)}
-      ${ctaButton("Confirmer ou refuser", params.dashboardUrl)}
+      ${ctaButton("Confirmer ou refuser", params.dashboardUrl, "#3b82f6")}
     `),
   })
 }
@@ -394,7 +402,7 @@ export async function sendBookingConfirmedClient(params: {
       <p style="color:#9ca3af;font-size:12px;text-align:center;margin:16px 0 0;">
         En cas d'empêchement, merci de prévenir l'établissement.
       </p>
-      ${params.cancelUrl ? ctaButton("Annuler ma réservation", params.cancelUrl, "secondary") : ""}
+      ${params.cancelUrl ? ctaButton("Annuler ma réservation", params.cancelUrl, "#10b981", "secondary") : ""}
     `),
   })
 }
@@ -417,7 +425,7 @@ export async function sendBookingReminderClient(params: {
       <p style="color:#9ca3af;font-size:12px;text-align:center;margin:16px 0 0;">
         En cas d'empêchement, merci de prévenir l'établissement le plus tôt possible.
       </p>
-      ${params.cancelUrl ? ctaButton("Annuler ma réservation", params.cancelUrl, "secondary") : ""}
+      ${params.cancelUrl ? ctaButton("Annuler ma réservation", params.cancelUrl, "#f59e0b", "secondary") : ""}
     `),
   })
 }
@@ -442,6 +450,29 @@ export async function sendBookingCancelledClient(params: {
   })
 }
 
+export async function sendClientOtpEmail(params: {
+  clientEmail: string
+  businessName: string
+  code: string
+}) {
+  await getResend().emails.send({
+    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    to: params.clientEmail,
+    subject: `${params.code} — Votre code de connexion`,
+    html: emailShell(params.businessName, "Code de connexion", "#6366f1", `
+      <p style="color:#374151;font-size:14px;line-height:1.7;margin:0 0 20px;text-align:center;">
+        Voici votre code pour accéder à votre espace client :
+      </p>
+      <div style="background:#f3f4f6;border-radius:14px;padding:22px 32px;text-align:center;margin:0 0 20px;">
+        <span style="font-size:38px;font-weight:800;letter-spacing:14px;color:#111827;font-family:monospace;">${params.code}</span>
+      </div>
+      <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0;">
+        Ce code expire dans <strong>10 minutes</strong>. Ne le partagez avec personne.
+      </p>
+    `),
+  })
+}
+
 // ─── OWNER NOTIFICATIONS ─────────────────────────────────────────────────────
 
 function ownerBookingBlock(params: {
@@ -453,7 +484,7 @@ function ownerBookingBlock(params: {
   return `
     ${bookingInfoBlock(params)}
     ${clientInfoBlock(params.clientName, params.clientEmail, params.clientPhone, params.notes)}
-    ${ctaButton("Voir dans le dashboard", params.dashboardUrl)}
+    ${ctaButton("Voir dans le dashboard", params.dashboardUrl, "#6366f1")}
   `
 }
 
