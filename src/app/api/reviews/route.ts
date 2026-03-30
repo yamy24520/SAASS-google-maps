@@ -11,8 +11,10 @@ export async function GET(req: NextRequest) {
   const bizId = searchParams.get("biz")
   const status = searchParams.get("status")
   const rating = searchParams.get("rating")
-  const page = parseInt(searchParams.get("page") ?? "1")
-  const limit = parseInt(searchParams.get("limit") ?? "20")
+  const pageRaw = parseInt(searchParams.get("page") ?? "1")
+  const limitRaw = parseInt(searchParams.get("limit") ?? "20")
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 100 ? limitRaw : 20
 
   const business = bizId
     ? await prisma.business.findFirst({ where: { id: bizId, userId: session.user.id } })
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest) {
   const where = {
     businessId: business.id,
     ...(status ? { status: status as never } : {}),
-    ...(rating ? { rating: parseInt(rating) } : {}),
+    ...(rating ? (() => { const r = parseInt(rating); return Number.isFinite(r) && r >= 1 && r <= 5 ? { rating: r } : {} })() : {}),
   }
 
   const [reviews, total] = await Promise.all([

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Zap } from "lucide-react"
+import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Zap, AlertTriangle, ExternalLink } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
@@ -20,20 +20,53 @@ const impactLabels = {
 export default function SeoLocalPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
-    const res = await fetch("/api/seo-local")
-    const json = await res.json()
-    setData(json)
-    setLoading(false)
+    setError(null)
+    try {
+      const res = await fetch("/api/seo-local")
+      if (!res.ok) throw new Error(`Erreur ${res.status}`)
+      const json = await res.json()
+      setData(json)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur de chargement")
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [])
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+    <div className="space-y-6 animate-pulse">
+      <div className="h-8 w-48 bg-slate-200 rounded-xl" />
+      <div className="h-40 bg-slate-200 rounded-2xl" />
+      <div className="space-y-3">
+        {[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-slate-200 rounded-2xl" />)}
+      </div>
+    </div>
+  )
+
+  if (error) return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">SEO Local</h1>
+        <p className="text-slate-500 mt-1">Optimisez votre visibilité sur Google Maps</p>
+      </div>
+      <Card className="border-red-100">
+        <CardContent className="pt-8 pb-8 flex flex-col items-center gap-4 text-center">
+          <AlertTriangle className="w-10 h-10 text-red-400" />
+          <div>
+            <p className="font-semibold text-slate-800">Impossible de charger l&apos;analyse</p>
+            <p className="text-sm text-slate-500 mt-1">{error}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={load} className="gap-2">
+            <RefreshCw className="w-4 h-4" /> Réessayer
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   )
 
@@ -42,7 +75,6 @@ export default function SeoLocalPage() {
   const done = checklist.filter((c: any) => c.done).length
   const total = checklist.length
 
-  const scoreColor = score >= 80 ? "text-emerald-600" : score >= 50 ? "text-amber-600" : "text-red-600"
   const scoreBg = score >= 80 ? "from-emerald-500 to-teal-500" : score >= 50 ? "from-amber-500 to-orange-500" : "from-red-500 to-rose-500"
 
   return (
@@ -122,10 +154,21 @@ export default function SeoLocalPage() {
                     <p className={`font-medium text-sm ${item.done ? "text-emerald-800 line-through opacity-60" : "text-slate-900"}`}>
                       {item.label}
                     </p>
-                    {!item.done && (
+                    {!item.done && item.tip && (
                       <p className="text-xs text-slate-500 mt-1">{item.tip}</p>
                     )}
                   </div>
+                  {!item.done && item.actionUrl && (
+                    <a
+                      href={item.actionUrl}
+                      target={item.actionUrl.startsWith("http") ? "_blank" : undefined}
+                      rel={item.actionUrl.startsWith("http") ? "noopener noreferrer" : undefined}
+                      className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-sky-500 text-white text-xs font-semibold hover:bg-sky-600 transition-colors"
+                    >
+                      {item.actionUrl.startsWith("http") && <ExternalLink className="w-3 h-3" />}
+                      {item.actionLabel ?? "Corriger"}
+                    </a>
+                  )}
                 </div>
               ))}
             </CardContent>

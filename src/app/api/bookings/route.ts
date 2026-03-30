@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { sendBookingRequestClient, sendBookingRequestOwner } from "@/lib/email"
 import { sendPushNotification } from "@/lib/push"
 import { randomUUID } from "crypto"
+import { rateLimit } from "@/lib/rate-limit"
 
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://reputix.net"
 
@@ -36,6 +37,10 @@ export async function GET(req: NextRequest) {
 
 // POST — public ou dashboard (manuelle): créer une réservation
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown"
+  const rl = rateLimit(`bookings:${ip}`, 10, 60_000)
+  if (!rl.ok) return NextResponse.json({ error: "Trop de requêtes, réessayez dans " + rl.retryAfter + "s" }, { status: 429 })
+
   const { businessId, serviceId, staffId, clientName, clientEmail, clientPhone, date, timeSlot, notes, partySize, manualStatus, recurrence, recurrenceEnd } = await req.json()
 
   if (!clientName || !date || !timeSlot) {
@@ -178,8 +183,8 @@ export async function POST(req: NextRequest) {
 
   if (!booking) return NextResponse.json({ error: "Erreur lors de la création" }, { status: 500 })
 
-  // Archiver le lead email (upsert par email+business pour éviter les doublons)
-  prisma.leadEmail.upsert({
+  // Archiver le lead email — fire-and-forget intentionnel (non-critique)
+  void prisma.leadEmail.upsert({
     where: { businessId_email: { businessId: businessId2, email: clientEmail } } as never,
     update: { name: clientName, phone: clientPhone || null },
     create: { businessId: businessId2, email: clientEmail, name: clientName, phone: clientPhone || null, source: "booking" },

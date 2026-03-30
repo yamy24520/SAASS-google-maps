@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
-import { Mail, Phone, CalendarDays, ChevronRight, Search, User } from "lucide-react"
+import { Mail, Phone, CalendarDays, ChevronRight, Search, User, TrendingUp } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 
 interface Booking {
@@ -26,7 +26,9 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [selected, setSelected] = useState<Client | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchClients = useCallback(async () => {
     const res = await fetch(`/api/bookings${bizParam}`)
@@ -60,15 +62,39 @@ export default function ClientsPage() {
 
   useEffect(() => { fetchClients() }, [fetchClients])
 
+  function handleSearch(val: string) {
+    setSearch(val)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setDebouncedSearch(val), 300)
+  }
+
+  const q = debouncedSearch.toLowerCase()
   const filtered = clients.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.email.toLowerCase().includes(search.toLowerCase()) ||
-    (c.phone ?? "").includes(search)
+    c.name.toLowerCase().includes(q) ||
+    c.email.toLowerCase().includes(q) ||
+    (c.phone ?? "").includes(debouncedSearch)
   )
+
+  const totalRevenue = clients.reduce((s, c) => s + c.totalSpent, 0)
+  const totalBookings = clients.reduce((s, c) => s + c.bookings.filter(b => b.status !== "CANCELLED").length, 0)
 
   if (loading) return (
     <div className="space-y-4 animate-pulse">
-      {[...Array(5)].map((_, i) => <div key={i} className="h-16 rounded-2xl bg-slate-200" />)}
+      <div className="h-8 w-40 bg-slate-200 rounded-xl" />
+      <div className="grid grid-cols-3 gap-3">
+        {[...Array(3)].map((_, i) => <div key={i} className="h-20 rounded-2xl bg-slate-200" />)}
+      </div>
+      <div className="h-10 rounded-xl bg-slate-200" />
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="h-16 rounded-xl bg-white border border-slate-100 flex items-center gap-3 px-4">
+          <div className="w-9 h-9 rounded-full bg-slate-200 flex-shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3.5 w-32 bg-slate-200 rounded" />
+            <div className="h-3 w-48 bg-slate-100 rounded" />
+          </div>
+          <div className="h-4 w-12 bg-slate-200 rounded" />
+        </div>
+      ))}
     </div>
   )
 
@@ -81,10 +107,37 @@ export default function ClientsPage() {
           <p className="text-slate-500 text-sm mt-0.5">{clients.length} client{clients.length > 1 ? "s" : ""} au total</p>
         </div>
 
+        {/* Stats */}
+        {clients.length > 0 && (
+          <div className="grid grid-cols-3 gap-3">
+            <Card className="border-slate-100">
+              <CardContent className="pt-4 pb-4 text-center">
+                <p className="text-2xl font-bold text-slate-900">{clients.length}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Clients</p>
+              </CardContent>
+            </Card>
+            <Card className="border-slate-100">
+              <CardContent className="pt-4 pb-4 text-center">
+                <p className="text-2xl font-bold text-emerald-600">{totalRevenue.toFixed(0)} €</p>
+                <p className="text-xs text-slate-500 mt-0.5">CA total</p>
+              </CardContent>
+            </Card>
+            <Card className="border-slate-100">
+              <CardContent className="pt-4 pb-4 text-center flex flex-col items-center">
+                <div className="flex items-center gap-1">
+                  <TrendingUp className="w-4 h-4 text-sky-500" />
+                  <p className="text-2xl font-bold text-slate-900">{totalBookings}</p>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">RDV totaux</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Recherche */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un client…"
+          <input value={search} onChange={e => handleSearch(e.target.value)} placeholder="Rechercher un client…"
             className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white" />
         </div>
 

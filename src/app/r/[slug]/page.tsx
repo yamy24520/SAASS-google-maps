@@ -2,7 +2,7 @@
 
 import { use, useEffect, useRef, useState, useCallback } from "react"
 import {
-  Camera, ChevronRight, MapPin, Pencil, Plus, Trash2, X,
+  Camera, ChevronRight, MapPin, Pencil, Plus, Trash2, X, Search,
   Star as StarIcon, Clock, ExternalLink, CalendarDays, ArrowRight, Settings
 } from "lucide-react"
 
@@ -146,6 +146,8 @@ const LEGACY_THEME_MAP: Record<string, { style: StyleKey; accent: string }> = {
   warm:        { style: "luxury",  accent: "#fbbf24" },
   ocean:       { style: "future",  accent: "#38bdf8" },
   forest:      { style: "modern",  accent: "#4ade80" },
+  rose:        { style: "minimal", accent: "#f43f5e" },
+  nature:      { style: "modern",  accent: "#16a34a" },
   default:     { style: "modern",  accent: "#6366f1" },
 }
 
@@ -182,11 +184,26 @@ function SocialIcon({ p, color, size = 18 }: { p: string; color: string; size?: 
 function Stars({ n, color, size = 14 }: { n: number; color: string; size?: number }) {
   return (
     <span style={{ display: "inline-flex", gap: 1 }}>
-      {[1,2,3,4,5].map(i => (
-        <svg key={i} width={size} height={size} viewBox="0 0 24 24" fill={i <= Math.round(n) ? color : "rgba(150,150,150,0.2)"}>
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-      ))}
+      {[1,2,3,4,5].map(i => {
+        const fill = n >= i ? 1 : n >= i - 0.5 ? 0.5 : 0
+        const id = `h-${i}-${Math.random().toString(36).slice(2,6)}`
+        if (fill === 0.5) return (
+          <svg key={i} width={size} height={size} viewBox="0 0 24 24">
+            <defs>
+              <linearGradient id={id}>
+                <stop offset="50%" stopColor={color} />
+                <stop offset="50%" stopColor="rgba(150,150,150,0.2)" />
+              </linearGradient>
+            </defs>
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill={`url(#${id})`}/>
+          </svg>
+        )
+        return (
+          <svg key={i} width={size} height={size} viewBox="0 0 24 24" fill={fill === 1 ? color : "rgba(150,150,150,0.2)"}>
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          </svg>
+        )
+      })}
     </span>
   )
 }
@@ -293,8 +310,9 @@ function MenuCategoryTabs({ categories, activeCatId, t, onSelect }: { categories
       {categories.map(cat => {
         const active = cat.id === activeCatId
         return (
-          <button key={cat.id} onClick={() => onSelect(cat.id)} style={{ flexShrink: 0, padding: "10px 22px", borderRadius: 50, border: "none", background: active ? t.accent : t.elevated, color: active ? t.btnText : t.secondary, fontSize: 14, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s" }}>
+          <button key={cat.id} onClick={() => onSelect(cat.id)} style={{ flexShrink: 0, padding: "10px 22px", borderRadius: 50, border: "none", background: active ? t.accent : t.elevated, color: active ? t.btnText : t.secondary, fontSize: 14, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6 }}>
             {cat.name}
+            {cat.items.length > 0 && <span style={{ fontSize: 11, fontWeight: 700, background: active ? "rgba(255,255,255,0.25)" : t.border, color: active ? t.btnText : t.muted, borderRadius: 50, padding: "1px 7px", lineHeight: 1.6 }}>{cat.items.length}</span>}
           </button>
         )
       })}
@@ -304,6 +322,7 @@ function MenuCategoryTabs({ categories, activeCatId, t, onSelect }: { categories
 
 function MenuSection({ categories, t }: { categories: MenuCategory[]; t: ThemeConfig }) {
   const [activeCatId, setActiveCatId] = useState<string | null>(categories[0]?.id ?? null)
+  const [menuSearch, setMenuSearch] = useState("")
   const activeCat = categories.find(c => c.id === activeCatId) ?? categories[0] ?? null
 
   useEffect(() => {
@@ -312,14 +331,43 @@ function MenuSection({ categories, t }: { categories: MenuCategory[]; t: ThemeCo
 
   if (!categories.length) return null
 
+  const searchQuery = menuSearch.trim().toLowerCase()
+  const filteredItems = searchQuery
+    ? (activeCat?.items ?? []).filter(i => i.name.toLowerCase().includes(searchQuery) || i.description.toLowerCase().includes(searchQuery))
+    : activeCat?.items ?? []
+
   return (
     <div>
-      <MenuCategoryTabs categories={categories} activeCatId={activeCat?.id ?? null} t={t} onSelect={setActiveCatId} />
+      {/* Search bar */}
+      <div style={{ position: "relative", marginBottom: 16 }}>
+        <Search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: t.muted, pointerEvents: "none" }} />
+        <input
+          value={menuSearch}
+          onChange={e => setMenuSearch(e.target.value)}
+          placeholder="Rechercher un plat..."
+          style={{
+            width: "100%", boxSizing: "border-box",
+            padding: "11px 16px 11px 38px", borderRadius: 14,
+            border: `1.5px solid ${t.border}`, background: t.surface,
+            color: t.text, fontSize: 14, outline: "none",
+            transition: "border-color 0.2s",
+          }}
+          onFocus={e => e.currentTarget.style.borderColor = t.accent}
+          onBlur={e => e.currentTarget.style.borderColor = t.border}
+        />
+        {menuSearch && (
+          <button onClick={() => setMenuSearch("")} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: t.muted, padding: 2 }}>
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      <MenuCategoryTabs categories={categories} activeCatId={activeCat?.id ?? null} t={t} onSelect={id => { setActiveCatId(id); setMenuSearch("") }} />
       {activeCat && (
         <div style={{ borderRadius: 20, overflow: "hidden", background: t.surface, border: `1px solid ${t.border}` }}>
-          {activeCat.items.map((item, i) => (
-            <div key={item.id} style={{ display: "flex", gap: 14, padding: "16px 20px", borderBottom: i < activeCat.items.length - 1 ? `1px solid ${t.border}` : "none", alignItems: "flex-start" }}>
-              {item.photo && <img src={item.photo} alt={item.name} style={{ width: 68, height: 68, borderRadius: 14, objectFit: "cover", flexShrink: 0 }} />}
+          {filteredItems.map((item, i) => (
+            <div key={item.id} style={{ display: "flex", gap: 14, padding: "16px 20px", borderBottom: i < filteredItems.length - 1 ? `1px solid ${t.border}` : "none", alignItems: "flex-start" }}>
+              {item.photo && <img src={item.photo} alt={item.name} loading="lazy" style={{ width: 68, height: 68, borderRadius: 14, objectFit: "cover", flexShrink: 0 }} />}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                   <p style={{ color: t.text, fontWeight: 600, fontSize: 15, lineHeight: 1.35 }}>{item.name}</p>
@@ -329,7 +377,7 @@ function MenuSection({ categories, t }: { categories: MenuCategory[]; t: ThemeCo
               </div>
             </div>
           ))}
-          {activeCat.items.length === 0 && <p style={{ padding: 24, textAlign: "center", color: t.muted, fontSize: 14 }}>Aucun plat</p>}
+          {filteredItems.length === 0 && <p style={{ padding: 24, textAlign: "center", color: t.muted, fontSize: 14 }}>{searchQuery ? "Aucun résultat" : "Aucun plat"}</p>}
         </div>
       )}
     </div>
@@ -469,8 +517,66 @@ function MenuSectionEdit({ categories, t, onChange }: { categories: MenuCategory
 
 // ── Section: Reviews ──────────────────────────────────────────────────────────
 
+function ReviewCard({ r, t }: { r: ReviewData; t: ThemeConfig }) {
+  const [expanded, setExpanded] = useState(false)
+  const isLong = (r.comment?.length ?? 0) > 200
+  return (
+    <div style={{
+      flex: "0 0 85%", maxWidth: 360, scrollSnapAlign: "start",
+      background: t.surface, borderRadius: 20, padding: 24,
+      border: `1px solid ${t.border}`, position: "relative",
+    }}>
+      <svg width={32} height={32} viewBox="0 0 24 24" fill={t.border} style={{ position: "absolute", top: 18, right: 18, opacity: 0.5 }}>
+        <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
+      </svg>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: "50%",
+          background: `linear-gradient(135deg, ${t.accent}60, ${t.star}60)`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: t.isDark ? "#fff" : "#111", fontWeight: 700, fontSize: 17, flexShrink: 0,
+        }}>
+          {r.reviewerName.charAt(0).toUpperCase()}
+        </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ color: t.text, fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{r.reviewerName}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Stars n={r.rating} color={t.star} size={12} />
+            <span style={{ color: t.muted, fontSize: 12 }}>{ago(r.reviewPublishedAt)}</span>
+          </div>
+        </div>
+      </div>
+      {r.comment && (
+        <div>
+          <p style={{
+            color: t.secondary, fontSize: 14, lineHeight: 1.65,
+            ...((!expanded && isLong) ? { display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical" as const, overflow: "hidden" } : {}),
+          }}>{r.comment}</p>
+          {isLong && (
+            <button onClick={() => setExpanded(e => !e)} style={{
+              background: "none", border: "none", cursor: "pointer", padding: "6px 0 0",
+              color: t.accent, fontSize: 13, fontWeight: 600,
+            }}>
+              {expanded ? "Réduire ▲" : "Lire plus ▼"}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ReviewsSection({ reviews, placeId, t, track }: { reviews: ReviewData[]; placeId: string | null; t: ThemeConfig; track: (e: string) => void }) {
   const url = placeId ? `https://search.google.com/local/writereview?placeid=${placeId}` : null
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [scrollPct, setScrollPct] = useState(0)
+
+  function onScroll(e: React.UIEvent<HTMLDivElement>) {
+    const el = e.currentTarget
+    const max = el.scrollWidth - el.clientWidth
+    setScrollPct(max > 0 ? el.scrollLeft / max : 0)
+  }
+
   if (!reviews.length && !url) return null
   return (
     <div>
@@ -493,42 +599,19 @@ function ReviewsSection({ reviews, placeId, t, track }: { reviews: ReviewData[];
       )}
 
       {reviews.length > 0 && (
-        <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8, scrollSnapType: "x mandatory", scrollbarWidth: "none" }}>
-          {reviews.map((r, i) => (
-            <div key={i} style={{
-              flex: "0 0 85%", maxWidth: 360, scrollSnapAlign: "start",
-              background: t.surface, borderRadius: 20, padding: 24,
-              border: `1px solid ${t.border}`, position: "relative",
-            }}>
-              <svg width={32} height={32} viewBox="0 0 24 24" fill={t.border} style={{ position: "absolute", top: 18, right: 18, opacity: 0.5 }}>
-                <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
-              </svg>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                <div style={{
-                  width: 44, height: 44, borderRadius: "50%",
-                  background: `linear-gradient(135deg, ${t.accent}60, ${t.star}60)`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  color: t.isDark ? "#fff" : "#111", fontWeight: 700, fontSize: 17, flexShrink: 0,
-                }}>
-                  {r.reviewerName.charAt(0).toUpperCase()}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ color: t.text, fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{r.reviewerName}</p>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <Stars n={r.rating} color={t.star} size={12} />
-                    <span style={{ color: t.muted, fontSize: 12 }}>{ago(r.reviewPublishedAt)}</span>
-                  </div>
-                </div>
-              </div>
-              {r.comment && (
-                <p style={{
-                  color: t.secondary, fontSize: 14, lineHeight: 1.65,
-                  display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", overflow: "hidden",
-                }}>{r.comment}</p>
-              )}
+        <>
+          <div ref={scrollRef} onScroll={onScroll} style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8, scrollSnapType: "x mandatory", scrollbarWidth: "none" }}>
+            {reviews.map((r, i) => <ReviewCard key={i} r={r} t={t} />)}
+          </div>
+          {reviews.length > 1 && (
+            <div style={{ display: "flex", gap: 5, justifyContent: "center", marginTop: 12 }}>
+              {reviews.map((_, i) => {
+                const active = Math.round(scrollPct * (reviews.length - 1)) === i
+                return <div key={i} style={{ width: active ? 20 : 6, height: 6, borderRadius: 3, background: active ? t.accent : t.border, transition: "all 0.3s" }} />
+              })}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   )
@@ -1097,6 +1180,40 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
           </div>
         )}
       </div>
+
+      {/* ── Sticky bottom CTA bar (mobile, when top bar not shown) ── */}
+      {!isEditing && !showStickyBar && (bookingUrl || reviewUrl) && (
+        <div style={{
+          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 39,
+          background: t.isDark ? `${t.surface}f0` : `${t.surface}f8`,
+          backdropFilter: "blur(20px) saturate(1.8)",
+          borderTop: `1px solid ${t.border}`,
+          padding: "12px 16px 16px",
+          display: "flex", gap: 10,
+          paddingBottom: "max(16px, env(safe-area-inset-bottom))",
+        }}>
+          {bookingUrl && (
+            <a href={bookingUrl} style={{
+              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "13px 16px", borderRadius: 14, background: t.btn, color: t.btnText,
+              fontWeight: 700, fontSize: 15, textDecoration: "none",
+            }}>
+              <CalendarDays size={16} /> Réserver
+            </a>
+          )}
+          {reviewUrl && (
+            <a href={reviewUrl} target="_blank" rel="noopener noreferrer" onClick={() => track("cta_review")} style={{
+              flex: bookingUrl ? "0 0 auto" : 1,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "13px 20px", borderRadius: 14,
+              background: "transparent", border: `1.5px solid ${t.border}`, color: t.text,
+              fontWeight: 600, fontSize: 15, textDecoration: "none",
+            }}>
+              <StarIcon size={15} fill={t.star} stroke={t.star} /> Avis
+            </a>
+          )}
+        </div>
+      )}
 
       {/* ── Owner FABs ── */}
       {data.isOwner && !isEditing && !preview && (

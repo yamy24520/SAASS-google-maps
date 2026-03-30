@@ -15,17 +15,20 @@ export async function GET(req: NextRequest) {
   if (!business) return NextResponse.json({ error: "Introuvable" }, { status: 404 })
 
   const now = new Date()
-  const todayStr = now.toISOString().split("T")[0]
+  const y = now.getUTCFullYear()
+  const m = now.getUTCMonth() + 1
+  const todayStr = `${y}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`
 
-  // Début et fin du mois en cours
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
-  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-  const monthEnd = nextMonth.toISOString().split("T")[0]
+  // Début et fin du mois en cours (UTC)
+  const monthStart = `${y}-${String(m).padStart(2, "0")}-01`
+  const nextM = m === 12 ? 1 : m + 1
+  const nextY = m === 12 ? y + 1 : y
+  const monthEnd = `${nextY}-${String(nextM).padStart(2, "0")}-01`
 
-  // Semaine courante (lundi → dimanche)
-  const weekAgo = new Date(now)
-  weekAgo.setDate(now.getDate() - 7)
-  const weekAgoStr = weekAgo.toISOString().split("T")[0]
+  // Semaine courante (7 derniers jours, UTC)
+  const weekAgoD = new Date(now)
+  weekAgoD.setUTCDate(now.getUTCDate() - 7)
+  const weekAgoStr = weekAgoD.toISOString().split("T")[0]
 
   const [allBookings, monthBookings, weekBookings, upcomingBookings] = await Promise.all([
     // Tous les RDV (pour taux annulation global)
@@ -33,7 +36,7 @@ export async function GET(req: NextRequest) {
     // RDV du mois
     prisma.booking.findMany({
       where: { businessId: business.id, date: { gte: monthStart, lt: monthEnd } },
-      include: { service: { select: { price: true } } },
+      select: { status: true, service: { select: { price: true } }, depositAmount: true, paymentStatus: true },
     }),
     // RDV des 7 derniers jours
     prisma.booking.count({
@@ -49,13 +52,20 @@ export async function GET(req: NextRequest) {
   const monthConfirmed = monthBookings.filter(b => b.status === "CONFIRMED")
   const monthTotal = monthBookings.length
 
+  // Valeur d'un RDV : service.price en priorité, sinon depositAmount si payé
+  function bookingValue(b: { service: { price: number } | null; depositAmount: number | null; paymentStatus: string }): number {
+    if (b.service?.price) return b.service.price
+    if (b.paymentStatus === "PAID" && b.depositAmount) return b.depositAmount
+    return 0
+  }
+
   // CA prévisionnel = somme des prix des RDV confirmés ou en attente du mois
   const caMonth = monthBookings
     .filter(b => b.status !== "CANCELLED")
-    .reduce((sum, b) => sum + (b.service?.price ?? 0), 0)
+    .reduce((sum, b) => sum + bookingValue(b), 0)
 
   // CA confirmé uniquement
-  const caConfirmed = monthConfirmed.reduce((sum, b) => sum + (b.service?.price ?? 0), 0)
+  const caConfirmed = monthConfirmed.reduce((sum, b) => sum + bookingValue(b), 0)
 
   const cancellationRate = monthTotal > 0 ? Math.round((monthCancelled / monthTotal) * 100) : 0
 

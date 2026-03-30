@@ -92,6 +92,7 @@ export default function SettingsPage() {
   const [connectLoading, setConnectLoading] = useState(false)
   const [vapiStatus, setVapiStatus] = useState<{ enabled: boolean; phoneNumber: string | null; assistantId: string | null } | null>(null)
   const [vapiLoading, setVapiLoading] = useState(false)
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false)
 
   useEffect(() => {
     if (bizId) {
@@ -112,7 +113,7 @@ export default function SettingsPage() {
         })
         setLoading(false)
       })
-  }, [bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [bizId, bizParam])
 
   async function handleSave() {
     setSaving(true)
@@ -239,6 +240,10 @@ export default function SettingsPage() {
                       onChange={e => {
                         const file = e.target.files?.[0]
                         if (!file) return
+                        if (!["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"].includes(file.type)) {
+                          toast({ title: "Format non supporté", description: "Importez une image JPG, PNG, WebP ou SVG.", variant: "destructive" })
+                          return
+                        }
                         if (file.size > 500 * 1024) {
                           toast({ title: "Image trop lourde", description: "Maximum 500 Ko. Compressez l'image avant de l'importer.", variant: "destructive" })
                           return
@@ -352,11 +357,19 @@ export default function SettingsPage() {
                       {form.gbpLocationName && <p className="text-xs text-slate-500">{form.gbpLocationName}</p>}
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" className="gap-2 text-red-500 hover:text-red-600 hover:border-red-300" asChild>
-                    <a href={`/api/google/disconnect${bizParam}`}>
+                  {confirmDisconnect ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">Confirmer ?</span>
+                      <Button variant="outline" size="sm" onClick={() => setConfirmDisconnect(false)}>Annuler</Button>
+                      <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white border-0" onClick={() => { window.location.href = `/api/google/disconnect${bizParam}` }}>
+                        Oui, déconnecter
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" size="sm" className="gap-2 text-red-500 hover:text-red-600 hover:border-red-300" onClick={() => setConfirmDisconnect(true)}>
                       <Unlink className="w-3.5 h-3.5" /> Déconnecter
-                    </a>
-                  </Button>
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center justify-between">

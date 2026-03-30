@@ -144,6 +144,18 @@ export default function AgendaPage() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
+  useEffect(() => {
+    function onResize() {
+      setView(v => {
+        const mobile = window.innerWidth < 1024
+        if (mobile && v === "week") return "day"
+        return v
+      })
+    }
+    window.addEventListener("resize", onResize)
+    return () => window.removeEventListener("resize", onResize)
+  }, [])
+
   function prevPeriod() {
     setRef(d => { const n = new Date(d); n.setDate(d.getDate() - (view === "week" ? 7 : 1)); return n })
   }
@@ -760,7 +772,22 @@ export default function AgendaPage() {
       )}
 
       {loading ? (
-        <div className="flex-1 rounded-2xl bg-slate-100 animate-pulse" />
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden animate-pulse" style={{ minHeight: 400 }}>
+          <div className="grid border-b border-slate-200" style={{ gridTemplateColumns: "48px repeat(6, 1fr)" }}>
+            <div className="border-r border-slate-100 h-14" />
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="border-r border-slate-100 last:border-0 h-14 flex flex-col items-center justify-center gap-1.5">
+                <div className="h-2.5 w-6 bg-slate-200 rounded" />
+                <div className="h-5 w-7 bg-slate-200 rounded" />
+              </div>
+            ))}
+          </div>
+          <div className="p-4 space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-10 bg-slate-100 rounded-xl" style={{ marginLeft: `${(i % 3) * 16}%`, width: `${40 + (i % 2) * 20}%` }} />
+            ))}
+          </div>
+        </div>
       ) : view === "week" ? <WeekView /> : <DayView />}
 
       {selectedBooking && <BookingPanel />}

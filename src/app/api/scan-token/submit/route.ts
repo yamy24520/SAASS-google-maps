@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { jwtVerify } from "jose"
 import { prisma } from "@/lib/prisma"
 import Anthropic from "@anthropic-ai/sdk"
+import { rateLimit } from "@/lib/rate-limit"
 
 const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET ?? "fallback-secret")
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -24,6 +25,10 @@ const DEFAULT_SECTIONS: RepSection[] = [
 ]
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown"
+  const rl = rateLimit(`scan-submit:${ip}`, 5, 60_000)
+  if (!rl.ok) return NextResponse.json({ error: "Trop de requêtes, réessayez dans " + rl.retryAfter + "s" }, { status: 429 })
+
   const { token, imageBase64, mediaType } = await req.json()
   if (!token || !imageBase64) return NextResponse.json({ error: "Données manquantes" }, { status: 400 })
 

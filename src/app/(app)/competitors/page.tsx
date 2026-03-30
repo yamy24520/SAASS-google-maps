@@ -7,8 +7,20 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/components/ui/toaster"
 
+interface Competitor {
+  name: string
+  rating: number
+  reviewCount: number
+  address?: string
+}
+
+interface CompetitorData {
+  business?: { name: string; rating: number; reviewCount: number; placeId?: string; lat?: number; lng?: number; placeType?: string }
+  competitors: Competitor[]
+}
+
 export default function CompetitorsPage() {
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<CompetitorData | null>(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
 
@@ -66,7 +78,7 @@ export default function CompetitorsPage() {
 
   const allPlayers = [
     { name: business?.name ?? "Vous", rating: business?.rating ?? 0, reviewCount: business?.reviewCount ?? 0, isYou: true },
-    ...competitors.map((c: any) => ({ ...c, isYou: false })),
+    ...competitors.map((c) => ({ ...c, isYou: false })),
   ].sort((a, b) => b.rating - a.rating)
 
   const yourRank = allPlayers.findIndex((p) => p.isYou) + 1
@@ -143,7 +155,7 @@ export default function CompetitorsPage() {
                     <p className="font-medium text-slate-900 truncate text-sm">{player.name}</p>
                     {player.isYou && <Badge className="text-xs bg-sky-100 text-sky-700 border-sky-200">Vous</Badge>}
                   </div>
-                  <p className="text-xs text-slate-500 truncate">{(player as any).address ?? ""}</p>
+                  <p className="text-xs text-slate-500 truncate">{"address" in player ? (player.address ?? "") : ""}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <div className="flex items-center gap-1 justify-end">
@@ -172,8 +184,8 @@ export default function CompetitorsPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {(() => {
-              const avgCompetitorRating = competitors.reduce((s: number, c: any) => s + c.rating, 0) / competitors.length
-              const avgCompetitorReviews = Math.round(competitors.reduce((s: number, c: any) => s + c.reviewCount, 0) / competitors.length)
+              const avgCompetitorRating = competitors.reduce((s, c) => s + c.rating, 0) / competitors.length
+              const avgCompetitorReviews = Math.round(competitors.reduce((s, c) => s + c.reviewCount, 0) / competitors.length)
               const insights = []
 
               if ((business?.rating ?? 0) > avgCompetitorRating) {
