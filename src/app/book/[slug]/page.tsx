@@ -825,6 +825,18 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         {/* ── Right content ─────────────────────────────────────────────────────── */}
         <main className="flex-1 px-4 lg:px-12 pt-8 pb-32 lg:pb-16">
 
+          {/* Mobile-only: cover + description (hidden on desktop where sidebar shows them) */}
+          {stepIdx === 0 && (displayCover || displayDescription) && (
+            <div className="lg:hidden mb-6">
+              {displayCover && (
+                <img src={displayCover} className="w-full h-40 rounded-2xl object-cover mb-4" alt="" />
+              )}
+              {displayDescription && (
+                <p className="text-sm leading-relaxed" style={{ color: T.textBody }}>{displayDescription}</p>
+              )}
+            </div>
+          )}
+
           {/* ── STEP: Service ────────────────────────────────────────────────────── */}
           {step === "service" && !isRestaurant && (
             <div key="service" className="animate-in fade-in slide-in-from-right-4 duration-300">

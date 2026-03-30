@@ -50,6 +50,27 @@ const SECTIONS = [
   { id: "legal",       label: "Mentions",    icon: FileText },
 ] as const
 
+function SectionAccordion({ id, label, icon: Icon, openSection, setOpenSection, children }: {
+  id: string; label: string; icon: React.ElementType
+  openSection: string; setOpenSection: (s: string) => void
+  children: React.ReactNode
+}) {
+  const isOpen = openSection === id
+  return (
+    <div className="border-b border-slate-100 last:border-0">
+      <button
+        onClick={() => setOpenSection(isOpen ? "" : id)}
+        className="w-full flex items-center gap-2.5 px-5 py-3.5 text-left hover:bg-slate-50 transition-colors"
+      >
+        <Icon className="w-4 h-4 text-slate-400 flex-shrink-0" />
+        <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex-1">{label}</span>
+        {isOpen ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
+      </button>
+      {isOpen && <div className="px-5 pb-5 space-y-4">{children}</div>}
+    </div>
+  )
+}
+
 export default function PersonnalisationPage() {
   const searchParams = useSearchParams()
   const bizParam = searchParams.get("biz") ? `?biz=${searchParams.get("biz")}` : ""
@@ -233,23 +254,6 @@ export default function PersonnalisationPage() {
     return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
   })
 
-  function Section({ id, label, icon: Icon, children }: { id: string; label: string; icon: React.ElementType; children: React.ReactNode }) {
-    const isOpen = openSection === id
-    return (
-      <div className="border-b border-slate-100 last:border-0">
-        <button
-          onClick={() => setOpenSection(isOpen ? "" : id)}
-          className="w-full flex items-center gap-2.5 px-5 py-3.5 text-left hover:bg-slate-50 transition-colors"
-        >
-          <Icon className="w-4 h-4 text-slate-400 flex-shrink-0" />
-          <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex-1">{label}</span>
-          {isOpen ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
-        </button>
-        {isOpen && <div className="px-5 pb-5 space-y-4">{children}</div>}
-      </div>
-    )
-  }
-
   return (
     <div className="fixed inset-0 lg:left-64 top-16 flex flex-col bg-slate-100 z-10">
 
@@ -290,7 +294,7 @@ export default function PersonnalisationPage() {
         <div className="w-80 flex-shrink-0 bg-white border-r border-slate-200 overflow-y-auto">
 
           {/* ─ Theme ─ */}
-          <Section id="theme" label="Theme" icon={Tag}>
+          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="theme" label="Theme" icon={Tag}>
             <div className="grid grid-cols-2 gap-2">
               {THEMES.map(theme => {
                 const sel = state.pageTheme === theme.key
@@ -310,10 +314,10 @@ export default function PersonnalisationPage() {
                 )
               })}
             </div>
-          </Section>
+          </SectionAccordion>
 
           {/* ─ Couleurs ─ */}
-          <Section id="colors" label="Couleur principale" icon={Tag}>
+          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="colors" label="Couleur principale" icon={Tag}>
             <div className="flex items-center gap-3">
               <input type="color" value={activePrimary}
                 onChange={e => update("pageAccentColor", e.target.value)}
@@ -353,10 +357,10 @@ export default function PersonnalisationPage() {
                 <div className="h-7 rounded-lg w-full" style={{ background: activePrimary, opacity: 0.9 }} />
               </div>
             </div>
-          </Section>
+          </SectionAccordion>
 
           {/* ─ Identite (logo, tagline, description) ─ */}
-          <Section id="identity" label="Identite" icon={Type}>
+          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="identity" label="Identite" icon={Type}>
             {/* Logo */}
             <div>
               <p className="text-xs font-medium text-slate-500 mb-2">Logo</p>
@@ -399,10 +403,10 @@ export default function PersonnalisationPage() {
                 className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none" />
               <p className="text-xs text-slate-400 mt-1">Visible dans la sidebar sous l&apos;accroche</p>
             </div>
-          </Section>
+          </SectionAccordion>
 
           {/* ─ Banniere / Cover ─ */}
-          <Section id="cover" label="Banniere" icon={Image}>
+          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="cover" label="Banniere" icon={Image}>
             {state.pageCoverDataUrl ? (
               <div className="space-y-3">
                 <img src={state.pageCoverDataUrl} className="w-full h-24 rounded-xl object-cover border border-slate-200" alt="cover" />
@@ -425,10 +429,10 @@ export default function PersonnalisationPage() {
               </label>
             )}
             <p className="text-xs text-slate-400">Affichee en haut de la sidebar sur desktop</p>
-          </Section>
+          </SectionAccordion>
 
           {/* ─ Labels custom ─ */}
-          <Section id="labels" label="Labels des etapes" icon={Type}>
+          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="labels" label="Labels des etapes" icon={Type}>
             <p className="text-xs text-slate-400 mb-2">Personnalisez le texte des titres de chaque etape. Laissez vide pour le texte par defaut.</p>
             {Object.entries(DEFAULT_LABELS).map(([key, placeholder]) => (
               <div key={key}>
@@ -441,10 +445,10 @@ export default function PersonnalisationPage() {
                 />
               </div>
             ))}
-          </Section>
+          </SectionAccordion>
 
           {/* ─ Ordre des services ─ */}
-          <Section id="services" label="Ordre des services" icon={ListOrdered}>
+          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="services" label="Ordre des services" icon={ListOrdered}>
             {orderedSvcs.length === 0 ? (
               <p className="text-xs text-slate-400">Aucun service actif</p>
             ) : (
@@ -471,10 +475,10 @@ export default function PersonnalisationPage() {
                 <X className="w-3 h-3" /> Reinitialiser l&apos;ordre
               </button>
             )}
-          </Section>
+          </SectionAccordion>
 
           {/* ─ Horaires ─ */}
-          <Section id="hours" label="Afficher les horaires" icon={Clock}>
+          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="hours" label="Afficher les horaires" icon={Clock}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-700 font-medium">Horaires dans la sidebar</p>
@@ -490,10 +494,10 @@ export default function PersonnalisationPage() {
             {state.pageShowHours && (
               <p className="text-xs text-slate-400">Les horaires proviennent de votre <a href="/services" className="text-sky-500 hover:underline">Configuration</a>.</p>
             )}
-          </Section>
+          </SectionAccordion>
 
           {/* ─ Mentions legales ─ */}
-          <Section id="legal" label="Mentions legales" icon={FileText}>
+          <SectionAccordion openSection={openSection} setOpenSection={setOpenSection} id="legal" label="Mentions legales" icon={FileText}>
             <textarea
               value={state.pageLegalText ?? ""}
               onChange={e => update("pageLegalText", e.target.value || null)}
@@ -502,7 +506,7 @@ export default function PersonnalisationPage() {
               className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
             />
             <p className="text-xs text-slate-400">Affiche en bas de la sidebar de reservation</p>
-          </Section>
+          </SectionAccordion>
         </div>
 
         {/* Right iframe */}
