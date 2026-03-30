@@ -17,7 +17,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const booking = await prisma.booking.findFirst({
     where: { id },
     include: {
-      business: { select: { userId: true, name: true, bookingType: true, user: { select: { email: true } } } },
+      business: {
+        select: {
+          userId: true, name: true, bookingType: true,
+          user: { select: { email: true } },
+          emailHeaderUrl: true, emailBgColor: true, emailButtonColor: true,
+          emailGreeting: true, emailFooterMessage: true, emailSenderName: true,
+        },
+      },
       service: { select: { name: true, duration: true, price: true } },
     },
   })
@@ -79,6 +86,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     dashboardUrl,
   }
 
+  const branding = {
+    emailHeaderUrl: booking.business.emailHeaderUrl,
+    emailBgColor: booking.business.emailBgColor,
+    emailButtonColor: booking.business.emailButtonColor,
+    emailGreeting: booking.business.emailGreeting,
+    emailFooterMessage: booking.business.emailFooterMessage,
+    emailSenderName: booking.business.emailSenderName,
+  }
+
   if (status === "CONFIRMED") {
     // Mail client
     sendBookingConfirmedClient({
@@ -93,6 +109,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       cancelUrl,
       isRestaurant,
       partySize: booking.partySize,
+      branding,
     }).catch(console.error)
     // Mail proprio
     if (ownerEmail) {
@@ -109,6 +126,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       serviceName,
       date: dateLabel,
       timeSlot: effectiveTimeSlot,
+      branding,
     }).catch(console.error)
     // Mail proprio
     if (ownerEmail) {

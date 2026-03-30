@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { LayoutDashboard, MessageSquare, Settings, CreditCard, ChevronRight, Building2, Plus, ChevronDown, TrendingUp, Users, Search, QrCode, Sparkles, Gift, CalendarDays, Scissors, LayoutGrid, UserRound, ShieldCheck, UsersRound, Palette } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Settings, CreditCard, ChevronRight, Building2, Plus, ChevronDown, TrendingUp, Users, Search, QrCode, Sparkles, Gift, CalendarDays, Scissors, LayoutGrid, UserRound, ShieldCheck, UsersRound, Palette, Mail } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import { useSession } from "next-auth/react"
@@ -23,6 +23,7 @@ const navItems = [
   { href: "/equipe", label: "Équipe", icon: UsersRound },
   { href: "/services", label: "Configuration", icon: Scissors },
   { href: "/personnalisation", label: "Apparence", icon: Palette },
+  { href: "/emails", label: "Emails clients", icon: Mail },
   { href: "/settings", label: "Paramètres", icon: Settings },
 ]
 

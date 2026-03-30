@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp:*)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''mcpServers'''', {}\\), indent=2\\)\\)\")",
+      "Bash(npm --version)",
+      "Bash(npx --version)",
+      "Bash(python3 -c \"from PIL import Image; print\\(''ok''\\)\")",
+      "Bash(npx prisma:*)",
+      "Bash(cat /c/Users/yamy/Desktop/SAASS-google-maps/src/app/\\\\\\(app\\\\\\)/settings/page.tsx)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(wc -l src/app/\\\\\\(app\\\\\\)/bookings/page.tsx src/app/\\\\\\(app\\\\\\)/agenda/page.tsx src/app/\\\\\\(app\\\\\\)/services/page.tsx)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(head -30 src/app/\\\\\\(app\\\\\\)/equipe/page.tsx)",
+      "Bash(head -30 src/app/\\\\\\(app\\\\\\)/personnalisation/page.tsx)",
+      "WebFetch(domain:context7.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(find c:UsersyamyDesktopSAASS-google-maps -name .env* -type f)",
+      "Bash(find \"c:\\\\Users\\\\yamy\\\\Desktop\\\\SAASS-google-maps\\\\src\\\\app\\\\\\(app\\)\" -name \"page.tsx\" -type f)",
+      "Bash(find \"c:\\\\Users\\\\yamy\\\\Desktop\\\\SAASS-google-maps\\\\src\\\\app\\\\\\(auth\\)\" -name \"page.tsx\" -type f)",
+      "Bash(grep -l \"CRON_SECRET\" /c/Users/yamy/Desktop/SAASS-google-maps/src/app/api/cron/*.ts)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -L \"getServerSession\\\\|CRON_SECRET\\\\|crypto.randomUUID\" /c/Users/yamy/Desktop/SAASS-google-maps/src/app/api/**/route.ts)"
+    ]
+  }
+}

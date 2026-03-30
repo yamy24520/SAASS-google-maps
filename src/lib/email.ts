@@ -467,23 +467,24 @@ export async function sendBookingRequestClient(params: {
   clientEmail: string; clientName: string; businessName: string
   serviceName: string; date: string; timeSlot: string; duration: number; price: number
   cancelUrl?: string; portalUrl?: string; isRestaurant?: boolean; partySize?: number | null
+  branding?: EmailBranding
 }) {
+  const b = params.branding ?? {}
+  const greeting = b.emailGreeting || `Votre demande ${params.isRestaurant ? "de table" : "de rendez-vous"} a bien été reçue. Vous recevrez une confirmation dès validation par l'établissement.`
+  const btn = b.emailButtonColor || DEFAULT_BUTTON
   await getResend().emails.send({
-    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    from: b.emailSenderName ? `${b.emailSenderName} <alertes@reputix.net>` : (process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>"),
     to: params.clientEmail,
     subject: `Demande de réservation reçue — ${params.businessName}`,
     html: emailShell(params.businessName, "Réservation reçue", "En attente de confirmation", "#f59e0b", `
       <p style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#1A1714;margin:0 0 6px;">
         Bonjour <strong>${params.clientName}</strong>,
       </p>
-      <p style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#6B6358;margin:0;">
-        Votre demande ${params.isRestaurant ? "de table" : "de rendez-vous"} a bien été reçue.
-        Vous recevrez une confirmation dès validation par l'établissement.
-      </p>
+      <p style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#6B6358;margin:0;">${greeting}</p>
       ${bookingInfoBlock(params)}
-      ${params.portalUrl ? ctaButton("Gérer mes réservations", params.portalUrl, "#f59e0b") : ""}
-      ${params.cancelUrl ? ctaButton("Annuler cette réservation", params.cancelUrl, "#f59e0b", "secondary") : ""}
-    `),
+      ${params.portalUrl ? ctaButton("Gérer mes réservations", params.portalUrl, btn, "primary", btn) : ""}
+      ${params.cancelUrl ? ctaButton("Annuler cette réservation", params.cancelUrl, btn, "secondary") : ""}
+    `, b),
   })
 }
 
@@ -491,9 +492,12 @@ export async function sendBookingConfirmedClient(params: {
   clientEmail: string; clientName: string; businessName: string
   serviceName: string; date: string; timeSlot: string; duration: number; price: number
   cancelUrl?: string; isRestaurant?: boolean; partySize?: number | null
+  branding?: EmailBranding
 }) {
+  const b = params.branding ?? {}
+  const btn = b.emailButtonColor || DEFAULT_BUTTON
   await getResend().emails.send({
-    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    from: b.emailSenderName ? `${b.emailSenderName} <alertes@reputix.net>` : (process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>"),
     to: params.clientEmail,
     subject: `Réservation confirmée — ${params.businessName}`,
     html: emailShell(params.businessName, "C'est confirmé.", "Votre réservation", "#10b981", `
@@ -507,8 +511,8 @@ export async function sendBookingConfirmedClient(params: {
       <p style="font-family:sans-serif;font-size:12px;color:#9C9589;text-align:center;margin:20px 0 0;">
         En cas d'empêchement, merci de prévenir l'établissement.
       </p>
-      ${params.cancelUrl ? ctaButton("Annuler ma réservation", params.cancelUrl, "#10b981", "secondary") : ""}
-    `),
+      ${params.cancelUrl ? ctaButton("Annuler ma réservation", params.cancelUrl, btn, "secondary") : ""}
+    `, b),
   })
 }
 
@@ -516,9 +520,12 @@ export async function sendBookingReminderClient(params: {
   clientEmail: string; clientName: string; businessName: string
   serviceName: string; date: string; timeSlot: string; duration: number; price: number
   cancelUrl?: string; isRestaurant?: boolean; partySize?: number | null
+  branding?: EmailBranding
 }) {
+  const b = params.branding ?? {}
+  const btn = b.emailButtonColor || DEFAULT_BUTTON
   await getResend().emails.send({
-    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    from: b.emailSenderName ? `${b.emailSenderName} <alertes@reputix.net>` : (process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>"),
     to: params.clientEmail,
     subject: `Rappel — Votre rendez-vous demain chez ${params.businessName}`,
     html: emailShell(params.businessName, "C'est demain.", "Rappel de réservation", "#f59e0b", `
@@ -532,17 +539,19 @@ export async function sendBookingReminderClient(params: {
       <p style="font-family:sans-serif;font-size:12px;color:#9C9589;text-align:center;margin:20px 0 0;">
         En cas d'empêchement, merci de prévenir l'établissement le plus tôt possible.
       </p>
-      ${params.cancelUrl ? ctaButton("Annuler ma réservation", params.cancelUrl, "#f59e0b", "secondary") : ""}
-    `),
+      ${params.cancelUrl ? ctaButton("Annuler ma réservation", params.cancelUrl, btn, "secondary") : ""}
+    `, b),
   })
 }
 
 export async function sendBookingCancelledClient(params: {
   clientEmail: string; clientName: string; businessName: string
   serviceName: string; date: string; timeSlot: string
+  branding?: EmailBranding
 }) {
+  const b = params.branding ?? {}
   await getResend().emails.send({
-    from: process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>",
+    from: b.emailSenderName ? `${b.emailSenderName} <alertes@reputix.net>` : (process.env.EMAIL_FROM ?? "Reputix <alertes@reputix.net>"),
     to: params.clientEmail,
     subject: `Réservation annulée — ${params.businessName}`,
     html: emailShell(params.businessName, "Réservation annulée.", "Annulation", "#ef4444", `
@@ -553,7 +562,7 @@ export async function sendBookingCancelledClient(params: {
         Votre réservation du <strong style="color:#1A1714;">${params.date} à ${params.timeSlot}</strong> a été annulée.
         N'hésitez pas à reprendre rendez-vous quand vous le souhaitez.
       </p>
-    `),
+    `, b),
   })
 }
 

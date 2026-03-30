@@ -62,7 +62,12 @@ export async function POST(req: NextRequest) {
 
   const business = await prisma.business.findUnique({
     where: { id: resolvedBusinessId },
-    select: { id: true, name: true, bookingType: true, bookingMaxCovers: true, user: { select: { id: true, email: true } } },
+    select: {
+      id: true, name: true, bookingType: true, bookingMaxCovers: true,
+      user: { select: { id: true, email: true } },
+      emailHeaderUrl: true, emailBgColor: true, emailButtonColor: true,
+      emailGreeting: true, emailFooterMessage: true, emailSenderName: true,
+    },
   })
   if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
   const businessId2 = business.id
@@ -230,6 +235,14 @@ export async function POST(req: NextRequest) {
     portalUrl,
     isRestaurant,
     partySize: partySize ?? null,
+    branding: {
+      emailHeaderUrl: business.emailHeaderUrl,
+      emailBgColor: business.emailBgColor,
+      emailButtonColor: business.emailButtonColor,
+      emailGreeting: business.emailGreeting,
+      emailFooterMessage: business.emailFooterMessage,
+      emailSenderName: business.emailSenderName,
+    },
   }
 
   // Notifications push au propriétaire
