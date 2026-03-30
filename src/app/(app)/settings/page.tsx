@@ -286,7 +286,6 @@ export default function SettingsPage() {
                         <div style={{ height: "50%", background: theme.pageBg, border: `1px solid #e2e8f0` }} />
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className="text-sm">{theme.emoji}</span>
                         <span className="text-xs font-medium text-slate-700">{theme.label}</span>
                         {isSelected && (
                           <svg className="w-3.5 h-3.5 ml-0.5" viewBox="0 0 16 16" fill="none">
