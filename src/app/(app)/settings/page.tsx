@@ -41,6 +41,7 @@ interface Business {
   logoDataUrl: string | null
   pageTheme: string
   pageTagline: string | null
+  pageAccentColor: string | null
   id?: string
 }
 
@@ -83,6 +84,7 @@ export default function SettingsPage() {
     logoDataUrl: null,
     pageTheme: "dark",
     pageTagline: null,
+    pageAccentColor: null,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -296,6 +298,41 @@ export default function SettingsPage() {
                     </button>
                   )
                 })}
+              </div>
+
+              {/* Accroche */}
+              <div className="mt-5 space-y-1.5">
+                <label className="text-sm font-medium text-slate-900 block">Accroche <span className="text-slate-400 font-normal">(optionnelle)</span></label>
+                <input
+                  value={form.pageTagline ?? ""}
+                  onChange={e => setForm({ ...form, pageTagline: e.target.value || null })}
+                  placeholder="Ex : Votre coiffeur de confiance à Paris"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+                <p className="text-xs text-slate-400">Affichée sous votre nom sur la page de réservation</p>
+              </div>
+
+              {/* Couleur personnalisée */}
+              <div className="mt-4 space-y-1.5">
+                <label className="text-sm font-medium text-slate-900 block">Couleur principale <span className="text-slate-400 font-normal">(remplace celle du thème)</span></label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={form.pageAccentColor ?? "#0ea5e9"}
+                    onChange={e => setForm({ ...form, pageAccentColor: e.target.value })}
+                    className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5"
+                  />
+                  <span className="text-sm text-slate-500 font-mono">{form.pageAccentColor ?? "Couleur du thème"}</span>
+                  {form.pageAccentColor && (
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, pageAccentColor: null })}
+                      className="text-xs text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      Réinitialiser
+                    </button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

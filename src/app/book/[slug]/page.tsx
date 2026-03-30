@@ -10,7 +10,8 @@ interface Service { id: string; name: string; description: string | null; durati
 interface Staff   { id: string; name: string; color: string }
 interface BusinessInfo {
   businessId: string; businessName: string; logoDataUrl: string | null
-  pageTheme: string; maxDaysAhead: number; bookingType: string; bookingMaxCovers: number | null
+  pageTheme: string; pageTagline: string | null; pageAccentColor: string | null
+  maxDaysAhead: number; bookingType: string; bookingMaxCovers: number | null
   paymentEnabled: boolean; depositType: string; depositValue: number; stripeReady: boolean
 }
 
@@ -81,29 +82,29 @@ const THEMES: Record<ThemeKey, ThemeConfig> = {
     badgeTextColor: "#0369a1",
   },
   hello_kitty: {
-    pageBg: "#fff0f6",
-    sidebarBg: "#fff5f9",
-    sidebarBorder: "#fce7f3",
-    cardBg: "#ffffff",
-    cardBorder: "#fce7f3",
-    primary: "#f472b6",
-    primaryHover: "#ec4899",
+    pageBg: "#fce4ec",
+    sidebarBg: "#fce4ec",
+    sidebarBorder: "#f48fb1",
+    cardBg: "#fff0f6",
+    cardBorder: "#f48fb1",
+    primary: "#e91e8c",
+    primaryHover: "#c2185b",
     primaryText: "#ffffff",
-    primaryShadow: "rgba(244,114,182,0.30)",
-    textHeading: "#831843",
-    textBody: "#9d174d",
-    textMuted: "#f9a8d4",
-    inputBorder: "#fce7f3",
-    inputFocusBorder: "#f472b6",
-    inputBg: "#fff5f9",
-    stepDone: "#f472b6",
-    stepActive: "#f472b6",
-    stepFuture: "#fce7f3",
+    primaryShadow: "rgba(233,30,140,0.35)",
+    textHeading: "#880e4f",
+    textBody: "#ad1457",
+    textMuted: "#f48fb1",
+    inputBorder: "#f48fb1",
+    inputFocusBorder: "#e91e8c",
+    inputBg: "#fce4ec",
+    stepDone: "#e91e8c",
+    stepActive: "#e91e8c",
+    stepFuture: "#f8bbd0",
     accentEmoji: "🎀",
     fontStyle: "Kawaii",
     badgeText: "Hello Kitty",
-    badgeBg: "#fce7f3",
-    badgeTextColor: "#be185d",
+    badgeBg: "#f8bbd0",
+    badgeTextColor: "#880e4f",
   },
   barber: {
     pageBg: "#0f172a",
@@ -414,7 +415,9 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         businessId: pageData.businessId,
         businessName: pageData.businessName,
         logoDataUrl: pageData.logoDataUrl,
-        pageTheme: pageData.pageTheme,
+        pageTheme: pageData.pageTheme ?? "default",
+        pageTagline: pageData.pageTagline ?? null,
+        pageAccentColor: pageData.pageAccentColor ?? null,
         maxDaysAhead,
         bookingType: bookData.bookingType ?? "appointment",
         bookingMaxCovers: bookData.bookingMaxCovers ?? null,
@@ -520,7 +523,17 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   // ── Theme resolution ──────────────────────────────────────────────────────────
 
   const themeKey = (info?.pageTheme ?? "default") as ThemeKey
-  const T = THEMES[themeKey] ?? THEMES.default
+  const baseTheme = THEMES[themeKey] ?? THEMES.default
+  // Apply custom accent color override from settings
+  const effectivePrimary = info?.pageAccentColor ?? baseTheme.primary
+  const T: ThemeConfig = {
+    ...baseTheme,
+    primary: effectivePrimary,
+    primaryHover: effectivePrimary,
+    inputFocusBorder: effectivePrimary,
+    stepDone: effectivePrimary,
+    stepActive: effectivePrimary,
+  }
 
   // ── Derived state ─────────────────────────────────────────────────────────────
 
@@ -683,16 +696,10 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         >
           {/* Business identity */}
           <div className="mb-8">
-            {/* Theme badge */}
-            <div className="mb-4 flex items-center gap-2">
-              <span className="text-lg">{T.accentEmoji}</span>
-              <span
-                className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                style={{ background: T.badgeBg, color: T.badgeTextColor }}
-              >
-                {T.badgeText}
-              </span>
-            </div>
+            {/* Accent emoji only — no badge text */}
+            {T.accentEmoji && (
+              <div className="mb-4 text-2xl">{T.accentEmoji}</div>
+            )}
             {info?.logoDataUrl ? (
               <img src={info.logoDataUrl} className="w-16 h-16 rounded-2xl object-cover shadow-md mb-4" alt="" />
             ) : (
@@ -704,6 +711,9 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               </div>
             )}
             <h1 className="text-2xl font-bold leading-tight" style={{ color: T.textHeading }}>{info?.businessName}</h1>
+            {info?.pageTagline && (
+              <p className="text-sm mt-1 leading-snug" style={{ color: T.textMuted }}>{info.pageTagline}</p>
+            )}
             <div className="flex items-center gap-1.5 mt-2">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs font-semibold text-emerald-600">En ligne</span>

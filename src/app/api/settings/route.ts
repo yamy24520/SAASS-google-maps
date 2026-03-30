@@ -32,6 +32,7 @@ const schema = z.object({
   logoDataUrl: z.string().nullable().optional(),
   pageTheme: z.string().optional(),
   pageTagline: z.string().nullable().optional(),
+  pageAccentColor: z.string().nullable().optional(),
 })
 
 async function getBusinessForUser(userId: string, bizId: string | null) {

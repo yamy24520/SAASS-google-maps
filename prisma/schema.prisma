@@ -118,6 +118,7 @@ model Business {
   logoDataUrl          String? @db.Text
   pageTheme            String  @default("dark")
   pageTagline          String?
+  pageAccentColor      String?
   pageSlug             String? @unique
   pageConfig           Json?
 
