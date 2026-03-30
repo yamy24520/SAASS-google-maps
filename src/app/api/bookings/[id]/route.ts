@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         select: {
           userId: true, name: true, bookingType: true,
           user: { select: { email: true } },
-          emailHeaderUrl: true, emailBgColor: true, emailButtonColor: true,
+          emailHeaderUrl: true, emailHeaderHeight: true, emailBgColor: true, emailButtonColor: true,
           emailGreeting: true, emailFooterMessage: true, emailSenderName: true,
         },
       },
@@ -88,6 +88,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const branding = {
     emailHeaderUrl: booking.business.emailHeaderUrl,
+    emailHeaderHeight: booking.business.emailHeaderHeight,
     emailBgColor: booking.business.emailBgColor,
     emailButtonColor: booking.business.emailButtonColor,
     emailGreeting: booking.business.emailGreeting,

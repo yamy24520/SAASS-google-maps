@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     select: {
       id: true, name: true, bookingType: true, bookingMaxCovers: true,
       user: { select: { id: true, email: true } },
-      emailHeaderUrl: true, emailBgColor: true, emailButtonColor: true,
+      emailHeaderUrl: true, emailHeaderHeight: true, emailBgColor: true, emailButtonColor: true,
       emailGreeting: true, emailFooterMessage: true, emailSenderName: true,
     },
   })
@@ -237,6 +237,7 @@ export async function POST(req: NextRequest) {
     partySize: partySize ?? null,
     branding: {
       emailHeaderUrl: business.emailHeaderUrl,
+      emailHeaderHeight: business.emailHeaderHeight,
       emailBgColor: business.emailBgColor,
       emailButtonColor: business.emailButtonColor,
       emailGreeting: business.emailGreeting,

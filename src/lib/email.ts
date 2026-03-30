@@ -257,6 +257,7 @@ function clientInfoBlock(name: string, email: string, phone?: string | null, not
 
 export type EmailBranding = {
   emailHeaderUrl?: string | null
+  emailHeaderHeight?: number | null
   emailBgColor?: string | null
   emailButtonColor?: string | null
   emailGreeting?: string | null
@@ -312,7 +313,7 @@ function emailShell(bizName: string, headline: string, subline: string, _accentC
               ${headerUrl ? `<!-- Header illustration -->
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr><td style="padding:0;line-height:0;font-size:0;">
-                  <img src="${headerUrl}" width="560" height="auto" alt="" style="display:block;width:100%;height:auto;max-width:560px;" />
+                  <img src="${headerUrl}" width="560" alt="" style="display:block;width:100%;height:${branding.emailHeaderHeight ? `${branding.emailHeaderHeight}px` : "auto"};max-width:560px;${branding.emailHeaderHeight ? "object-fit:cover;" : ""}" />
                 </td></tr>
               </table>` : ""}
 

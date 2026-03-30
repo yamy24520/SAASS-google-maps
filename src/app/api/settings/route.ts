@@ -42,6 +42,7 @@ const schema = z.object({
   pageServiceOrder: z.array(z.string()).nullable().optional(),
   pageShowHours: z.boolean().optional(),
   emailHeaderUrl: z.string().nullable().optional(),
+  emailHeaderHeight: z.number().min(60).max(500).nullable().optional(),
   emailAccentColor: z.string().nullable().optional(),
   emailButtonColor: z.string().nullable().optional(),
   emailBgColor: z.string().nullable().optional(),

@@ -12,6 +12,7 @@ const DEFAULT_BUTTON = "#1A1714"
 
 interface EmailSettings {
   emailHeaderUrl: string | null
+  emailHeaderHeight: number | null
   emailBgColor: string | null
   emailButtonColor: string | null
   emailGreeting: string | null
@@ -24,6 +25,7 @@ function buildPreviewHtml(settings: EmailSettings) {
   const bg = settings.emailBgColor || DEFAULT_BG
   const btn = settings.emailButtonColor || DEFAULT_BUTTON
   const headerUrl = settings.emailHeaderUrl !== undefined ? settings.emailHeaderUrl : DEFAULT_HEADER
+  const headerHeight = settings.emailHeaderHeight
   const footerMsg = settings.emailFooterMessage || `Cet email vous a été envoyé suite à votre réservation chez <strong>${settings.name || "votre établissement"}</strong>.`
   const greeting = settings.emailGreeting || `Votre demande de rendez-vous a bien été reçue. Vous recevrez une confirmation dès validation par l'établissement.`
   const bizName = settings.name || "Mon Établissement"
@@ -43,7 +45,7 @@ function buildPreviewHtml(settings: EmailSettings) {
                 <span style="font-family:sans-serif;font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#F5F2EA;">${bizName}</span>
               </td></tr>
             </table>
-            ${headerUrl ? `<img src="${headerUrl}" width="560" style="display:block;width:100%;height:auto;" alt=""/>` : ""}
+            ${headerUrl ? `<img src="${headerUrl}" width="560" alt="" style="display:block;width:100%;height:${headerHeight ? `${headerHeight}px` : "auto"};${headerHeight ? "object-fit:cover;" : ""}"/>` : ""}
             <!-- Hero -->
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr><td style="padding:${headerUrl ? "32px" : "40px"} 40px 8px;">
@@ -94,6 +96,7 @@ function EmailsPageInner() {
 
   const [settings, setSettings] = useState<EmailSettings>({
     emailHeaderUrl: null,
+    emailHeaderHeight: null,
     emailBgColor: null,
     emailButtonColor: null,
     emailGreeting: null,
@@ -113,6 +116,7 @@ function EmailsPageInner() {
         if (d.business) {
           setSettings({
             emailHeaderUrl: d.business.emailHeaderUrl ?? null,
+            emailHeaderHeight: d.business.emailHeaderHeight ?? null,
             emailBgColor: d.business.emailBgColor ?? null,
             emailButtonColor: d.business.emailButtonColor ?? null,
             emailGreeting: d.business.emailGreeting ?? null,
@@ -146,6 +150,7 @@ function EmailsPageInner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           emailHeaderUrl: settings.emailHeaderUrl,
+          emailHeaderHeight: settings.emailHeaderHeight,
           emailBgColor: settings.emailBgColor,
           emailButtonColor: settings.emailButtonColor,
           emailGreeting: settings.emailGreeting,
@@ -166,6 +171,7 @@ function EmailsPageInner() {
     setSettings(s => ({
       ...s,
       emailHeaderUrl: null,
+      emailHeaderHeight: null,
       emailBgColor: null,
       emailButtonColor: null,
       emailGreeting: null,
@@ -237,6 +243,38 @@ function EmailsPageInner() {
                 Supprimer l'image
               </button>
             </div>
+
+            {(settings.emailHeaderUrl || settings.emailHeaderUrl === null) && (
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium text-slate-600">Hauteur de l'image</label>
+                  <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                    {settings.emailHeaderHeight ? `${settings.emailHeaderHeight}px` : "Auto"}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={80}
+                  max={480}
+                  step={10}
+                  value={settings.emailHeaderHeight ?? 220}
+                  onChange={e => setSettings(s => ({ ...s, emailHeaderHeight: Number(e.target.value) }))}
+                  className="w-full accent-slate-900"
+                />
+                <div className="flex justify-between text-xs text-slate-400 mt-1">
+                  <span>Petite (80px)</span>
+                  <span>Grande (480px)</span>
+                </div>
+                {settings.emailHeaderHeight && (
+                  <button
+                    onClick={() => setSettings(s => ({ ...s, emailHeaderHeight: null }))}
+                    className="text-xs text-slate-400 hover:text-slate-600 underline mt-1"
+                  >
+                    Réinitialiser (auto)
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Couleurs */}

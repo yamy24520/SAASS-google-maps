@@ -165,6 +165,7 @@ model Business {
 
   // Email customization
   emailHeaderUrl       String?
+  emailHeaderHeight    Int?
   emailAccentColor     String?
   emailButtonColor     String?
   emailBgColor         String?
