@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
-import { Plus, Trash2, Pencil, Check, X, Calendar, Copy, ChevronDown, ChevronUp } from "lucide-react"
+import { Plus, Trash2, Pencil, Check, X, Calendar, Copy, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Star } from "lucide-react"
 import { toast } from "@/components/ui/toaster"
 
 interface Staff {
@@ -59,6 +59,9 @@ export default function EquipePage() {
   const [loading, setLoading]       = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [copiedId, setCopiedId]     = useState<string | null>(null)
+  const [tab, setTab]               = useState<"equipe" | "stats">("equipe")
+  const [statsData, setStatsData]   = useState<any[]>([])
+  const [loadingStats, setLoadingStats] = useState(false)
 
   // Add form
   const [newName, setNewName]   = useState("")
@@ -97,6 +100,18 @@ export default function EquipePage() {
   }, [bizParam, APP_URL])
 
   useEffect(() => { fetchAll() }, [fetchAll])
+
+  async function fetchStats() {
+    setLoadingStats(true)
+    const res = await fetch(`/api/staff/stats${bizParam}`)
+    const data = await res.json()
+    setStatsData(data.stats ?? [])
+    setLoadingStats(false)
+  }
+
+  useEffect(() => {
+    if (tab === "stats") fetchStats()
+  }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function addStaff() {
     if (!newName.trim()) return
@@ -197,11 +212,112 @@ export default function EquipePage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Équipe</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Gérez vos employés, leurs absences et leur sync calendrier</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Équipe</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Gérez vos employés, leurs absences et leur sync calendrier</p>
+        </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+        {([["equipe", "Équipe"], ["stats", "Statistiques"]] as const).map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${tab === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
+            {key === "stats" && <TrendingUp className="w-3.5 h-3.5" />}
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Stats view ── */}
+      {tab === "stats" && (
+        <div className="space-y-4">
+          {loadingStats ? (
+            <div className="space-y-3 animate-pulse">
+              {[...Array(3)].map((_, i) => <div key={i} className="h-28 rounded-2xl bg-slate-200" />)}
+            </div>
+          ) : statsData.length === 0 ? (
+            <div className="text-center py-16 rounded-2xl border border-dashed border-slate-200">
+              <TrendingUp className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-500 text-sm">Aucune donnée disponible</p>
+              <p className="text-xs text-slate-400 mt-1">Les statistiques apparaissent dès les premières réservations</p>
+            </div>
+          ) : (
+            <>
+              {/* Top performer badge */}
+              {(() => {
+                const top = [...statsData].sort((a, b) => b.thisMonth.ca - a.thisMonth.ca)[0]
+                if (!top || top.thisMonth.ca === 0) return null
+                return (
+                  <div className="flex items-center gap-3 p-4 rounded-2xl border border-amber-200 bg-amber-50">
+                    <Star className="w-5 h-5 text-amber-500 fill-amber-400 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-amber-900 text-sm">Top performer ce mois</p>
+                      <p className="text-xs text-amber-700 mt-0.5">
+                        <span className="font-bold">{top.name}</span> — {top.thisMonth.ca.toFixed(0)} € · {top.thisMonth.confirmed} RDV confirmés
+                      </p>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {statsData.map((s) => {
+                const trend = s.thisMonth.ca - s.prevMonth.ca
+                const trendPct = s.prevMonth.ca > 0 ? Math.round((trend / s.prevMonth.ca) * 100) : null
+
+                return (
+                  <div key={s.id} className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+                    {/* Staff header */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                        style={{ background: s.color }}>
+                        {s.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-slate-900">{s.name}</p>
+                        <p className="text-xs text-slate-400">{s.allTime.total} RDV au total · {s.allTime.cancellationRate}% annulation</p>
+                      </div>
+                      {trendPct !== null && (
+                        <div className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${trend >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
+                          {trend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                          {trend >= 0 ? "+" : ""}{trendPct}%
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-slate-50 rounded-xl p-3 text-center">
+                        <p className="text-xl font-bold text-emerald-600">{s.thisMonth.ca.toFixed(0)} €</p>
+                        <p className="text-xs text-slate-500 mt-0.5">CA ce mois</p>
+                      </div>
+                      <div className="bg-slate-50 rounded-xl p-3 text-center">
+                        <p className="text-xl font-bold text-slate-900">{s.thisMonth.confirmed}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">RDV confirmés</p>
+                      </div>
+                      <div className="bg-slate-50 rounded-xl p-3 text-center">
+                        <p className="text-xl font-bold text-sky-600">{s.prevMonth.ca.toFixed(0)} €</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Mois précédent</p>
+                      </div>
+                    </div>
+
+                    {/* Top service */}
+                    {s.topService && (
+                      <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2">
+                        <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 flex-shrink-0" />
+                        <span>Service le plus demandé : <strong className="text-slate-700">{s.topService.name}</strong> ({s.topService.count}×)</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === "equipe" && <>
       {/* ── Staff list ───────────────────────────────────────────────────────── */}
       <div className="space-y-3">
         {staffs.length === 0 && (
@@ -412,6 +528,7 @@ export default function EquipePage() {
           <Plus className="w-4 h-4" /> Ajouter
         </button>
       </div>
+      </>}
     </div>
   )
 }

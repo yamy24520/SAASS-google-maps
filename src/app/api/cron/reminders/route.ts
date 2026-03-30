@@ -48,15 +48,24 @@ export async function GET(req: NextRequest) {
         cancelUrl: booking.cancelToken ? `${APP_URL}/cancel/${booking.cancelToken}` : undefined,
       })
 
-      // SMS si numéro disponible
-      if (booking.clientPhone) {
-        await sendBookingReminderSms({
-          to: booking.clientPhone,
-          clientName: booking.clientName,
-          businessName: booking.business.name,
-          date: dateLabel,
-          timeSlot: booking.timeSlot,
-        }).catch(() => null)
+      // SMS si numéro disponible ET opt-in ET pas encore envoyé
+      if (booking.clientPhone && booking.smsSentAt === null) {
+        const clientProfile = await prisma.clientProfile.findUnique({
+          where: { businessId_email: { businessId: booking.businessId, email: booking.clientEmail } },
+          select: { smsOptIn: true },
+        })
+        if (clientProfile?.smsOptIn) {
+          const smsSent = await sendBookingReminderSms({
+            to: booking.clientPhone,
+            clientName: booking.clientName,
+            businessName: booking.business.name,
+            date: dateLabel,
+            timeSlot: booking.timeSlot,
+          }).catch(() => false)
+          if (smsSent) {
+            await prisma.booking.update({ where: { id: booking.id }, data: { smsSentAt: new Date() } })
+          }
+        }
       }
 
       await prisma.booking.update({

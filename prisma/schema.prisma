@@ -159,6 +159,8 @@ model Business {
   reputationSnapshots  ReputationSnapshot[]
   competitors          Competitor[]
   reviewRequests       ReviewRequest[]
+  clientProfiles       ClientProfile[]
+  clientSessions       ClientSession[]
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -328,8 +330,9 @@ model Staff {
   calendarToken String?  @unique
   createdAt     DateTime @default(now())
 
-  bookings    Booking[]
-  absences    StaffAbsence[]
+  bookings        Booking[]
+  absences        StaffAbsence[]
+  clientProfiles  ClientProfile[]
 
   @@index([businessId])
 }
@@ -383,7 +386,8 @@ model Booking {
   notes       String?
   partySize   Int?
   cancelToken      String?   @unique
-  reminderSentAt   DateTime?
+  reminderSentAt    DateTime?
+  smsSentAt         DateTime?   // SMS rappel envoyé
   recurrenceGroupId String?
 
   // Paiement
@@ -440,6 +444,46 @@ enum PaymentStatus {
   PAID           // payé
   REFUNDED       // remboursé
   FAILED         // échec
+}
+
+// ─── CLIENT PROFILE ───────────────────────────────────────────────────────────
+
+model ClientProfile {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  email       String
+
+  notes       String?  @db.Text   // notes privées du pro
+  allergies   String?  @db.Text   // allergies déclarées
+  preferences String?  @db.Text   // préférences (coupe, couleur, etc.)
+  tags        Json?               // ["fidèle", "no-show x2", "VIP"]
+  vip         Boolean  @default(false)
+  smsOptIn    Boolean  @default(false)
+
+  favoriteStaffId String?
+  favoriteStaff   Staff?  @relation(fields: [favoriteStaffId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([businessId, email])
+  @@index([businessId])
+}
+
+// ─── CLIENT SESSION (portail) ─────────────────────────────────────────────────
+
+model ClientSession {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  clientEmail String
+  token       String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([token])
+  @@index([clientEmail, businessId])
 }
 
 model LeadEmail {

@@ -1,6 +1,7 @@
 "use client"
 
-import { use, useEffect, useState } from "react"
+import { use, useEffect, useState, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   CheckCircle2, ChevronLeft, ChevronRight, Clock, CreditCard, MapPin,
   Star, Sparkles, Lock, Calendar, Users
@@ -361,6 +362,10 @@ function RecapCard({
 
 export default function BookPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
+  const searchParams = useSearchParams()
+  const preselectedServiceId = searchParams.get("service")
+  const preselectedStaffId = searchParams.get("staff")
+  const preselectionApplied = useRef(false)
 
   const [info, setInfo] = useState<BusinessInfo | null>(null)
   const [services, setServices] = useState<Service[]>([])
@@ -391,6 +396,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   const [openCats, setOpenCats] = useState<Set<string>>(new Set())
 
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" })
+  const [smsOptIn, setSmsOptIn] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
   const [createdBookingId, setCreatedBookingId] = useState<string | null>(null)
@@ -430,9 +436,31 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         depositValue: (bSettings.depositValue as number) ?? 100,
         stripeReady: bookData.stripeAccountStatus === "active",
       })
-      setServices(bookData.services ?? [])
-      setStaffs(bookData.staffs ?? [])
+      const svcs: Service[] = bookData.services ?? []
+      const stfs: Staff[] = bookData.staffs ?? []
+      setServices(svcs)
+      setStaffs(stfs)
       if (bookData.bookingType === "restaurant") setStep("datetime")
+
+      // Pre-select service + staff from query params (rebooking)
+      if (!preselectionApplied.current && (preselectedServiceId || preselectedStaffId)) {
+        preselectionApplied.current = true
+        const hasStaff = stfs.length > 0
+        if (preselectedServiceId) {
+          const svc = svcs.find(s => s.id === preselectedServiceId)
+          if (svc) {
+            setSelectedService(svc)
+            if (preselectedStaffId) {
+              const stf = stfs.find(s => s.id === preselectedStaffId)
+              if (stf) { setSelectedStaff(stf); setStep("datetime") }
+              else { setAnyStaff(true); setStep("datetime") }
+            } else {
+              setStep(hasStaff ? "staff" : "datetime")
+            }
+          }
+        }
+      }
+
       setLoading(false)
     }).catch(() => { setNotFound(true); setLoading(false) })
   }, [slug])
@@ -469,6 +497,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         timeSlot: selectedSlot,
         notes: form.notes || null,
         partySize: info.bookingType === "restaurant" ? partySize : null,
+        smsOptIn: form.phone ? smsOptIn : false,
       }),
     })
     const data = await res.json()
@@ -1314,6 +1343,18 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                     />
                   </div>
                 ))}
+
+                {/* SMS opt-in — visible uniquement si téléphone renseigné */}
+                {form.phone && (
+                  <label className="flex items-start gap-3 cursor-pointer pt-1">
+                    <input type="checkbox" checked={smsOptIn} onChange={e => setSmsOptIn(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded accent-current flex-shrink-0"
+                      style={{ accentColor: T.primary }} />
+                    <span className="text-xs leading-relaxed" style={{ color: T.textMuted }}>
+                      Je souhaite recevoir un rappel par SMS 24h avant mon rendez-vous
+                    </span>
+                  </label>
+                )}
 
                 <p className="text-xs flex items-center gap-1.5 pt-1" style={{ color: T.textMuted }}>
                   <Lock className="w-3 h-3" />

@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const rl = rateLimit(`bookings:${ip}`, 10, 60_000)
   if (!rl.ok) return NextResponse.json({ error: "Trop de requêtes, réessayez dans " + rl.retryAfter + "s" }, { status: 429 })
 
-  const { businessId, serviceId, staffId, clientName, clientEmail, clientPhone, date, timeSlot, notes, partySize, manualStatus, recurrence, recurrenceEnd } = await req.json()
+  const { businessId, serviceId, staffId, clientName, clientEmail, clientPhone, date, timeSlot, notes, partySize, manualStatus, recurrence, recurrenceEnd, smsOptIn } = await req.json()
 
   if (!clientName || !date || !timeSlot) {
     return NextResponse.json({ error: "Champs manquants" }, { status: 400 })
@@ -190,8 +190,32 @@ export async function POST(req: NextRequest) {
     create: { businessId: businessId2, email: clientEmail, name: clientName, phone: clientPhone || null, source: "booking" },
   }).catch(() => null)
 
+  // Upsert ClientProfile pour conserver smsOptIn (fire-and-forget)
+  if (typeof smsOptIn === "boolean") {
+    void prisma.clientProfile.upsert({
+      where: { businessId_email: { businessId: businessId2, email: clientEmail } },
+      update: { smsOptIn },
+      create: { businessId: businessId2, email: clientEmail, smsOptIn },
+    }).catch(() => null)
+  }
+
   const dateLabel = new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
   const cancelUrl = `${APP_URL}/cancel/${cancelToken}`
+
+  // Generate portal session (fire-and-forget)
+  let portalUrl: string | undefined
+  try {
+    const portalToken = randomUUID()
+    await prisma.clientSession.create({
+      data: {
+        businessId: businessId2,
+        clientEmail,
+        token: portalToken,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      },
+    })
+    portalUrl = `${APP_URL}/my/${portalToken}`
+  } catch { /* non-critical */ }
 
   const emailParams = {
     clientEmail,
@@ -203,6 +227,7 @@ export async function POST(req: NextRequest) {
     duration: service?.duration ?? 0,
     price: service?.price ?? 0,
     cancelUrl,
+    portalUrl,
     isRestaurant,
     partySize: partySize ?? null,
   }

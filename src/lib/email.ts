@@ -240,11 +240,18 @@ function emailShell(title: string, subtitle: string, body: string) {
 export async function sendBookingRequestClient(params: {
   clientEmail: string; clientName: string; businessName: string
   serviceName: string; date: string; timeSlot: string; duration: number; price: number
-  cancelUrl?: string; isRestaurant?: boolean; partySize?: number | null
+  cancelUrl?: string; portalUrl?: string; isRestaurant?: boolean; partySize?: number | null
 }) {
   const cancelBlock = params.cancelUrl ? `
     <div style="margin-top:20px;text-align:center;">
       <a href="${params.cancelUrl}" style="color:#94a3b8;font-size:12px;text-decoration:underline;">Annuler ma réservation</a>
+    </div>` : ""
+
+  const portalBlock = params.portalUrl ? `
+    <div style="margin-top:16px;border-top:1px solid #f1f5f9;padding-top:16px;text-align:center;">
+      <a href="${params.portalUrl}" style="display:inline-flex;align-items:center;gap:6px;color:#0ea5e9;font-size:13px;font-weight:600;text-decoration:none;">
+        📋 Gérer mes réservations →
+      </a>
     </div>` : ""
 
   await getResend().emails.send({
@@ -259,6 +266,7 @@ export async function sendBookingRequestClient(params: {
         <p style="color:#854d0e;font-size:13px;margin:0;">⏳ En attente de confirmation par l'établissement</p>
       </div>
       ${cancelBlock}
+      ${portalBlock}
     `),
   })
 }
