@@ -114,9 +114,9 @@ export default function ClientPortalPage() {
   if (!data) return null
 
   const allUpcoming = data.upcoming.map(b => ({ ...b, isCancelled: cancelledIds.has(b.id) }))
-  const allPast = data.past
+  const allPast = data.past.map(b => ({ ...b, isCancelled: b.status === "CANCELLED" }))
 
-  const activeTab = tab === "upcoming" ? allUpcoming : allPast
+  const activeTab: typeof allUpcoming = tab === "upcoming" ? allUpcoming : allPast
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -172,7 +172,7 @@ export default function ClientPortalPage() {
         ) : (
           <div className="space-y-3">
             {activeTab.map(b => {
-              const isCancelled = "isCancelled" in b ? b.isCancelled : b.status === "CANCELLED"
+              const isCancelled = b.isCancelled
               return (
                 <div
                   key={b.id}
