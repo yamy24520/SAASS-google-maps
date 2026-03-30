@@ -986,6 +986,19 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
             )
           })()}
 
+          {/* Lien portail client — discret, sous les services */}
+          {step === "service" && !isRestaurant && info && (
+            <div className="text-center mt-4">
+              <a
+                href={`/my?biz=${info.businessId}&name=${encodeURIComponent(info.businessName)}`}
+                className="text-xs underline underline-offset-2"
+                style={{ color: T.textMuted }}
+              >
+                Voir mes réservations existantes
+              </a>
+            </div>
+          )}
+
           {/* ── STEP: Staff ──────────────────────────────────────────────────────── */}
           {step === "staff" && hasStaff && (
             <div key="staff" className="animate-in fade-in slide-in-from-right-4 duration-300">
@@ -1565,6 +1578,15 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                 >
                   Nouvelle réservation
                 </button>
+                {info && (
+                  <a
+                    href={`/my?biz=${info.businessId}&name=${encodeURIComponent(info.businessName)}`}
+                    className="w-full py-3 rounded-2xl font-semibold text-sm text-center transition-all duration-150 border"
+                    style={{ color: T.textMuted, borderColor: T.cardBorder, background: T.cardBg }}
+                  >
+                    Gérer mes réservations →
+                  </a>
+                )}
               </div>
             </div>
           )}

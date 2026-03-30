@@ -161,6 +161,7 @@ model Business {
   reviewRequests       ReviewRequest[]
   clientProfiles       ClientProfile[]
   clientSessions       ClientSession[]
+  clientOtps           ClientOtp[]
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -483,6 +484,19 @@ model ClientSession {
   createdAt   DateTime @default(now())
 
   @@index([token])
+  @@index([clientEmail, businessId])
+}
+
+model ClientOtp {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  clientEmail String
+  code        String
+  expiresAt   DateTime
+  used        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
   @@index([clientEmail, businessId])
 }
 
