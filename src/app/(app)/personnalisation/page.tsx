@@ -114,6 +114,7 @@ export default function PersonnalisationPage() {
   const [saving, setSaving]           = useState(false)
   const [iframeReady, setIframeReady] = useState(false)
   const [repIframeReady, setRepIframeReady] = useState(false)
+  const [repTabVisited, setRepTabVisited] = useState(false)
   const [viewport, setViewport]       = useState<"desktop" | "mobile">("desktop")
   const [services, setServices]       = useState<ServiceItem[]>([])
   const [openSection, setOpenSection] = useState<string>("theme")
@@ -303,10 +304,10 @@ export default function PersonnalisationPage() {
   function reloadIframe() {
     if (tab === "reputation") {
       setRepIframeReady(false)
-      if (repIframeRef.current) repIframeRef.current.src = repIframeRef.current.src
+      if (repIframeRef.current) { const s = repIframeRef.current.src; repIframeRef.current.src = ""; repIframeRef.current.src = s }
     } else {
       setIframeReady(false)
-      if (iframeRef.current) iframeRef.current.src = iframeRef.current.src
+      if (iframeRef.current) { const s = iframeRef.current.src; iframeRef.current.src = ""; iframeRef.current.src = s }
     }
   }
 
@@ -348,7 +349,7 @@ export default function PersonnalisationPage() {
             className={`px-3 py-1.5 text-xs font-semibold transition-colors ${tab === "booking" ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
             Réservation
           </button>
-          <button onClick={() => { setTab("reputation"); setRepIframeReady(false) }}
+          <button onClick={() => { setTab("reputation"); setRepTabVisited(true) }}
             className={`px-3 py-1.5 text-xs font-semibold transition-colors ${tab === "reputation" ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}>
             Réputation
           </button>
@@ -649,29 +650,31 @@ export default function PersonnalisationPage() {
               />
             </div>
 
-            {/* Reputation iframe */}
-            <div className={tab === "reputation" ? "absolute inset-0" : "hidden"}>
-              {!repIframeReady && tab === "reputation" && (
-                <div className="absolute inset-0 bg-slate-100 flex items-center justify-center z-10">
-                  <div className="text-center space-y-3">
-                    <Loader2 className="w-8 h-8 text-sky-500 animate-spin mx-auto" />
-                    <p className="text-sm text-slate-400">Chargement de l&apos;aperçu...</p>
+            {/* Reputation iframe — monté une fois pour toutes après le premier switch */}
+            {repTabVisited && (
+              <div className={tab === "reputation" ? "absolute inset-0" : "hidden"}>
+                {!repIframeReady && (
+                  <div className="absolute inset-0 bg-slate-100 flex items-center justify-center z-10">
+                    <div className="text-center space-y-3">
+                      <Loader2 className="w-8 h-8 text-sky-500 animate-spin mx-auto" />
+                      <p className="text-sm text-slate-400">Chargement de l&apos;aperçu...</p>
+                    </div>
                   </div>
-                </div>
-              )}
-              {repSlug && (
-                <iframe
-                  ref={repIframeRef}
-                  src={repIframeUrl}
-                  className="w-full h-full border-0"
-                  onLoad={() => {
-                    setRepIframeReady(true)
-                    setTimeout(() => sendPreview(state), 200)
-                  }}
-                  title="Aperçu page réputation"
-                />
-              )}
-            </div>
+                )}
+                {repSlug && (
+                  <iframe
+                    ref={repIframeRef}
+                    src={repIframeUrl}
+                    className="w-full h-full border-0"
+                    onLoad={() => {
+                      setRepIframeReady(true)
+                      setTimeout(() => sendPreview(state), 200)
+                    }}
+                    title="Aperçu page réputation"
+                  />
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
