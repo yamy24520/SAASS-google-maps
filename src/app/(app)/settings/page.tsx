@@ -237,6 +237,10 @@ export default function SettingsPage() {
                       onChange={e => {
                         const file = e.target.files?.[0]
                         if (!file) return
+                        if (file.size > 500 * 1024) {
+                          toast({ title: "Image trop lourde", description: "Maximum 500 Ko. Compressez l'image avant de l'importer.", variant: "destructive" })
+                          return
+                        }
                         const reader = new FileReader()
                         reader.onload = ev => setForm({ ...form, logoDataUrl: ev.target?.result as string })
                         reader.readAsDataURL(file)
@@ -298,13 +302,7 @@ export default function SettingsPage() {
                 </div>
                 <Switch checked={form.alertEmailEnabled} onCheckedChange={v => setForm({ ...form, alertEmailEnabled: v })} />
               </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Notifications push</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Alertes sur cet appareil à chaque nouveau RDV</p>
-                </div>
-                <PushNotificationToggle />
-              </div>
+              <PushNotificationToggle />
             </CardContent>
           </Card>
         </div>

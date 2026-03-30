@@ -1,4 +1,15 @@
+self.addEventListener("install", () => {
+  console.log("[SW] install")
+  self.skipWaiting()
+})
+
+self.addEventListener("activate", (event) => {
+  console.log("[SW] activate")
+  event.waitUntil(clients.claim())
+})
+
 self.addEventListener("push", (event) => {
+  console.log("[SW] push reçu", event.data?.text())
   if (!event.data) return
   let data
   try { data = event.data.json() } catch { return }

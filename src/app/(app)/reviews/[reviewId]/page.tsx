@@ -29,6 +29,8 @@ export default function ReviewDetailPage() {
   const bizId = searchParams.get("biz")
   const bizParam = bizId ? `?biz=${bizId}` : ""
   const [review, setReview] = useState<Review | null>(null)
+  const [loadingReview, setLoadingReview] = useState(true)
+  const [notFound, setNotFound] = useState(false)
   const [response, setResponse] = useState("")
   const [generating, setGenerating] = useState(false)
   const [publishing, setPublishing] = useState(false)
@@ -37,12 +39,16 @@ export default function ReviewDetailPage() {
 
   useEffect(() => {
     fetch(`/api/reviews/${reviewId}${bizParam}`)
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (r) => {
+        if (r.status === 404) { setNotFound(true); setLoadingReview(false); return }
+        const data = await r.json()
+        if (!data.review) { setNotFound(true); setLoadingReview(false); return }
         setReview(data.review)
         if (data.review?.aiDraftResponse) setResponse(data.review.aiDraftResponse)
         if (data.review?.publishedResponse) setResponse(data.review.publishedResponse)
+        setLoadingReview(false)
       })
+      .catch(() => { setNotFound(true); setLoadingReview(false) })
   }, [reviewId, bizParam])
 
   async function handleGenerate() {
@@ -116,15 +122,31 @@ export default function ReviewDetailPage() {
   }
 
   async function handleIgnore() {
+    if (!confirm("Ignorer cet avis ? Il sera masqué de votre liste.")) return
     setIgnoring(true)
     await fetch(`/api/reviews/${reviewId}/ignore${bizParam}`, { method: "POST" })
     router.push(`/reviews${bizParam}`)
   }
 
-  if (!review) {
+  if (loadingReview) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-6 h-6 text-sky-500 animate-spin" />
+      </div>
+    )
+  }
+
+  if (notFound) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <Button variant="ghost" size="sm" className="gap-2" onClick={() => router.push(`/reviews${bizParam}`)}>
+          <ArrowLeft className="w-4 h-4" />
+          Retour aux avis
+        </Button>
+        <div className="flex flex-col items-center justify-center h-64 text-center gap-3">
+          <p className="text-slate-500 font-medium">Avis introuvable</p>
+          <p className="text-sm text-slate-400">Cet avis n&apos;existe pas ou a été supprimé.</p>
+        </div>
       </div>
     )
   }

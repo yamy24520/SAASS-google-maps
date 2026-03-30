@@ -20,8 +20,10 @@ export default function InsightsPage() {
   const [reviewCount, setReviewCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cooldown, setCooldown] = useState(0)
 
   async function handleAnalyze() {
+    if (loading || cooldown > 0) return
     setLoading(true)
     setError(null)
     try {
@@ -32,6 +34,14 @@ export default function InsightsPage() {
       } else {
         setAnalysis(data.analysis)
         setReviewCount(data.reviewCount)
+        // Cooldown 30s pour éviter le spam API Claude
+        setCooldown(30)
+        const interval = setInterval(() => {
+          setCooldown(prev => {
+            if (prev <= 1) { clearInterval(interval); return 0 }
+            return prev - 1
+          })
+        }, 1000)
       }
     } catch {
       setError("Erreur réseau")
@@ -48,9 +58,11 @@ export default function InsightsPage() {
           <h1 className="text-2xl font-bold text-slate-900">Insights IA</h1>
           <p className="text-slate-500 mt-1">Analyse sémantique de vos avis par Claude AI</p>
         </div>
-        <Button onClick={handleAnalyze} disabled={loading} className="gap-2">
+        <Button onClick={handleAnalyze} disabled={loading || cooldown > 0} className="gap-2">
           {loading
             ? <><RefreshCw className="w-4 h-4 animate-spin" /> Analyse en cours...</>
+            : cooldown > 0
+            ? <><RefreshCw className="w-4 h-4" /> Relancer ({cooldown}s)</>
             : <><Sparkles className="w-4 h-4" /> {analysis ? "Relancer l'analyse" : "Analyser mes avis"}</>
           }
         </Button>
@@ -67,7 +79,7 @@ export default function InsightsPage() {
               Claude AI analyse vos avis clients pour détecter les thèmes récurrents, les points forts, les axes d&apos;amélioration et vous propose des recommandations concrètes.
             </p>
             {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-            <Button onClick={handleAnalyze} disabled={loading} size="lg" className="gap-2">
+            <Button onClick={handleAnalyze} disabled={loading || cooldown > 0} size="lg" className="gap-2">
               <Sparkles className="w-4 h-4" />
               Lancer l&apos;analyse
             </Button>
