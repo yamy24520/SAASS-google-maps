@@ -78,6 +78,8 @@ export async function GET(
     bookingHours: business.bookingHours ?? null,
     pageConfig,
     socialLinks: (business.socialLinks as Record<string, string>) ?? {},
+    bookingEnabled: business.bookingEnabled,
+    bookingPageSlug: business.pageSlug ?? null,
     isOwner,
     reputationPageEnabled: business.reputationPageEnabled,
   })
