@@ -253,6 +253,53 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+          {/* Thème de la page de réservation */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Thème de la page de réservation</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {([
+                  { key: "default",    emoji: "🌊", label: "Standard",    primary: "#0ea5e9", pageBg: "#f8fafc" },
+                  { key: "hello_kitty",emoji: "🎀", label: "Hello Kitty", primary: "#f472b6", pageBg: "#fff0f6" },
+                  { key: "barber",     emoji: "✂️", label: "Barber Shop", primary: "#f59e0b", pageBg: "#0f172a" },
+                  { key: "manga",      emoji: "⚡", label: "Manga",       primary: "#dc2626", pageBg: "#ffffff" },
+                ] as { key: string; emoji: string; label: string; primary: string; pageBg: string }[]).map(theme => {
+                  const isSelected = (form.pageTheme ?? "default") === theme.key
+                  return (
+                    <button
+                      key={theme.key}
+                      type="button"
+                      onClick={() => setForm({ ...form, pageTheme: theme.key })}
+                      className="flex flex-col items-center gap-2 p-2 rounded-xl transition-all"
+                      style={{
+                        border: isSelected ? `2px solid ${theme.primary}` : "2px solid #e2e8f0",
+                        background: isSelected ? `${theme.primary}10` : "transparent",
+                      }}
+                    >
+                      {/* Color preview */}
+                      <div className="w-full rounded-lg overflow-hidden" style={{ height: 48 }}>
+                        <div style={{ height: "50%", background: theme.primary }} />
+                        <div style={{ height: "50%", background: theme.pageBg, border: `1px solid #e2e8f0` }} />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm">{theme.emoji}</span>
+                        <span className="text-xs font-medium text-slate-700">{theme.label}</span>
+                        {isSelected && (
+                          <svg className="w-3.5 h-3.5 ml-0.5" viewBox="0 0 16 16" fill="none">
+                            <circle cx="8" cy="8" r="7" fill={theme.primary} />
+                            <path d="M5 8l2 2 4-4" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Google */}
           <Card>
             <CardHeader>

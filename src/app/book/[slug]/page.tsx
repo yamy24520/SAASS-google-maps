@@ -16,10 +16,156 @@ interface BusinessInfo {
 
 type Step = "service" | "staff" | "datetime" | "form" | "payment" | "done"
 
+// ─── Theme System ──────────────────────────────────────────────────────────────
+
+type ThemeKey = "default" | "hello_kitty" | "barber" | "manga"
+
+interface ThemeConfig {
+  // Page
+  pageBg: string
+  // Sidebar (desktop left panel)
+  sidebarBg: string
+  sidebarBorder: string
+  // Cards
+  cardBg: string
+  cardBorder: string
+  // Primary (buttons, selected state, progress bar)
+  primary: string
+  primaryHover: string
+  primaryText: string
+  primaryShadow: string
+  // Text
+  textHeading: string
+  textBody: string
+  textMuted: string
+  // Inputs
+  inputBorder: string
+  inputFocusBorder: string
+  inputBg: string
+  // Step indicator (sidebar)
+  stepDone: string
+  stepActive: string
+  stepFuture: string
+  // Decorative
+  accentEmoji: string
+  fontStyle: string
+  badgeText: string
+  badgeBg: string
+  badgeTextColor: string
+}
+
+const THEMES: Record<ThemeKey, ThemeConfig> = {
+  default: {
+    pageBg: "#f8fafc",
+    sidebarBg: "#ffffff",
+    sidebarBorder: "#f1f5f9",
+    cardBg: "#ffffff",
+    cardBorder: "#f1f5f9",
+    primary: "#0ea5e9",
+    primaryHover: "#0284c7",
+    primaryText: "#ffffff",
+    primaryShadow: "rgba(14,165,233,0.25)",
+    textHeading: "#0f172a",
+    textBody: "#334155",
+    textMuted: "#94a3b8",
+    inputBorder: "#e2e8f0",
+    inputFocusBorder: "#0ea5e9",
+    inputBg: "#ffffff",
+    stepDone: "#0ea5e9",
+    stepActive: "#0ea5e9",
+    stepFuture: "#e2e8f0",
+    accentEmoji: "✨",
+    fontStyle: "Moderne",
+    badgeText: "Standard",
+    badgeBg: "#f0f9ff",
+    badgeTextColor: "#0369a1",
+  },
+  hello_kitty: {
+    pageBg: "#fff0f6",
+    sidebarBg: "#fff5f9",
+    sidebarBorder: "#fce7f3",
+    cardBg: "#ffffff",
+    cardBorder: "#fce7f3",
+    primary: "#f472b6",
+    primaryHover: "#ec4899",
+    primaryText: "#ffffff",
+    primaryShadow: "rgba(244,114,182,0.30)",
+    textHeading: "#831843",
+    textBody: "#9d174d",
+    textMuted: "#f9a8d4",
+    inputBorder: "#fce7f3",
+    inputFocusBorder: "#f472b6",
+    inputBg: "#fff5f9",
+    stepDone: "#f472b6",
+    stepActive: "#f472b6",
+    stepFuture: "#fce7f3",
+    accentEmoji: "🎀",
+    fontStyle: "Kawaii",
+    badgeText: "Hello Kitty",
+    badgeBg: "#fce7f3",
+    badgeTextColor: "#be185d",
+  },
+  barber: {
+    pageBg: "#0f172a",
+    sidebarBg: "#1e293b",
+    sidebarBorder: "#334155",
+    cardBg: "#1e293b",
+    cardBorder: "#334155",
+    primary: "#f59e0b",
+    primaryHover: "#d97706",
+    primaryText: "#0f172a",
+    primaryShadow: "rgba(245,158,11,0.30)",
+    textHeading: "#f8fafc",
+    textBody: "#cbd5e1",
+    textMuted: "#64748b",
+    inputBorder: "#334155",
+    inputFocusBorder: "#f59e0b",
+    inputBg: "#0f172a",
+    stepDone: "#f59e0b",
+    stepActive: "#f59e0b",
+    stepFuture: "#334155",
+    accentEmoji: "✂️",
+    fontStyle: "Élégant",
+    badgeText: "Barber Shop",
+    badgeBg: "#1e293b",
+    badgeTextColor: "#f59e0b",
+  },
+  manga: {
+    pageBg: "#ffffff",
+    sidebarBg: "#fafafa",
+    sidebarBorder: "#e5e7eb",
+    cardBg: "#ffffff",
+    cardBorder: "#111827",
+    primary: "#dc2626",
+    primaryHover: "#b91c1c",
+    primaryText: "#ffffff",
+    primaryShadow: "rgba(220,38,38,0.25)",
+    textHeading: "#111827",
+    textBody: "#1f2937",
+    textMuted: "#6b7280",
+    inputBorder: "#111827",
+    inputFocusBorder: "#dc2626",
+    inputBg: "#ffffff",
+    stepDone: "#dc2626",
+    stepActive: "#dc2626",
+    stepFuture: "#e5e7eb",
+    accentEmoji: "⚡",
+    fontStyle: "Manga",
+    badgeText: "Manga",
+    badgeBg: "#fef2f2",
+    badgeTextColor: "#dc2626",
+  },
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function Spinner() {
-  return <div className="w-8 h-8 rounded-full border-2 border-slate-200 border-t-sky-500 animate-spin mx-auto" />
+function Spinner({ color }: { color?: string }) {
+  return (
+    <div
+      className="w-8 h-8 rounded-full border-2 animate-spin mx-auto"
+      style={{ borderColor: color ? `${color}33` : "#e2e8f0", borderTopColor: color ?? "#0ea5e9" }}
+    />
+  )
 }
 
 function getDatesAhead(n: number): string[] {
@@ -63,8 +209,14 @@ function getCalendarDays(month: Date): string[] {
   return days
 }
 
-const SERVICE_ACCENTS = [
+const SERVICE_ACCENTS_DEFAULT = [
   "bg-sky-500", "bg-violet-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500"
+]
+const SERVICE_ACCENTS_BARBER = [
+  "bg-amber-500", "bg-amber-400", "bg-yellow-500", "bg-amber-600", "bg-yellow-400"
+]
+const SERVICE_ACCENTS_MANGA = [
+  "bg-red-600", "bg-red-500", "bg-rose-600", "bg-red-700", "bg-rose-500"
 ]
 
 // ─── Animated SVG Checkmark ────────────────────────────────────────────────────
@@ -163,7 +315,7 @@ function AnimatedCheckmark() {
 // ─── Booking Recap Card (left sidebar) ────────────────────────────────────────
 
 function RecapCard({
-  selectedService, selectedStaff, anyStaff, selectedDate, selectedSlot, partySize, isRestaurant,
+  selectedService, selectedStaff, anyStaff, selectedDate, selectedSlot, partySize, isRestaurant, T,
 }: {
   selectedService: Service | null
   selectedStaff: Staff | null
@@ -172,44 +324,48 @@ function RecapCard({
   selectedSlot: string
   partySize: number
   isRestaurant: boolean
+  T: ThemeConfig
 }) {
   const hasAny = isRestaurant ? (selectedDate || selectedSlot) : (selectedService || selectedDate || selectedSlot)
   if (!hasAny) return null
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mt-6 space-y-3 animate-in fade-in duration-300">
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Récapitulatif</p>
+    <div
+      className="rounded-2xl shadow-sm p-4 mt-6 space-y-3 animate-in fade-in duration-300"
+      style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}
+    >
+      <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: T.textMuted }}>Récapitulatif</p>
       {!isRestaurant && selectedService && (
         <div className="flex items-start gap-2 animate-in fade-in duration-200">
-          <Sparkles className="w-4 h-4 text-sky-400 mt-0.5 flex-shrink-0" />
+          <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: T.primary }} />
           <div>
-            <p className="text-sm font-semibold text-slate-800">{selectedService.name}</p>
-            <p className="text-xs text-slate-400">{selectedService.duration} min · {selectedService.price.toFixed(2)} €</p>
+            <p className="text-sm font-semibold" style={{ color: T.textHeading }}>{selectedService.name}</p>
+            <p className="text-xs" style={{ color: T.textMuted }}>{selectedService.duration} min · {selectedService.price.toFixed(2)} €</p>
           </div>
         </div>
       )}
       {isRestaurant && (
         <div className="flex items-center gap-2 animate-in fade-in duration-200">
-          <Users className="w-4 h-4 text-sky-400 flex-shrink-0" />
-          <p className="text-sm font-semibold text-slate-800">{partySize} personne{partySize > 1 ? "s" : ""}</p>
+          <Users className="w-4 h-4 flex-shrink-0" style={{ color: T.primary }} />
+          <p className="text-sm font-semibold" style={{ color: T.textHeading }}>{partySize} personne{partySize > 1 ? "s" : ""}</p>
         </div>
       )}
       {!isRestaurant && (selectedService && selectedStaff && !anyStaff) && (
         <div className="flex items-center gap-2 animate-in fade-in duration-200">
           <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ background: selectedStaff.color }} />
-          <p className="text-sm text-slate-700">{selectedStaff.name}</p>
+          <p className="text-sm" style={{ color: T.textBody }}>{selectedStaff.name}</p>
         </div>
       )}
       {selectedDate && (
         <div className="flex items-center gap-2 animate-in fade-in duration-200">
-          <Calendar className="w-4 h-4 text-sky-400 flex-shrink-0" />
-          <p className="text-sm text-slate-700">{fmtDate(selectedDate)}</p>
+          <Calendar className="w-4 h-4 flex-shrink-0" style={{ color: T.primary }} />
+          <p className="text-sm" style={{ color: T.textBody }}>{fmtDate(selectedDate)}</p>
         </div>
       )}
       {selectedSlot && (
         <div className="flex items-center gap-2 animate-in fade-in duration-200">
-          <Clock className="w-4 h-4 text-sky-400 flex-shrink-0" />
-          <p className="text-sm font-semibold text-slate-800">{selectedSlot}</p>
+          <Clock className="w-4 h-4 flex-shrink-0" style={{ color: T.primary }} />
+          <p className="text-sm font-semibold" style={{ color: T.textHeading }}>{selectedSlot}</p>
         </div>
       )}
     </div>
@@ -361,6 +517,11 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
     </div>
   )
 
+  // ── Theme resolution ──────────────────────────────────────────────────────────
+
+  const themeKey = (info?.pageTheme ?? "default") as ThemeKey
+  const T = THEMES[themeKey] ?? THEMES.default
+
   // ── Derived state ─────────────────────────────────────────────────────────────
 
   const isRestaurant = info?.bookingType === "restaurant"
@@ -399,6 +560,13 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
     return false
   }
 
+  // Service accent strips — decorative, vary by theme
+  const serviceAccents = themeKey === "barber"
+    ? SERVICE_ACCENTS_BARBER
+    : themeKey === "manga"
+      ? SERVICE_ACCENTS_MANGA
+      : SERVICE_ACCENTS_DEFAULT
+
   // ── Vertical step progress (sidebar) ─────────────────────────────────────────
 
   function SidebarSteps() {
@@ -411,21 +579,30 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           return (
             <div key={s} className="flex items-start gap-3">
               <div className="flex flex-col items-center">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all duration-300 ${
-                  done
-                    ? "bg-sky-500 text-white"
-                    : active
-                      ? "bg-white border-2 border-sky-500 text-sky-500 ring-4 ring-sky-100"
-                      : "bg-slate-100 text-slate-400"
-                }`}>
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all duration-300"
+                  style={
+                    done
+                      ? { background: T.stepDone, color: T.primaryText }
+                      : active
+                        ? { background: T.sidebarBg, border: `2px solid ${T.stepActive}`, color: T.stepActive, boxShadow: `0 0 0 4px ${T.primaryShadow}` }
+                        : { background: T.stepFuture, color: T.textMuted }
+                  }
+                >
                   {done ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
                 </div>
                 {!isLast && (
-                  <div className={`w-0.5 h-8 mt-1 rounded-full transition-colors duration-300 ${done ? "bg-sky-400" : "bg-slate-200"}`} />
+                  <div
+                    className="w-0.5 h-8 mt-1 rounded-full transition-colors duration-300"
+                    style={{ background: done ? T.stepDone : T.stepFuture }}
+                  />
                 )}
               </div>
               <div className="pt-0.5 pb-8">
-                <p className={`text-sm font-medium transition-colors duration-200 ${active ? "text-sky-600" : done ? "text-slate-700" : "text-slate-400"}`}>
+                <p
+                  className="text-sm font-medium transition-colors duration-200"
+                  style={{ color: active ? T.primary : done ? T.textBody : T.textMuted }}
+                >
                   {LABELS[s]}
                 </p>
               </div>
@@ -444,7 +621,13 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
 
   function BackBtn({ onClick }: { onClick: () => void }) {
     return (
-      <button onClick={onClick} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-6 transition-colors group">
+      <button
+        onClick={onClick}
+        className="flex items-center gap-1.5 text-sm mb-6 transition-colors group"
+        style={{ color: T.textMuted }}
+        onMouseEnter={e => (e.currentTarget.style.color = T.textBody)}
+        onMouseLeave={e => (e.currentTarget.style.color = T.textMuted)}
+      >
         <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> Retour
       </button>
     )
@@ -455,30 +638,36 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-svh bg-slate-50">
+    <div style={{ background: T.pageBg, minHeight: "100svh" }}>
 
       {/* ══ Mobile sticky header (< lg) ══════════════════════════════════════════ */}
-      <div className="lg:hidden sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-100">
+      <div
+        className="lg:hidden sticky top-0 z-20 backdrop-blur-md border-b"
+        style={{ background: `${T.sidebarBg}e6`, borderColor: T.sidebarBorder }}
+      >
         <div className="px-4 py-3 flex items-center gap-3">
           {info?.logoDataUrl ? (
             <img src={info.logoDataUrl} className="w-8 h-8 rounded-xl object-cover shadow-sm flex-shrink-0" alt="" />
           ) : (
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-400 to-cyan-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0"
+              style={{ background: T.primary, color: T.primaryText }}
+            >
               {info?.businessName.charAt(0)}
             </div>
           )}
-          <p className="font-bold text-slate-900 text-sm flex-1 truncate">{info?.businessName}</p>
+          <p className="font-bold text-sm flex-1 truncate" style={{ color: T.textHeading }}>{info?.businessName}</p>
           {step !== "done" && (
-            <span className="text-xs text-slate-400 font-medium flex-shrink-0">
+            <span className="text-xs font-medium flex-shrink-0" style={{ color: T.textMuted }}>
               {stepIdx + 1} / {STEPS.length}
             </span>
           )}
         </div>
         {step !== "done" && (
-          <div className="h-0.5 bg-slate-100">
+          <div className="h-0.5" style={{ background: T.stepFuture }}>
             <div
-              className="h-full bg-sky-500 transition-all duration-500 ease-out"
-              style={{ width: `${progressPct}%` }}
+              className="h-full transition-all duration-500 ease-out"
+              style={{ width: `${progressPct}%`, background: T.primary }}
             />
           </div>
         )}
@@ -488,17 +677,33 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
       <div className="max-w-5xl mx-auto flex min-h-svh">
 
         {/* ── Left sidebar (desktop only) ───────────────────────────────────────── */}
-        <aside className="hidden lg:flex flex-col w-80 shrink-0 sticky top-0 h-svh overflow-y-auto p-8 border-r border-slate-100 bg-white">
+        <aside
+          className="hidden lg:flex flex-col w-80 shrink-0 sticky top-0 h-svh overflow-y-auto p-8 border-r"
+          style={{ background: T.sidebarBg, borderColor: T.sidebarBorder }}
+        >
           {/* Business identity */}
           <div className="mb-8">
+            {/* Theme badge */}
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-lg">{T.accentEmoji}</span>
+              <span
+                className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                style={{ background: T.badgeBg, color: T.badgeTextColor }}
+              >
+                {T.badgeText}
+              </span>
+            </div>
             {info?.logoDataUrl ? (
               <img src={info.logoDataUrl} className="w-16 h-16 rounded-2xl object-cover shadow-md mb-4" alt="" />
             ) : (
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-400 to-cyan-500 flex items-center justify-center text-white font-bold text-2xl shadow-md mb-4">
+              <div
+                className="w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-2xl shadow-md mb-4"
+                style={{ background: T.primary, color: T.primaryText }}
+              >
                 {info?.businessName.charAt(0)}
               </div>
             )}
-            <h1 className="text-2xl font-bold text-slate-900 leading-tight">{info?.businessName}</h1>
+            <h1 className="text-2xl font-bold leading-tight" style={{ color: T.textHeading }}>{info?.businessName}</h1>
             <div className="flex items-center gap-1.5 mt-2">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs font-semibold text-emerald-600">En ligne</span>
@@ -518,11 +723,12 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               selectedSlot={selectedSlot}
               partySize={partySize}
               isRestaurant={isRestaurant}
+              T={T}
             />
           )}
 
           {/* Footer */}
-          <div className="mt-auto pt-8 flex items-center gap-1.5 text-xs text-slate-400">
+          <div className="mt-auto pt-8 flex items-center gap-1.5 text-xs" style={{ color: T.textMuted }}>
             <Lock className="w-3 h-3" />
             Réservation sécurisée
           </div>
@@ -535,14 +741,14 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           {step === "service" && !isRestaurant && (
             <div key="service" className="animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="mb-8">
-                <h2 className="text-3xl font-bold text-slate-900 leading-tight">Quelle prestation ?</h2>
-                <p className="text-slate-500 mt-2">
+                <h2 className="text-3xl font-bold leading-tight" style={{ color: T.textHeading }}>Quelle prestation ?</h2>
+                <p className="mt-2" style={{ color: T.textBody }}>
                   {services.length} prestation{services.length > 1 ? "s" : ""} disponible{services.length > 1 ? "s" : ""}
                 </p>
               </div>
 
               {services.length === 0 && (
-                <div className="text-center py-16 text-slate-400">
+                <div className="text-center py-16" style={{ color: T.textMuted }}>
                   <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-40" />
                   <p className="text-sm">Aucune prestation disponible</p>
                 </div>
@@ -553,27 +759,36 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                   <button
                     key={svc.id}
                     onClick={() => { setSelectedService(svc); setStep(hasStaff ? "staff" : "datetime") }}
-                    className="w-full bg-white hover:shadow-md border border-slate-100 hover:border-sky-300 rounded-2xl overflow-hidden text-left transition-all duration-200 group hover:scale-[1.01] shadow-sm"
+                    className="w-full hover:shadow-md rounded-2xl overflow-hidden text-left transition-all duration-200 group hover:scale-[1.01] shadow-sm"
+                    style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = T.primary)}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = T.cardBorder)}
                   >
                     <div className="flex items-stretch">
                       {/* Color accent strip */}
-                      <div className={`w-1 flex-shrink-0 ${SERVICE_ACCENTS[idx % SERVICE_ACCENTS.length]}`} />
+                      <div className={`w-1 flex-shrink-0 ${serviceAccents[idx % serviceAccents.length]}`} />
                       <div className="flex-1 p-4 flex items-start gap-4">
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-slate-900 text-base">{svc.name}</p>
+                          <p className="font-bold text-base" style={{ color: T.textHeading }}>{svc.name}</p>
                           {svc.description && (
-                            <p className="text-sm text-slate-500 mt-1 line-clamp-2">{svc.description}</p>
+                            <p className="text-sm mt-1 line-clamp-2" style={{ color: T.textBody }}>{svc.description}</p>
                           )}
                           <div className="flex items-center gap-2 mt-3">
-                            <span className="inline-flex items-center gap-1 text-xs text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">
+                            <span
+                              className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border"
+                              style={{ color: T.textMuted, background: T.pageBg, borderColor: T.cardBorder }}
+                            >
                               <Clock className="w-3 h-3" /> {svc.duration} min
                             </span>
                           </div>
                         </div>
                         <div className="flex-shrink-0 flex flex-col items-end gap-2">
-                          <span className="text-lg font-bold text-slate-900">{svc.price.toFixed(2)} €</span>
-                          <div className="w-7 h-7 rounded-full bg-slate-50 group-hover:bg-sky-500 flex items-center justify-center transition-colors duration-200">
-                            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors duration-200" />
+                          <span className="text-lg font-bold" style={{ color: T.textHeading }}>{svc.price.toFixed(2)} €</span>
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center transition-colors duration-200"
+                            style={{ background: T.stepFuture }}
+                          >
+                            <ChevronRight className="w-4 h-4" style={{ color: T.textMuted }} />
                           </div>
                         </div>
                       </div>
@@ -589,25 +804,31 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
             <div key="staff" className="animate-in fade-in slide-in-from-right-4 duration-300">
               <BackBtn onClick={() => setStep("service")} />
               <div className="mb-8">
-                <h2 className="text-3xl font-bold text-slate-900 leading-tight">Avec qui ?</h2>
-                <p className="text-slate-500 mt-2">Choisissez votre prestataire</p>
+                <h2 className="text-3xl font-bold leading-tight" style={{ color: T.textHeading }}>Avec qui ?</h2>
+                <p className="mt-2" style={{ color: T.textBody }}>Choisissez votre prestataire</p>
               </div>
               <div className="space-y-3">
                 {/* "Peu importe" option */}
                 <button
                   onClick={() => { setAnyStaff(true); setSelectedStaff(null); setStep("datetime") }}
-                  className={`w-full flex items-center gap-4 p-5 rounded-2xl border-2 transition-all duration-200 text-left group hover:scale-[1.01] ${
+                  className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 transition-all duration-200 text-left group hover:scale-[1.01]"
+                  style={
                     anyStaff
-                      ? "border-sky-500 bg-sky-50 shadow-md shadow-sky-100"
-                      : "border-slate-100 bg-white hover:border-sky-300 shadow-sm hover:shadow-md"
-                  }`}
+                      ? { borderColor: T.primary, background: `${T.primary}18`, boxShadow: `0 4px 12px ${T.primaryShadow}` }
+                      : { borderColor: T.cardBorder, background: T.cardBg }
+                  }
+                  onMouseEnter={e => { if (!anyStaff) e.currentTarget.style.borderColor = T.primary }}
+                  onMouseLeave={e => { if (!anyStaff) e.currentTarget.style.borderColor = T.cardBorder }}
                 >
-                  <div className="w-12 h-12 rounded-full bg-slate-100 group-hover:bg-sky-100 flex items-center justify-center flex-shrink-0 transition-colors">
-                    <Sparkles className="w-5 h-5 text-slate-500 group-hover:text-sky-500 transition-colors" />
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
+                    style={{ background: T.stepFuture }}
+                  >
+                    <Sparkles className="w-5 h-5" style={{ color: T.textMuted }} />
                   </div>
                   <div>
-                    <p className="font-bold text-slate-900">Peu importe</p>
-                    <p className="text-sm text-slate-500">Premier prestataire disponible</p>
+                    <p className="font-bold" style={{ color: T.textHeading }}>Peu importe</p>
+                    <p className="text-sm" style={{ color: T.textBody }}>Premier prestataire disponible</p>
                   </div>
                 </button>
 
@@ -617,11 +838,14 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                     <button
                       key={s.id}
                       onClick={() => { setSelectedStaff(s); setAnyStaff(false); setStep("datetime") }}
-                      className={`w-full flex items-center gap-4 p-5 rounded-2xl border-2 transition-all duration-200 text-left hover:scale-[1.01] ${
+                      className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 transition-all duration-200 text-left hover:scale-[1.01]"
+                      style={
                         isSelected
-                          ? "border-sky-500 bg-sky-50 shadow-md shadow-sky-100"
-                          : "border-slate-100 bg-white hover:border-sky-300 shadow-sm hover:shadow-md"
-                      }`}
+                          ? { borderColor: T.primary, background: `${T.primary}18`, boxShadow: `0 4px 12px ${T.primaryShadow}` }
+                          : { borderColor: T.cardBorder, background: T.cardBg }
+                      }
+                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = T.primary }}
+                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = T.cardBorder }}
                     >
                       <div
                         className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
@@ -630,7 +854,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                         {s.name.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-bold text-slate-900">{s.name}</p>
+                        <p className="font-bold" style={{ color: T.textHeading }}>{s.name}</p>
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full mt-1">
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                           Disponible
@@ -652,13 +876,19 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
 
               {/* Service recap pill */}
               {selectedService && (
-                <div className="flex items-center gap-3 bg-white border border-slate-100 rounded-2xl px-4 py-3 mb-6 shadow-sm">
-                  <div className="w-9 h-9 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-4 h-4 text-sky-500" />
+                <div
+                  className="flex items-center gap-3 rounded-2xl px-4 py-3 mb-6 shadow-sm"
+                  style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: `${T.primary}18` }}
+                  >
+                    <Sparkles className="w-4 h-4" style={{ color: T.primary }} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-900 text-sm truncate">{selectedService.name}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="font-semibold text-sm truncate" style={{ color: T.textHeading }}>{selectedService.name}</p>
+                    <p className="text-xs" style={{ color: T.textBody }}>
                       {selectedService.duration} min · {selectedService.price.toFixed(2)} €
                       {selectedStaff && !anyStaff ? ` · ${selectedStaff.name}` : ""}
                     </p>
@@ -669,16 +899,20 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               {/* Restaurant: party size */}
               {isRestaurant && (
                 <div className="mb-8">
-                  <p className="text-2xl font-bold text-slate-900 mb-1">Pour combien de personnes ?</p>
-                  <p className="text-slate-500 text-sm mb-5">Sélectionnez le nombre de couverts</p>
+                  <p className="text-2xl font-bold mb-1" style={{ color: T.textHeading }}>Pour combien de personnes ?</p>
+                  <p className="text-sm mb-5" style={{ color: T.textBody }}>Sélectionnez le nombre de couverts</p>
                   <div className="flex gap-2 flex-wrap">
                     {[1,2,3,4,5,6,7,8].map(n => (
-                      <button key={n} onClick={() => setPartySize(n)}
-                        className={`w-12 h-12 rounded-xl font-bold text-sm transition-all duration-150 border-2 ${
+                      <button
+                        key={n}
+                        onClick={() => setPartySize(n)}
+                        className="w-12 h-12 rounded-xl font-bold text-sm transition-all duration-150 border-2"
+                        style={
                           partySize === n
-                            ? "bg-sky-500 border-sky-500 text-white shadow-md shadow-sky-200"
-                            : "bg-white border-slate-200 text-slate-700 hover:border-sky-300"
-                        }`}>
+                            ? { background: T.primary, borderColor: T.primary, color: T.primaryText, boxShadow: `0 4px 8px ${T.primaryShadow}` }
+                            : { background: T.cardBg, borderColor: T.cardBorder, color: T.textBody }
+                        }
+                      >
                         {n}
                       </button>
                     ))}
@@ -686,42 +920,51 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                       <input
                         type="number" min="1" value={partySize}
                         onChange={e => setPartySize(Math.max(1, Number(e.target.value)))}
-                        className="w-16 h-12 text-center border-2 border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-sky-400 transition-colors"
+                        className="w-16 h-12 text-center border-2 rounded-xl text-sm font-bold outline-none transition-colors"
+                        style={{ background: T.inputBg, borderColor: T.inputBorder, color: T.textHeading }}
+                        onFocus={e => (e.currentTarget.style.borderColor = T.inputFocusBorder)}
+                        onBlur={e => (e.currentTarget.style.borderColor = T.inputBorder)}
                       />
                     </div>
                   </div>
                   {info?.bookingMaxCovers && (
-                    <p className="text-xs text-slate-400 mt-3">Maximum {info.bookingMaxCovers} couverts par créneau</p>
+                    <p className="text-xs mt-3" style={{ color: T.textMuted }}>Maximum {info.bookingMaxCovers} couverts par créneau</p>
                   )}
                 </div>
               )}
 
               {/* Calendar */}
               <div className="mb-8">
-                <p className="text-2xl font-bold text-slate-900 mb-5">Choisissez une date</p>
+                <p className="text-2xl font-bold mb-5" style={{ color: T.textHeading }}>Choisissez une date</p>
 
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="rounded-2xl shadow-sm overflow-hidden" style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}>
                   {/* Month header */}
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                  <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: T.cardBorder }}>
                     <button
                       onClick={prevMonth}
-                      className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center transition-colors"
+                      className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
+                      style={{ color: T.textBody }}
+                      onMouseEnter={e => (e.currentTarget.style.background = T.stepFuture)}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
-                      <ChevronLeft className="w-4 h-4 text-slate-600" />
+                      <ChevronLeft className="w-4 h-4" />
                     </button>
-                    <p className="font-semibold text-slate-900 capitalize">{calMonthLabel}</p>
+                    <p className="font-semibold capitalize" style={{ color: T.textHeading }}>{calMonthLabel}</p>
                     <button
                       onClick={nextMonth}
-                      className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center transition-colors"
+                      className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
+                      style={{ color: T.textBody }}
+                      onMouseEnter={e => (e.currentTarget.style.background = T.stepFuture)}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
-                      <ChevronRight className="w-4 h-4 text-slate-600" />
+                      <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
 
                   {/* Day headers */}
                   <div className="grid grid-cols-7 px-3 pt-3 pb-1">
                     {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
-                      <div key={i} className="text-center text-xs font-semibold text-slate-400 py-1">{d}</div>
+                      <div key={i} className="text-center text-xs font-semibold py-1" style={{ color: T.textMuted }}>{d}</div>
                     ))}
                   </div>
 
@@ -735,23 +978,34 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                       const isSelected = dayStr === selectedDate
                       const disabled = isDayDisabled(dayStr)
 
+                      let dayStyle: React.CSSProperties = {}
+                      let dayClassName = "h-9 w-full rounded-xl text-sm font-medium transition-all duration-150"
+
+                      if (isSelected) {
+                        dayStyle = { background: T.primary, color: T.primaryText, boxShadow: `0 4px 8px ${T.primaryShadow}` }
+                      } else if (isToday) {
+                        dayStyle = { boxShadow: `0 0 0 2px ${T.primary}`, color: T.textHeading }
+                      } else if (disabled) {
+                        dayStyle = { color: T.stepFuture, cursor: "default" }
+                      } else if (inCurrentMonth) {
+                        dayStyle = { color: T.textBody }
+                      } else {
+                        dayStyle = { color: T.textMuted }
+                      }
+
                       return (
                         <button
                           key={dayStr}
                           disabled={disabled}
                           onClick={() => setSelectedDate(dayStr)}
-                          className={[
-                            "h-9 w-full rounded-xl text-sm font-medium transition-all duration-150",
-                            isSelected
-                              ? "bg-sky-500 text-white shadow-md shadow-sky-200"
-                              : isToday
-                                ? "ring-2 ring-sky-400 text-slate-900 hover:bg-sky-50"
-                                : disabled
-                                  ? "text-slate-300 cursor-default"
-                                  : inCurrentMonth
-                                    ? "text-slate-800 hover:bg-sky-50"
-                                    : "text-slate-300 hover:bg-sky-50",
-                          ].join(" ")}
+                          className={dayClassName}
+                          style={dayStyle}
+                          onMouseEnter={e => {
+                            if (!isSelected && !disabled) e.currentTarget.style.background = `${T.primary}18`
+                          }}
+                          onMouseLeave={e => {
+                            if (!isSelected) e.currentTarget.style.background = "transparent"
+                          }}
                         >
                           {dayNum}
                         </button>
@@ -764,19 +1018,19 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               {/* Time slots */}
               {selectedDate && (
                 <div className="animate-in fade-in duration-200">
-                  <p className="text-xl font-bold text-slate-900 mb-1">Créneaux disponibles</p>
-                  <p className="text-sm text-slate-400 mb-5 capitalize">{fmtDateLong(selectedDate)}</p>
+                  <p className="text-xl font-bold mb-1" style={{ color: T.textHeading }}>Créneaux disponibles</p>
+                  <p className="text-sm mb-5 capitalize" style={{ color: T.textMuted }}>{fmtDateLong(selectedDate)}</p>
 
                   {loadingSlots ? (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-6">
                       {Array.from({ length: 8 }).map((_, i) => (
-                        <div key={i} className="h-12 rounded-xl bg-slate-100 animate-pulse" />
+                        <div key={i} className="h-12 rounded-xl animate-pulse" style={{ background: T.stepFuture }} />
                       ))}
                     </div>
                   ) : slots.length === 0 ? (
-                    <div className="text-center py-10 bg-white rounded-2xl border border-slate-100">
-                      <p className="text-slate-400 text-sm">Aucun créneau disponible ce jour</p>
-                      <p className="text-slate-300 text-xs mt-1">Essayez une autre date</p>
+                    <div className="text-center py-10 rounded-2xl" style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}>
+                      <p className="text-sm" style={{ color: T.textMuted }}>Aucun créneau disponible ce jour</p>
+                      <p className="text-xs mt-1" style={{ color: T.stepFuture }}>Essayez une autre date</p>
                     </div>
                   ) : (() => {
                     const grouped = groupSlots(slots)
@@ -789,17 +1043,35 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                       <div className="space-y-6 mb-6">
                         {periods.map(period => (
                           <div key={period.label}>
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: T.textMuted }}>
                               {period.emoji} {period.label}
                             </p>
                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                               {period.slots.map(slot => (
-                                <button key={slot} onClick={() => setSelectedSlot(slot)}
-                                  className={`py-3 px-4 rounded-xl text-sm font-semibold border-2 transition-all duration-150 ${
+                                <button
+                                  key={slot}
+                                  onClick={() => setSelectedSlot(slot)}
+                                  className="py-3 px-4 rounded-xl text-sm font-semibold border-2 transition-all duration-150"
+                                  style={
                                     slot === selectedSlot
-                                      ? "bg-sky-500 border-sky-500 text-white shadow-md shadow-sky-200"
-                                      : "bg-white border-slate-100 text-slate-700 hover:border-sky-300 hover:text-sky-600 hover:bg-sky-50"
-                                  }`}>
+                                      ? { background: T.primary, borderColor: T.primary, color: T.primaryText, boxShadow: `0 4px 12px ${T.primaryShadow}` }
+                                      : { background: T.cardBg, borderColor: T.cardBorder, color: T.textBody }
+                                  }
+                                  onMouseEnter={e => {
+                                    if (slot !== selectedSlot) {
+                                      e.currentTarget.style.borderColor = T.primary
+                                      e.currentTarget.style.color = T.primary
+                                      e.currentTarget.style.background = `${T.primary}18`
+                                    }
+                                  }}
+                                  onMouseLeave={e => {
+                                    if (slot !== selectedSlot) {
+                                      e.currentTarget.style.borderColor = T.cardBorder
+                                      e.currentTarget.style.color = T.textBody
+                                      e.currentTarget.style.background = T.cardBg
+                                    }
+                                  }}
+                                >
                                   {slot}
                                 </button>
                               ))}
@@ -813,7 +1085,10 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                   {selectedSlot && (
                     <button
                       onClick={() => setStep("form")}
-                      className="w-full py-4 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-base transition-all duration-150 shadow-lg shadow-sky-200 hover:shadow-sky-300 mt-2"
+                      className="w-full py-4 rounded-2xl font-bold text-base transition-all duration-150 mt-2"
+                      style={{ background: T.primary, color: T.primaryText, boxShadow: `0 8px 24px ${T.primaryShadow}` }}
+                      onMouseEnter={e => (e.currentTarget.style.background = T.primaryHover)}
+                      onMouseLeave={e => (e.currentTarget.style.background = T.primary)}
                     >
                       Continuer →
                     </button>
@@ -828,20 +1103,23 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
             <div key="form" className="animate-in fade-in slide-in-from-right-4 duration-300">
               <BackBtn onClick={() => setStep("datetime")} />
 
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">Vos infos</h2>
-              <p className="text-slate-500 mb-8">Dernière étape — presque terminé !</p>
+              <h2 className="text-3xl font-bold mb-2" style={{ color: T.textHeading }}>Vos infos</h2>
+              <p className="mb-8" style={{ color: T.textBody }}>Dernière étape — presque terminé !</p>
 
               {/* Booking summary */}
-              <div className="bg-gradient-to-r from-sky-500 to-cyan-500 rounded-2xl p-5 mb-8 text-white shadow-lg shadow-sky-200">
+              <div
+                className="rounded-2xl p-5 mb-8 shadow-lg"
+                style={{ background: `linear-gradient(135deg, ${T.primary}, ${T.primaryHover})`, boxShadow: `0 8px 24px ${T.primaryShadow}` }}
+              >
                 {isRestaurant ? (
                   <>
-                    <p className="font-bold text-lg">Table pour {partySize} personne{partySize > 1 ? "s" : ""}</p>
-                    <p className="text-sky-100 text-sm mt-1">{fmtDateLong(selectedDate)} à {selectedSlot}</p>
+                    <p className="font-bold text-lg" style={{ color: T.primaryText }}>Table pour {partySize} personne{partySize > 1 ? "s" : ""}</p>
+                    <p className="text-sm mt-1" style={{ color: `${T.primaryText}cc` }}>{fmtDateLong(selectedDate)} à {selectedSlot}</p>
                   </>
                 ) : selectedService && (
                   <>
-                    <p className="font-bold text-lg">{selectedService.name}</p>
-                    <p className="text-sky-100 text-sm mt-1">
+                    <p className="font-bold text-lg" style={{ color: T.primaryText }}>{selectedService.name}</p>
+                    <p className="text-sm mt-1" style={{ color: `${T.primaryText}cc` }}>
                       {fmtDateLong(selectedDate)} à {selectedSlot}
                       {" · "}{selectedService.duration} min
                       {" · "}<span className="font-semibold">{selectedService.price.toFixed(2)} €</span>
@@ -859,20 +1137,27 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                   { key: "notes", label: "Message / note", type: "text",  placeholder: isRestaurant ? "Chaise bébé, allergie, occasion spéciale…" : "Cheveux courts, allergie, préférence…", required: false },
                 ].map(({ key, label, type, placeholder, required }) => (
                   <div key={key}>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                      {label} {required && <span className="text-sky-500">*</span>}
+                    <label className="block text-sm font-semibold mb-2" style={{ color: T.textBody }}>
+                      {label} {required && <span style={{ color: T.primary }}>*</span>}
                     </label>
                     <input
                       type={type}
                       value={form[key as keyof typeof form]}
                       placeholder={placeholder}
                       onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-sky-400 text-slate-900 text-sm outline-none transition-colors bg-white placeholder:text-slate-300"
+                      className="w-full px-4 py-3 rounded-xl border-2 text-sm outline-none transition-colors"
+                      style={{
+                        background: T.inputBg,
+                        borderColor: T.inputBorder,
+                        color: T.textHeading,
+                      }}
+                      onFocus={e => (e.currentTarget.style.borderColor = T.inputFocusBorder)}
+                      onBlur={e => (e.currentTarget.style.borderColor = T.inputBorder)}
                     />
                   </div>
                 ))}
 
-                <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                <p className="text-xs flex items-center gap-1.5" style={{ color: T.textMuted }}>
                   <Lock className="w-3 h-3" />
                   Vos données ne sont partagées qu&apos;avec l&apos;établissement
                 </p>
@@ -888,16 +1173,23 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               <button
                 onClick={submit}
                 disabled={submitting || !form.name || !form.email}
-                className={`mt-8 hidden lg:block px-10 py-4 rounded-2xl font-bold text-base transition-all duration-150 ${
+                className="mt-8 hidden lg:block px-10 py-4 rounded-2xl font-bold text-base transition-all duration-150"
+                style={
                   submitting || !form.name || !form.email
-                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                    : "bg-sky-500 hover:bg-sky-600 text-white shadow-lg shadow-sky-200"
-                }`}
+                    ? { background: T.stepFuture, color: T.textMuted, cursor: "not-allowed" }
+                    : { background: T.primary, color: T.primaryText, boxShadow: `0 8px 24px ${T.primaryShadow}` }
+                }
+                onMouseEnter={e => {
+                  if (!submitting && form.name && form.email) e.currentTarget.style.background = T.primaryHover
+                }}
+                onMouseLeave={e => {
+                  if (!submitting && form.name && form.email) e.currentTarget.style.background = T.primary
+                }}
               >
                 {submitting ? "Envoi en cours…" : "Confirmer la réservation"}
               </button>
 
-              <p className="hidden lg:block text-xs text-slate-400 mt-3">
+              <p className="hidden lg:block text-xs mt-3" style={{ color: T.textMuted }}>
                 Vous recevrez une confirmation par email
               </p>
             </div>
@@ -908,19 +1200,22 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
             <div key="payment" className="animate-in fade-in slide-in-from-right-4 duration-300">
               <BackBtn onClick={() => setStep("form")} />
 
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">Paiement</h2>
-              <p className="text-slate-500 mb-8">Choisissez votre mode de règlement</p>
+              <h2 className="text-3xl font-bold mb-2" style={{ color: T.textHeading }}>Paiement</h2>
+              <p className="mb-8" style={{ color: T.textBody }}>Choisissez votre mode de règlement</p>
 
-              <div className="bg-white border border-slate-100 rounded-2xl p-4 mb-6 shadow-sm max-w-md">
+              <div
+                className="rounded-2xl p-4 mb-6 shadow-sm max-w-md"
+                style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}
+              >
                 {isRestaurant ? (
                   <>
-                    <p className="font-semibold text-slate-900">Table pour {partySize} personne{partySize > 1 ? "s" : ""}</p>
-                    <p className="text-sm text-slate-500 mt-0.5">{fmtDateLong(selectedDate)} à {selectedSlot}</p>
+                    <p className="font-semibold" style={{ color: T.textHeading }}>Table pour {partySize} personne{partySize > 1 ? "s" : ""}</p>
+                    <p className="text-sm mt-0.5" style={{ color: T.textBody }}>{fmtDateLong(selectedDate)} à {selectedSlot}</p>
                   </>
                 ) : selectedService && (
                   <>
-                    <p className="font-semibold text-slate-900">{selectedService.name}</p>
-                    <p className="text-sm text-slate-500 mt-0.5">
+                    <p className="font-semibold" style={{ color: T.textHeading }}>{selectedService.name}</p>
+                    <p className="text-sm mt-0.5" style={{ color: T.textBody }}>
                       {fmtDateLong(selectedDate)} à {selectedSlot} · {selectedService.duration} min
                       {selectedStaff && !anyStaff ? ` · ${selectedStaff.name}` : ""}
                     </p>
@@ -929,7 +1224,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               </div>
 
               {selectedService && (
-                <p className="text-sm text-slate-500 mb-6 max-w-md">
+                <p className="text-sm mb-6 max-w-md" style={{ color: T.textBody }}>
                   {info?.depositType === "percent"
                     ? `Acompte de ${info.depositValue}% — ${((selectedService.price * (info?.depositValue ?? 100)) / 100).toFixed(2)} €`
                     : info?.depositType === "fixed"
@@ -942,21 +1237,27 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                 <button
                   onClick={payOnline}
                   disabled={payingOnline}
-                  className={`w-full flex items-center gap-4 p-5 rounded-2xl border-2 text-left transition-all duration-150 ${
+                  className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 text-left transition-all duration-150"
+                  style={
                     payingOnline
-                      ? "border-sky-300 bg-sky-50 opacity-70"
-                      : "border-sky-400 bg-white hover:bg-sky-50 shadow-sm hover:shadow-md"
-                  }`}
+                      ? { borderColor: T.primary, background: `${T.primary}18`, opacity: 0.7 }
+                      : { borderColor: T.primary, background: T.cardBg }
+                  }
+                  onMouseEnter={e => { if (!payingOnline) e.currentTarget.style.background = `${T.primary}18` }}
+                  onMouseLeave={e => { if (!payingOnline) e.currentTarget.style.background = T.cardBg }}
                 >
-                  <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
-                    <CreditCard className="w-6 h-6 text-sky-500" />
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: `${T.primary}18` }}
+                  >
+                    <CreditCard className="w-6 h-6" style={{ color: T.primary }} />
                   </div>
                   <div className="flex-1">
-                    <p className="font-bold text-slate-900">{payingOnline ? "Redirection en cours…" : "Payer en ligne"}</p>
-                    <p className="text-sm text-slate-500">Carte bancaire · Paiement sécurisé Stripe</p>
+                    <p className="font-bold" style={{ color: T.textHeading }}>{payingOnline ? "Redirection en cours…" : "Payer en ligne"}</p>
+                    <p className="text-sm" style={{ color: T.textBody }}>Carte bancaire · Paiement sécurisé Stripe</p>
                   </div>
                   {!payingOnline && selectedService && (
-                    <span className="font-bold text-sky-500 text-base flex-shrink-0">
+                    <span className="font-bold text-base flex-shrink-0" style={{ color: T.primary }}>
                       {info?.depositType === "percent"
                         ? `${((selectedService.price * (info?.depositValue ?? 100)) / 100).toFixed(2)} €`
                         : info?.depositType === "fixed"
@@ -969,16 +1270,24 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                 <button
                   onClick={() => setStep("done")}
                   disabled={payingOnline}
-                  className={`w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-slate-100 bg-white text-left transition-all duration-150 ${
-                    payingOnline ? "opacity-40 cursor-not-allowed" : "hover:border-slate-300 shadow-sm hover:shadow-md"
-                  }`}
+                  className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 text-left transition-all duration-150"
+                  style={
+                    payingOnline
+                      ? { borderColor: T.cardBorder, background: T.cardBg, opacity: 0.4, cursor: "not-allowed" }
+                      : { borderColor: T.cardBorder, background: T.cardBg }
+                  }
+                  onMouseEnter={e => { if (!payingOnline) e.currentTarget.style.borderColor = T.textMuted }}
+                  onMouseLeave={e => { if (!payingOnline) e.currentTarget.style.borderColor = T.cardBorder }}
                 >
-                  <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center flex-shrink-0">
-                    <MapPin className="w-6 h-6 text-slate-400" />
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: T.stepFuture }}
+                  >
+                    <MapPin className="w-6 h-6" style={{ color: T.textMuted }} />
                   </div>
                   <div>
-                    <p className="font-bold text-slate-900">Payer sur place</p>
-                    <p className="text-sm text-slate-500">Règlement lors du rendez-vous</p>
+                    <p className="font-bold" style={{ color: T.textHeading }}>Payer sur place</p>
+                    <p className="text-sm" style={{ color: T.textBody }}>Règlement lors du rendez-vous</p>
                   </div>
                 </button>
               </div>
@@ -992,8 +1301,8 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                 <div className="flex justify-center mb-6 relative">
                   <AnimatedCheckmark />
                 </div>
-                <h1 className="text-3xl font-bold text-slate-900 mb-2">C&apos;est réservé ! 🎉</h1>
-                <p className="text-slate-500">
+                <h1 className="text-3xl font-bold mb-2" style={{ color: T.textHeading }}>C&apos;est réservé ! 🎉</h1>
+                <p style={{ color: T.textBody }}>
                   {isRestaurant
                     ? `Table pour ${partySize} · ${fmtDateLong(selectedDate)} à ${selectedSlot}`
                     : `${selectedService?.name} · ${fmtDateLong(selectedDate)} à ${selectedSlot}`}
@@ -1001,42 +1310,45 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               </div>
 
               {/* Summary card */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-6 space-y-3">
+              <div
+                className="rounded-2xl shadow-sm p-5 mb-6 space-y-3"
+                style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}
+              >
                 {!isRestaurant && selectedService && (
                   <div className="flex items-center gap-3">
-                    <Sparkles className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                    <Sparkles className="w-4 h-4 flex-shrink-0" style={{ color: T.primary }} />
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{selectedService.name}</p>
-                      <p className="text-xs text-slate-500">{selectedService.duration} min · {selectedService.price.toFixed(2)} €</p>
+                      <p className="text-sm font-semibold" style={{ color: T.textHeading }}>{selectedService.name}</p>
+                      <p className="text-xs" style={{ color: T.textBody }}>{selectedService.duration} min · {selectedService.price.toFixed(2)} €</p>
                     </div>
                   </div>
                 )}
                 {isRestaurant && (
                   <div className="flex items-center gap-3">
-                    <Users className="w-4 h-4 text-sky-400 flex-shrink-0" />
-                    <p className="text-sm font-semibold text-slate-900">{partySize} personne{partySize > 1 ? "s" : ""}</p>
+                    <Users className="w-4 h-4 flex-shrink-0" style={{ color: T.primary }} />
+                    <p className="text-sm font-semibold" style={{ color: T.textHeading }}>{partySize} personne{partySize > 1 ? "s" : ""}</p>
                   </div>
                 )}
                 {selectedStaff && !anyStaff && (
                   <div className="flex items-center gap-3">
                     <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ background: selectedStaff.color }} />
-                    <p className="text-sm text-slate-700">{selectedStaff.name}</p>
+                    <p className="text-sm" style={{ color: T.textBody }}>{selectedStaff.name}</p>
                   </div>
                 )}
                 <div className="flex items-center gap-3">
-                  <Calendar className="w-4 h-4 text-sky-400 flex-shrink-0" />
-                  <p className="text-sm text-slate-700 capitalize">{fmtDateLong(selectedDate)}</p>
+                  <Calendar className="w-4 h-4 flex-shrink-0" style={{ color: T.primary }} />
+                  <p className="text-sm capitalize" style={{ color: T.textBody }}>{fmtDateLong(selectedDate)}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-sky-400 flex-shrink-0" />
-                  <p className="text-sm font-semibold text-slate-900">{selectedSlot}</p>
+                  <Clock className="w-4 h-4 flex-shrink-0" style={{ color: T.primary }} />
+                  <p className="text-sm font-semibold" style={{ color: T.textHeading }}>{selectedSlot}</p>
                 </div>
-                <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                <div className="pt-2 border-t space-y-2" style={{ borderColor: T.cardBorder }}>
+                  <div className="flex items-center gap-2 text-sm" style={{ color: T.textBody }}>
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                     Un email de confirmation vous sera envoyé
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <div className="flex items-center gap-2 text-sm" style={{ color: T.textBody }}>
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                     {info?.businessName} confirmera votre RDV prochainement
                   </div>
@@ -1053,7 +1365,10 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                     setForm({ name: "", email: "", phone: "", notes: "" })
                     setCreatedBookingId(null); setPayingOnline(false)
                   }}
-                  className="w-full py-4 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-base transition-all duration-150 shadow-lg shadow-sky-200"
+                  className="w-full py-4 rounded-2xl font-bold text-base transition-all duration-150"
+                  style={{ background: T.primary, color: T.primaryText, boxShadow: `0 8px 24px ${T.primaryShadow}` }}
+                  onMouseEnter={e => (e.currentTarget.style.background = T.primaryHover)}
+                  onMouseLeave={e => (e.currentTarget.style.background = T.primary)}
                 >
                   Nouvelle réservation
                 </button>
@@ -1066,21 +1381,25 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
 
       {/* ══ Mobile sticky bottom bar ═════════════════════════════════════════════ */}
       {step === "form" && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 shadow-lg z-20">
+        <div
+          className="lg:hidden fixed bottom-0 left-0 right-0 border-t p-4 shadow-lg z-20"
+          style={{ background: T.sidebarBg, borderColor: T.sidebarBorder }}
+        >
           <div className="flex items-center gap-3">
             <button
               onClick={submit}
               disabled={submitting || !form.name || !form.email}
-              className={`flex-1 py-4 rounded-2xl font-bold text-base transition-all duration-150 ${
+              className="flex-1 py-4 rounded-2xl font-bold text-base transition-all duration-150"
+              style={
                 submitting || !form.name || !form.email
-                  ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                  : "bg-sky-500 hover:bg-sky-600 text-white shadow-lg shadow-sky-200"
-              }`}
+                  ? { background: T.stepFuture, color: T.textMuted, cursor: "not-allowed" }
+                  : { background: T.primary, color: T.primaryText, boxShadow: `0 8px 24px ${T.primaryShadow}` }
+              }
             >
               {submitting ? "Envoi en cours…" : "Confirmer"}
             </button>
             {selectedService && (
-              <span className="text-base font-bold text-slate-900 flex-shrink-0">
+              <span className="text-base font-bold flex-shrink-0" style={{ color: T.textHeading }}>
                 {selectedService.price.toFixed(2)} €
               </span>
             )}
@@ -1089,16 +1408,22 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
       )}
 
       {step === "datetime" && selectedSlot && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 shadow-lg z-20">
+        <div
+          className="lg:hidden fixed bottom-0 left-0 right-0 border-t p-4 shadow-lg z-20"
+          style={{ background: T.sidebarBg, borderColor: T.sidebarBorder }}
+        >
           <div className="flex items-center gap-3">
             <button
               onClick={() => setStep("form")}
-              className="flex-1 py-4 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-base transition-all duration-150 shadow-lg shadow-sky-200"
+              className="flex-1 py-4 rounded-2xl font-bold text-base transition-all duration-150"
+              style={{ background: T.primary, color: T.primaryText, boxShadow: `0 8px 24px ${T.primaryShadow}` }}
+              onMouseEnter={e => (e.currentTarget.style.background = T.primaryHover)}
+              onMouseLeave={e => (e.currentTarget.style.background = T.primary)}
             >
               Continuer →
             </button>
             {selectedService && (
-              <span className="text-base font-bold text-slate-900 flex-shrink-0">
+              <span className="text-base font-bold flex-shrink-0" style={{ color: T.textHeading }}>
                 {selectedService.price.toFixed(2)} €
               </span>
             )}

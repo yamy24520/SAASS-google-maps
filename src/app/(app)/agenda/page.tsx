@@ -52,7 +52,12 @@ function getWeekDates(refDate: Date): Date[] {
   })
 }
 
-function toDateStr(d: Date) { return d.toISOString().split("T")[0] }
+function toDateStr(d: Date) {
+  const y = d.getFullYear()
+  const mo = String(d.getMonth() + 1).padStart(2, "0")
+  const da = String(d.getDate()).padStart(2, "0")
+  return `${y}-${mo}-${da}`
+}
 function toMin(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m }
 
 function isAbsent(absences: StaffAbsence[], staffId: string, dateStr: string) {
