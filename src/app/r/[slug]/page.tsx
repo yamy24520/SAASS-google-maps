@@ -541,6 +541,7 @@ function EditWrapper({ section, t, onToggle, dragIdx, myIdx, onDragStart, onDrop
 
 export default function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null
   const [data, setData]         = useState<PageData | null>(null)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState("")
@@ -557,6 +558,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
     fetch(`/api/r/${slug}`).then(r => r.json()).then(d => {
       if (d.error) { setError(d.error); setLoading(false); return }
       setData(d)
+      if (d.isOwner && searchParams?.get("edit") === "1") setEditing(true)
       const raw: Section[] = (d.pageConfig?.sections ?? []).sort((a: Section, b: Section) => a.order - b.order)
       // Backfill socialLinks into social section
       const merged = raw.map((s: Section) => {
