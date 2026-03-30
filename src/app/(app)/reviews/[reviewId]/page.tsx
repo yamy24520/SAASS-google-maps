@@ -151,7 +151,7 @@ export default function ReviewDetailPage() {
     )
   }
 
-  const isPublished = review.status === "PUBLISHED"
+  const isPublished = review!.status === "PUBLISHED"
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
