@@ -11,6 +11,10 @@ interface Staff   { id: string; name: string; color: string }
 interface BusinessInfo {
   businessId: string; businessName: string; logoDataUrl: string | null
   pageTheme: string; pageTagline: string | null; pageAccentColor: string | null
+  pageCoverDataUrl: string | null; pageDescription: string | null
+  pageLegalText: string | null; pageLabels: Record<string, string> | null
+  pageServiceOrder: string[] | null; pageShowHours: boolean
+  bookingHours: Record<string, { open: string; close: string }> | null
   maxDaysAhead: number; bookingType: string; bookingMaxCovers: number | null
   paymentEnabled: boolean; depositType: string; depositValue: number; stripeReady: boolean
 }
@@ -429,6 +433,13 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         pageTheme: pageData.pageTheme ?? "default",
         pageTagline: pageData.pageTagline ?? null,
         pageAccentColor: pageData.pageAccentColor ?? null,
+        pageCoverDataUrl: pageData.pageCoverDataUrl ?? null,
+        pageDescription: pageData.pageDescription ?? null,
+        pageLegalText: pageData.pageLegalText ?? null,
+        pageLabels: pageData.pageLabels ?? null,
+        pageServiceOrder: pageData.pageServiceOrder ?? null,
+        pageShowHours: pageData.pageShowHours ?? false,
+        bookingHours: pageData.bookingHours ?? null,
         maxDaysAhead,
         bookingType: bookData.bookingType ?? "appointment",
         bookingMaxCovers: bookData.bookingMaxCovers ?? null,
@@ -533,11 +544,17 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
 
   // ── Theme resolution (preview overrides have priority) ───────────────────────
 
-  const displayTheme    = preview?.pageTheme      ?? info?.pageTheme      ?? "default"
-  const displayAccent   = preview?.pageAccentColor ?? info?.pageAccentColor ?? null
-  const displayTagline  = preview?.pageTagline     ?? info?.pageTagline     ?? null
-  const displayLogo     = preview?.logoDataUrl     ?? info?.logoDataUrl     ?? null
-  const displayName     = preview?.businessName    ?? info?.businessName    ?? ""
+  const displayTheme       = preview?.pageTheme        ?? info?.pageTheme        ?? "default"
+  const displayAccent      = preview?.pageAccentColor  ?? info?.pageAccentColor  ?? null
+  const displayTagline     = preview?.pageTagline      ?? info?.pageTagline      ?? null
+  const displayLogo        = preview?.logoDataUrl      ?? info?.logoDataUrl      ?? null
+  const displayName        = preview?.businessName     ?? info?.businessName     ?? ""
+  const displayCover       = preview?.pageCoverDataUrl ?? info?.pageCoverDataUrl ?? null
+  const displayDescription = preview?.pageDescription  ?? info?.pageDescription  ?? null
+  const displayLegal       = preview?.pageLegalText    ?? info?.pageLegalText    ?? null
+  const displayLabels      = preview?.pageLabels       ?? info?.pageLabels       ?? null
+  const displayShowHours   = preview?.pageShowHours    ?? info?.pageShowHours    ?? false
+  const displayServiceOrder = preview?.pageServiceOrder ?? info?.pageServiceOrder ?? null
 
   const themeKey = displayTheme as ThemeKey
   const baseTheme = THEMES[themeKey] ?? THEMES.default
@@ -566,11 +583,23 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
       ? ["service", "staff", "datetime", "form", ...paymentStep]
       : ["service", "datetime", "form", ...paymentStep]
   const LABELS: Record<Step, string> = {
-    service: "Prestation", staff: "Avec qui ?", datetime: "Date & heure",
-    form: "Coordonnées", payment: "Paiement", done: "Confirmé"
+    service: displayLabels?.service ?? "Prestation",
+    staff: displayLabels?.staff ?? "Avec qui ?",
+    datetime: displayLabels?.datetime ?? "Date & heure",
+    form: displayLabels?.form ?? "Coordonnées",
+    payment: "Paiement", done: "Confirmé"
   }
 
   const stepIdx = STEPS.indexOf(step)
+
+  // Ordered services (custom order if set)
+  const orderedServices = displayServiceOrder && displayServiceOrder.length > 0
+    ? [...services].sort((a, b) => {
+        const ia = displayServiceOrder.indexOf(a.id)
+        const ib = displayServiceOrder.indexOf(b.id)
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+      })
+    : services
 
   // Calendar data
   const calDays = getCalendarDays(calMonth)
@@ -710,6 +739,13 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           className="hidden lg:flex flex-col w-80 shrink-0 sticky top-0 h-svh overflow-y-auto p-8 border-r"
           style={{ background: T.sidebarBg, borderColor: T.sidebarBorder }}
         >
+          {/* Cover image */}
+          {displayCover && (
+            <div className="mb-6 -mx-8 -mt-8">
+              <img src={displayCover} className="w-full h-36 object-cover" alt="" />
+            </div>
+          )}
+
           {/* Business identity */}
           <div className="mb-8">
             {/* Accent emoji only — no badge text */}
@@ -730,11 +766,32 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
             {displayTagline && (
               <p className="text-sm mt-1 leading-snug" style={{ color: T.textMuted }}>{displayTagline}</p>
             )}
+            {displayDescription && (
+              <p className="text-sm mt-2 leading-relaxed" style={{ color: T.textBody }}>{displayDescription}</p>
+            )}
             <div className="flex items-center gap-1.5 mt-2">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs font-semibold text-emerald-600">En ligne</span>
             </div>
           </div>
+
+          {/* Opening hours */}
+          {displayShowHours && info?.bookingHours && (
+            <div className="mb-6">
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: T.textMuted }}>Horaires</p>
+              <div className="space-y-1">
+                {(["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"] as const).map(day => {
+                  const h = (info.bookingHours as Record<string, { open: string; close: string }> | null)?.[day]
+                  return (
+                    <div key={day} className="flex justify-between text-xs" style={{ color: T.textBody }}>
+                      <span className="capitalize">{day}</span>
+                      <span>{h ? `${h.open} – ${h.close}` : "Fermé"}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Step progress */}
           {step !== "done" && <SidebarSteps />}
@@ -754,9 +811,14 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           )}
 
           {/* Footer */}
-          <div className="mt-auto pt-8 flex items-center gap-1.5 text-xs" style={{ color: T.textMuted }}>
-            <Lock className="w-3 h-3" />
-            Réservation sécurisée
+          <div className="mt-auto pt-8 space-y-3">
+            {displayLegal && (
+              <p className="text-xs leading-relaxed" style={{ color: T.textMuted }}>{displayLegal}</p>
+            )}
+            <div className="flex items-center gap-1.5 text-xs" style={{ color: T.textMuted }}>
+              <Lock className="w-3 h-3" />
+              Réservation sécurisée
+            </div>
           </div>
         </aside>
 
@@ -767,13 +829,13 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           {step === "service" && !isRestaurant && (
             <div key="service" className="animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="mb-8">
-                <h2 className="text-3xl font-bold leading-tight" style={{ color: T.textHeading }}>Quelle prestation ?</h2>
+                <h2 className="text-3xl font-bold leading-tight" style={{ color: T.textHeading }}>{displayLabels?.service ?? "Quelle prestation ?"}</h2>
                 <p className="mt-2" style={{ color: T.textBody }}>
-                  {services.length} prestation{services.length > 1 ? "s" : ""} disponible{services.length > 1 ? "s" : ""}
+                  {orderedServices.length} prestation{orderedServices.length > 1 ? "s" : ""} disponible{orderedServices.length > 1 ? "s" : ""}
                 </p>
               </div>
 
-              {services.length === 0 && (
+              {orderedServices.length === 0 && (
                 <div className="text-center py-16" style={{ color: T.textMuted }}>
                   <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-40" />
                   <p className="text-sm">Aucune prestation disponible</p>
@@ -781,7 +843,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               )}
 
               <div className="space-y-3">
-                {services.map((svc, idx) => (
+                {orderedServices.map((svc, idx) => (
                   <button
                     key={svc.id}
                     onClick={() => { setSelectedService(svc); setStep(hasStaff ? "staff" : "datetime") }}
@@ -830,8 +892,8 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
             <div key="staff" className="animate-in fade-in slide-in-from-right-4 duration-300">
               <BackBtn onClick={() => setStep("service")} />
               <div className="mb-8">
-                <h2 className="text-3xl font-bold leading-tight" style={{ color: T.textHeading }}>Avec qui ?</h2>
-                <p className="mt-2" style={{ color: T.textBody }}>Choisissez votre prestataire</p>
+                <h2 className="text-3xl font-bold leading-tight" style={{ color: T.textHeading }}>{displayLabels?.staff ?? "Avec qui ?"}</h2>
+                <p className="mt-2" style={{ color: T.textBody }}>{displayLabels?.staffSub ?? "Choisissez votre prestataire"}</p>
               </div>
               <div className="space-y-3">
                 {/* "Peu importe" option */}

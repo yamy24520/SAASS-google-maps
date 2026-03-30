@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
-import { Save, Loader2, Monitor, Smartphone, RefreshCw, Upload, X, ExternalLink } from "lucide-react"
+import {
+  Save, Loader2, Monitor, Smartphone, RefreshCw, Upload, X, ExternalLink,
+  GripVertical, ChevronDown, ChevronUp, Clock, Type, Image, FileText, Tag, ListOrdered
+} from "lucide-react"
 import { toast } from "@/components/ui/toaster"
 
 interface PreviewState {
@@ -10,38 +13,72 @@ interface PreviewState {
   pageAccentColor: string | null
   pageTagline: string | null
   logoDataUrl: string | null
+  pageCoverDataUrl: string | null
+  pageDescription: string | null
+  pageLegalText: string | null
+  pageLabels: Record<string, string> | null
+  pageServiceOrder: string[] | null
+  pageShowHours: boolean
   businessName: string
 }
 
+interface ServiceItem { id: string; name: string }
+
 const THEMES = [
-  { key: "default",    label: "Standard",    primary: "#0ea5e9", pageBg: "#f8fafc", dark: false },
-  { key: "hello_kitty",label: "Hello Kitty", primary: "#e91e8c", pageBg: "#fce4ec", dark: false },
-  { key: "barber",     label: "Barber Shop", primary: "#f59e0b", pageBg: "#0f172a", dark: true  },
-  { key: "manga",      label: "Manga",       primary: "#dc2626", pageBg: "#ffffff", dark: false },
+  { key: "default",     label: "Standard",    primary: "#0ea5e9", pageBg: "#f8fafc", dark: false },
+  { key: "hello_kitty", label: "Hello Kitty", primary: "#e91e8c", pageBg: "#fce4ec", dark: false },
+  { key: "barber",      label: "Barber Shop", primary: "#f59e0b", pageBg: "#0f172a", dark: true  },
+  { key: "manga",       label: "Manga",       primary: "#dc2626", pageBg: "#ffffff", dark: false },
 ]
+
+const DEFAULT_LABELS: Record<string, string> = {
+  service:  "Quelle prestation ?",
+  staff:    "Avec qui ?",
+  staffSub: "Choisissez votre prestataire",
+  datetime: "Date & heure",
+  form:     "Coordonnées",
+}
+
+const SECTIONS = [
+  { id: "theme",       label: "Theme",       icon: Tag },
+  { id: "colors",      label: "Couleurs",    icon: Tag },
+  { id: "identity",    label: "Identite",    icon: Type },
+  { id: "cover",       label: "Banniere",    icon: Image },
+  { id: "labels",      label: "Labels",      icon: Type },
+  { id: "services",    label: "Services",    icon: ListOrdered },
+  { id: "hours",       label: "Horaires",    icon: Clock },
+  { id: "legal",       label: "Mentions",    icon: FileText },
+] as const
 
 export default function PersonnalisationPage() {
   const searchParams = useSearchParams()
   const bizParam = searchParams.get("biz") ? `?biz=${searchParams.get("biz")}` : ""
 
   const iframeRef = useRef<HTMLIFrameElement>(null)
-  const [slug, setSlug]           = useState<string | null>(null)
-  const [loading, setLoading]     = useState(true)
-  const [saving, setSaving]       = useState(false)
+  const [slug, setSlug]               = useState<string | null>(null)
+  const [loading, setLoading]         = useState(true)
+  const [saving, setSaving]           = useState(false)
   const [iframeReady, setIframeReady] = useState(false)
-  const [viewport, setViewport]   = useState<"desktop" | "mobile">("desktop")
+  const [viewport, setViewport]       = useState<"desktop" | "mobile">("desktop")
+  const [services, setServices]       = useState<ServiceItem[]>([])
+  const [openSection, setOpenSection] = useState<string>("theme")
 
   const [state, setState] = useState<PreviewState>({
     pageTheme: "default",
     pageAccentColor: null,
     pageTagline: null,
     logoDataUrl: null,
+    pageCoverDataUrl: null,
+    pageDescription: null,
+    pageLegalText: null,
+    pageLabels: null,
+    pageServiceOrder: null,
+    pageShowHours: false,
     businessName: "",
   })
   const [saved, setSaved] = useState<PreviewState>(state)
   const dirty = JSON.stringify(state) !== JSON.stringify(saved)
 
-  // Custom accent: use theme primary as placeholder when null
   const activePrimary = state.pageAccentColor ?? THEMES.find(t => t.key === state.pageTheme)?.primary ?? "#0ea5e9"
 
   const sendPreview = useCallback((overrides: PreviewState) => {
@@ -51,30 +88,38 @@ export default function PersonnalisationPage() {
     )
   }, [])
 
-  // Fetch current settings
+  // Fetch current settings + services
   useEffect(() => {
     Promise.all([
       fetch(`/api/settings${bizParam}`).then(r => r.json()),
       fetch(`/api/page${bizParam}`).then(r => r.json()),
-    ]).then(([sData, pData]) => {
+      fetch(`/api/services${bizParam}`).then(r => r.json()),
+    ]).then(([sData, pData, svcData]) => {
       const b = sData.business
       if (b) {
         const initial: PreviewState = {
-          pageTheme:      b.pageTheme ?? "default",
-          pageAccentColor: b.pageAccentColor ?? null,
-          pageTagline:    b.pageTagline ?? null,
-          logoDataUrl:    b.logoDataUrl ?? null,
-          businessName:   b.name ?? "",
+          pageTheme:        b.pageTheme ?? "default",
+          pageAccentColor:  b.pageAccentColor ?? null,
+          pageTagline:      b.pageTagline ?? null,
+          logoDataUrl:      b.logoDataUrl ?? null,
+          pageCoverDataUrl: b.pageCoverDataUrl ?? null,
+          pageDescription:  b.pageDescription ?? null,
+          pageLegalText:    b.pageLegalText ?? null,
+          pageLabels:       b.pageLabels ?? null,
+          pageServiceOrder: b.pageServiceOrder ?? null,
+          pageShowHours:    b.pageShowHours ?? false,
+          businessName:     b.name ?? "",
         }
         setState(initial)
         setSaved(initial)
       }
       setSlug(pData.pageSlug ?? null)
+      setServices((svcData.services ?? svcData ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })))
       setLoading(false)
     })
-  }, [bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [bizParam])
 
-  // Send preview whenever state changes and iframe is ready
+  // Send preview on state change
   useEffect(() => {
     if (iframeReady) sendPreview(state)
   }, [state, iframeReady, sendPreview])
@@ -83,35 +128,59 @@ export default function PersonnalisationPage() {
     setState(prev => ({ ...prev, [key]: value }))
   }
 
+  function updateLabel(key: string, value: string) {
+    setState(prev => {
+      const labels = { ...(prev.pageLabels ?? {}) }
+      if (value) labels[key] = value
+      else delete labels[key]
+      return { ...prev, pageLabels: Object.keys(labels).length > 0 ? labels : null }
+    })
+  }
+
   async function save() {
     setSaving(true)
     const res = await fetch(`/api/settings${bizParam}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        pageTheme:       state.pageTheme,
-        pageAccentColor: state.pageAccentColor,
-        pageTagline:     state.pageTagline || null,
-        logoDataUrl:     state.logoDataUrl,
+        pageTheme:        state.pageTheme,
+        pageAccentColor:  state.pageAccentColor,
+        pageTagline:      state.pageTagline || null,
+        logoDataUrl:      state.logoDataUrl,
+        pageCoverDataUrl: state.pageCoverDataUrl,
+        pageDescription:  state.pageDescription || null,
+        pageLegalText:    state.pageLegalText || null,
+        pageLabels:       state.pageLabels,
+        pageServiceOrder: state.pageServiceOrder,
+        pageShowHours:    state.pageShowHours,
       }),
     })
     if (res.ok) {
       setSaved({ ...state })
-      toast({ title: "Apparence sauvegardée", variant: "success" })
+      toast({ title: "Apparence sauvegardee", variant: "success" })
     } else {
       toast({ title: "Erreur lors de la sauvegarde", variant: "destructive" })
     }
     setSaving(false)
   }
 
-  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => {
-      update("logoDataUrl", ev.target?.result as string ?? null)
+  function handleImageUpload(key: "logoDataUrl" | "pageCoverDataUrl") {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = ev => update(key, ev.target?.result as string ?? null)
+      reader.readAsDataURL(file)
     }
-    reader.readAsDataURL(file)
+  }
+
+  function moveService(idx: number, dir: -1 | 1) {
+    const order = state.pageServiceOrder ?? services.map(s => s.id)
+    const newOrder = [...order]
+    const target = idx + dir
+    if (target < 0 || target >= newOrder.length) return
+    ;[newOrder[idx], newOrder[target]] = [newOrder[target], newOrder[idx]]
+    update("pageServiceOrder", newOrder)
   }
 
   function reloadIframe() {
@@ -130,26 +199,48 @@ export default function PersonnalisationPage() {
       <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto">
         <Monitor className="w-8 h-8 text-slate-400" />
       </div>
-      <p className="font-semibold text-slate-700">Page de réservation non configurée</p>
-      <p className="text-sm text-slate-400">Activez d&apos;abord votre page de réservation dans <a href="/services" className="text-sky-500 hover:underline">Configuration</a>.</p>
+      <p className="font-semibold text-slate-700">Page de reservation non configuree</p>
+      <p className="text-sm text-slate-400">Activez d&apos;abord votre page dans <a href="/services" className="text-sky-500 hover:underline">Configuration</a>.</p>
     </div>
   )
 
   const iframeUrl = `/book/${slug}`
   const activeTheme = THEMES.find(t => t.key === state.pageTheme) ?? THEMES[0]
 
+  // Ordered services for display
+  const displayOrder = state.pageServiceOrder ?? services.map(s => s.id)
+  const orderedSvcs = [...services].sort((a, b) => {
+    const ia = displayOrder.indexOf(a.id)
+    const ib = displayOrder.indexOf(b.id)
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+  })
+
+  function Section({ id, label, icon: Icon, children }: { id: string; label: string; icon: React.ElementType; children: React.ReactNode }) {
+    const isOpen = openSection === id
+    return (
+      <div className="border-b border-slate-100 last:border-0">
+        <button
+          onClick={() => setOpenSection(isOpen ? "" : id)}
+          className="w-full flex items-center gap-2.5 px-5 py-3.5 text-left hover:bg-slate-50 transition-colors"
+        >
+          <Icon className="w-4 h-4 text-slate-400 flex-shrink-0" />
+          <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex-1">{label}</span>
+          {isOpen ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
+        </button>
+        {isOpen && <div className="px-5 pb-5 space-y-4">{children}</div>}
+      </div>
+    )
+  }
+
   return (
-    // Full-height layout sans le padding de la page parent
     <div className="fixed inset-0 lg:left-64 top-16 flex flex-col bg-slate-100 z-10">
 
-      {/* ── Topbar ──────────────────────────────────────────────────────────── */}
+      {/* Topbar */}
       <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 flex-shrink-0">
         <div className="flex-1 min-w-0">
-          <h1 className="font-bold text-slate-900 text-sm">Apparence de la page réservation</h1>
-          {dirty && <p className="text-xs text-amber-500 font-medium">Modifications non sauvegardées</p>}
+          <h1 className="font-bold text-slate-900 text-sm">Apparence de la page reservation</h1>
+          {dirty && <p className="text-xs text-amber-500 font-medium">Modifications non sauvegardees</p>}
         </div>
-
-        {/* Viewport toggle */}
         <div className="flex rounded-lg border border-slate-200 overflow-hidden">
           <button onClick={() => setViewport("desktop")}
             className={`p-2 transition-colors ${viewport === "desktop" ? "bg-slate-100 text-slate-900" : "bg-white text-slate-400 hover:bg-slate-50"}`}>
@@ -160,18 +251,13 @@ export default function PersonnalisationPage() {
             <Smartphone className="w-4 h-4" />
           </button>
         </div>
-
-        <button onClick={reloadIframe} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors" title="Recharger l'aperçu">
+        <button onClick={reloadIframe} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors" title="Recharger">
           <RefreshCw className="w-4 h-4" />
         </button>
-
-        {slug && (
-          <a href={iframeUrl} target="_blank" rel="noopener noreferrer"
-            className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors" title="Ouvrir dans un nouvel onglet">
-            <ExternalLink className="w-4 h-4" />
-          </a>
-        )}
-
+        <a href={iframeUrl} target="_blank" rel="noopener noreferrer"
+          className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors" title="Nouvel onglet">
+          <ExternalLink className="w-4 h-4" />
+        </a>
         <button onClick={save} disabled={saving || !dirty}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold disabled:opacity-40 transition-colors">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -179,95 +265,90 @@ export default function PersonnalisationPage() {
         </button>
       </div>
 
-      {/* ── Body: panel + iframe ─────────────────────────────────────────────── */}
+      {/* Body */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* ── Left config panel ─────────────────────────────────────────────── */}
-        <div className="w-72 flex-shrink-0 bg-white border-r border-slate-200 overflow-y-auto">
-          <div className="p-5 space-y-7">
+        {/* Left config panel */}
+        <div className="w-80 flex-shrink-0 bg-white border-r border-slate-200 overflow-y-auto">
 
-            {/* Thème */}
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Thème</p>
-              <div className="grid grid-cols-2 gap-2">
-                {THEMES.map(theme => {
-                  const isSelected = state.pageTheme === theme.key
-                  return (
-                    <button key={theme.key} onClick={() => update("pageTheme", theme.key)}
-                      className="flex flex-col items-center gap-2 p-2.5 rounded-xl transition-all"
-                      style={{
-                        border: isSelected ? `2px solid ${theme.primary}` : "2px solid #e2e8f0",
-                        background: isSelected ? `${theme.primary}12` : "transparent",
-                      }}>
-                      <div className="w-full h-10 rounded-lg overflow-hidden">
-                        <div style={{ height: "55%", background: theme.primary }} />
-                        <div style={{ height: "45%", background: theme.pageBg, borderTop: "1px solid #e2e8f0" }} />
-                      </div>
-                      <span className="text-xs font-medium text-slate-700">{theme.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Couleur d'accent */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Couleur principale</p>
-                {state.pageAccentColor && (
-                  <button onClick={() => update("pageAccentColor", null)}
-                    className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
-                    <X className="w-3 h-3" /> Réinitialiser
+          {/* ─ Theme ─ */}
+          <Section id="theme" label="Theme" icon={Tag}>
+            <div className="grid grid-cols-2 gap-2">
+              {THEMES.map(theme => {
+                const sel = state.pageTheme === theme.key
+                return (
+                  <button key={theme.key} onClick={() => update("pageTheme", theme.key)}
+                    className="flex flex-col items-center gap-2 p-2.5 rounded-xl transition-all"
+                    style={{
+                      border: sel ? `2px solid ${theme.primary}` : "2px solid #e2e8f0",
+                      background: sel ? `${theme.primary}12` : "transparent",
+                    }}>
+                    <div className="w-full h-10 rounded-lg overflow-hidden">
+                      <div style={{ height: "55%", background: theme.primary }} />
+                      <div style={{ height: "45%", background: theme.pageBg, borderTop: "1px solid #e2e8f0" }} />
+                    </div>
+                    <span className="text-xs font-medium text-slate-700">{theme.label}</span>
                   </button>
-                )}
+                )
+              })}
+            </div>
+          </Section>
+
+          {/* ─ Couleurs ─ */}
+          <Section id="colors" label="Couleur principale" icon={Tag}>
+            <div className="flex items-center gap-3">
+              <input type="color" value={activePrimary}
+                onChange={e => update("pageAccentColor", e.target.value)}
+                className="w-10 h-10 rounded-xl border border-slate-200 cursor-pointer p-0.5 bg-white" />
+              <div>
+                <p className="text-sm font-semibold text-slate-800">{activePrimary.toUpperCase()}</p>
+                {state.pageAccentColor
+                  ? <p className="text-xs text-sky-500">Personnalisee</p>
+                  : <p className="text-xs text-slate-400">Couleur du theme</p>}
               </div>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <input type="color" value={activePrimary}
-                    onChange={e => update("pageAccentColor", e.target.value)}
-                    className="w-10 h-10 rounded-xl border border-slate-200 cursor-pointer p-0.5 bg-white"
-                  />
+              {state.pageAccentColor && (
+                <button onClick={() => update("pageAccentColor", null)}
+                  className="ml-auto text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
+                  <X className="w-3 h-3" /> Reset
+                </button>
+              )}
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {["#0ea5e9","#8b5cf6","#10b981","#f59e0b","#ef4444","#ec4899","#14b8a6","#f97316"].map(c => (
+                <button key={c} onClick={() => update("pageAccentColor", c)}
+                  className={`w-6 h-6 rounded-full transition-transform hover:scale-110 ${state.pageAccentColor === c ? "ring-2 ring-offset-1 ring-slate-400 scale-110" : ""}`}
+                  style={{ background: c }} />
+              ))}
+            </div>
+            {/* Mini preview */}
+            <div className="rounded-xl overflow-hidden border border-slate-200">
+              <div className="p-3 flex items-center gap-2" style={{ background: activeTheme.pageBg }}>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-sm" style={{ background: activePrimary }}>
+                  {state.businessName.charAt(0) || "R"}
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">{activePrimary.toUpperCase()}</p>
-                  {state.pageAccentColor
-                    ? <p className="text-xs text-sky-500">Couleur personnalisée</p>
-                    : <p className="text-xs text-slate-400">Couleur du thème</p>
-                  }
+                <div className="flex-1">
+                  <div className="h-2.5 w-24 rounded-full mb-1" style={{ background: activeTheme.dark ? "#ffffff30" : "#0f172a20" }} />
+                  <div className="h-2 w-16 rounded-full" style={{ background: activeTheme.dark ? "#ffffff18" : "#0f172a12" }} />
                 </div>
               </div>
-              {/* Palette rapide */}
-              <div className="flex gap-1.5 mt-2.5 flex-wrap">
-                {["#0ea5e9","#8b5cf6","#10b981","#f59e0b","#ef4444","#ec4899","#14b8a6","#f97316"].map(c => (
-                  <button key={c} onClick={() => update("pageAccentColor", c)}
-                    className={`w-6 h-6 rounded-full transition-transform hover:scale-110 flex-shrink-0 ${state.pageAccentColor === c ? "ring-2 ring-offset-1 ring-slate-400 scale-110" : ""}`}
-                    style={{ background: c }} />
-                ))}
+              <div className="p-3" style={{ background: activeTheme.dark ? "#1e293b" : "#f8fafc" }}>
+                <div className="h-7 rounded-lg w-full" style={{ background: activePrimary, opacity: 0.9 }} />
               </div>
             </div>
+          </Section>
 
-            {/* Accroche */}
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Accroche</p>
-              <input
-                value={state.pageTagline ?? ""}
-                onChange={e => update("pageTagline", e.target.value || null)}
-                placeholder="ex : Réservez en 30 secondes ✨"
-                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500"
-              />
-              <p className="text-xs text-slate-400 mt-1.5">Affichée sous le nom dans la sidebar</p>
-            </div>
-
+          {/* ─ Identite (logo, tagline, description) ─ */}
+          <Section id="identity" label="Identite" icon={Type}>
             {/* Logo */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Logo</p>
+              <p className="text-xs font-medium text-slate-500 mb-2">Logo</p>
               {state.logoDataUrl ? (
                 <div className="flex items-center gap-3">
                   <img src={state.logoDataUrl} className="w-14 h-14 rounded-xl object-cover border border-slate-200" alt="logo" />
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium cursor-pointer transition-colors">
                       <Upload className="w-3.5 h-3.5" /> Changer
-                      <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                      <input type="file" accept="image/*" onChange={handleImageUpload("logoDataUrl")} className="hidden" />
                     </label>
                     <button onClick={() => update("logoDataUrl", null)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-400 hover:bg-red-50 text-xs font-medium transition-colors w-full">
@@ -276,36 +357,137 @@ export default function PersonnalisationPage() {
                   </div>
                 </div>
               ) : (
-                <label className="flex flex-col items-center gap-2 w-full py-6 rounded-xl border-2 border-dashed border-slate-200 hover:border-sky-300 hover:bg-sky-50/30 cursor-pointer transition-all">
+                <label className="flex flex-col items-center gap-2 w-full py-5 rounded-xl border-2 border-dashed border-slate-200 hover:border-sky-300 hover:bg-sky-50/30 cursor-pointer transition-all">
                   <Upload className="w-5 h-5 text-slate-400" />
                   <span className="text-xs text-slate-500">Cliquez pour uploader</span>
-                  <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                  <input type="file" accept="image/*" onChange={handleImageUpload("logoDataUrl")} className="hidden" />
                 </label>
               )}
             </div>
-
-            {/* Aperçu de la couleur sur fond de thème */}
+            {/* Tagline */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Aperçu couleur</p>
-              <div className="rounded-xl overflow-hidden border border-slate-200">
-                <div className="p-3 flex items-center gap-2" style={{ background: activeTheme.pageBg }}>
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-sm" style={{ background: activePrimary }}>
-                    {state.businessName.charAt(0) || "R"}
-                  </div>
-                  <div className="flex-1">
-                    <div className="h-2.5 w-24 rounded-full mb-1" style={{ background: activeTheme.dark ? "#ffffff30" : "#0f172a20" }} />
-                    <div className="h-2 w-16 rounded-full" style={{ background: activeTheme.dark ? "#ffffff18" : "#0f172a12" }} />
-                  </div>
-                </div>
-                <div className="p-3" style={{ background: activeTheme.dark ? "#1e293b" : "#f8fafc" }}>
-                  <div className="h-7 rounded-lg w-full" style={{ background: activePrimary, opacity: 0.9 }} />
+              <p className="text-xs font-medium text-slate-500 mb-1.5">Accroche</p>
+              <input value={state.pageTagline ?? ""} onChange={e => update("pageTagline", e.target.value || null)}
+                placeholder="ex : Reservez en 30 secondes"
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500" />
+              <p className="text-xs text-slate-400 mt-1">Sous le nom dans la sidebar</p>
+            </div>
+            {/* Description */}
+            <div>
+              <p className="text-xs font-medium text-slate-500 mb-1.5">Description / Texte d&apos;accueil</p>
+              <textarea value={state.pageDescription ?? ""} onChange={e => update("pageDescription", e.target.value || null)}
+                placeholder="Bienvenue dans notre salon ! Nous sommes heureux de vous accueillir..."
+                rows={3}
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none" />
+              <p className="text-xs text-slate-400 mt-1">Visible dans la sidebar sous l&apos;accroche</p>
+            </div>
+          </Section>
+
+          {/* ─ Banniere / Cover ─ */}
+          <Section id="cover" label="Banniere" icon={Image}>
+            {state.pageCoverDataUrl ? (
+              <div className="space-y-3">
+                <img src={state.pageCoverDataUrl} className="w-full h-24 rounded-xl object-cover border border-slate-200" alt="cover" />
+                <div className="flex gap-2">
+                  <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium cursor-pointer transition-colors">
+                    <Upload className="w-3.5 h-3.5" /> Changer
+                    <input type="file" accept="image/*" onChange={handleImageUpload("pageCoverDataUrl")} className="hidden" />
+                  </label>
+                  <button onClick={() => update("pageCoverDataUrl", null)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-red-400 hover:bg-red-50 text-xs font-medium transition-colors">
+                    <X className="w-3.5 h-3.5" /> Supprimer
+                  </button>
                 </div>
               </div>
+            ) : (
+              <label className="flex flex-col items-center gap-2 w-full py-8 rounded-xl border-2 border-dashed border-slate-200 hover:border-sky-300 hover:bg-sky-50/30 cursor-pointer transition-all">
+                <Image className="w-6 h-6 text-slate-400" />
+                <span className="text-xs text-slate-500">Image de couverture (recommande : 1200x400)</span>
+                <input type="file" accept="image/*" onChange={handleImageUpload("pageCoverDataUrl")} className="hidden" />
+              </label>
+            )}
+            <p className="text-xs text-slate-400">Affichee en haut de la sidebar sur desktop</p>
+          </Section>
+
+          {/* ─ Labels custom ─ */}
+          <Section id="labels" label="Labels des etapes" icon={Type}>
+            <p className="text-xs text-slate-400 mb-2">Personnalisez le texte des titres de chaque etape. Laissez vide pour le texte par defaut.</p>
+            {Object.entries(DEFAULT_LABELS).map(([key, placeholder]) => (
+              <div key={key}>
+                <p className="text-xs font-medium text-slate-500 mb-1 capitalize">{key === "staffSub" ? "Sous-titre staff" : key}</p>
+                <input
+                  value={state.pageLabels?.[key] ?? ""}
+                  onChange={e => updateLabel(key, e.target.value)}
+                  placeholder={placeholder}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+            ))}
+          </Section>
+
+          {/* ─ Ordre des services ─ */}
+          <Section id="services" label="Ordre des services" icon={ListOrdered}>
+            {orderedSvcs.length === 0 ? (
+              <p className="text-xs text-slate-400">Aucun service actif</p>
+            ) : (
+              <div className="space-y-1">
+                {orderedSvcs.map((svc, idx) => (
+                  <div key={svc.id} className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <GripVertical className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                    <span className="text-sm text-slate-700 flex-1 truncate">{svc.name}</span>
+                    <button onClick={() => moveService(idx, -1)} disabled={idx === 0}
+                      className="p-1 rounded hover:bg-slate-200 disabled:opacity-20 transition-colors">
+                      <ChevronUp className="w-3.5 h-3.5 text-slate-500" />
+                    </button>
+                    <button onClick={() => moveService(idx, 1)} disabled={idx === orderedSvcs.length - 1}
+                      className="p-1 rounded hover:bg-slate-200 disabled:opacity-20 transition-colors">
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {state.pageServiceOrder && (
+              <button onClick={() => update("pageServiceOrder", null)}
+                className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
+                <X className="w-3 h-3" /> Reinitialiser l&apos;ordre
+              </button>
+            )}
+          </Section>
+
+          {/* ─ Horaires ─ */}
+          <Section id="hours" label="Afficher les horaires" icon={Clock}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-700 font-medium">Horaires dans la sidebar</p>
+                <p className="text-xs text-slate-400">Affiche vos horaires d&apos;ouverture sur la page de reservation</p>
+              </div>
+              <button
+                onClick={() => update("pageShowHours", !state.pageShowHours)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${state.pageShowHours ? "bg-sky-500" : "bg-slate-200"}`}
+              >
+                <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${state.pageShowHours ? "translate-x-[22px]" : "translate-x-0.5"}`} />
+              </button>
             </div>
-          </div>
+            {state.pageShowHours && (
+              <p className="text-xs text-slate-400">Les horaires proviennent de votre <a href="/services" className="text-sky-500 hover:underline">Configuration</a>.</p>
+            )}
+          </Section>
+
+          {/* ─ Mentions legales ─ */}
+          <Section id="legal" label="Mentions legales" icon={FileText}>
+            <textarea
+              value={state.pageLegalText ?? ""}
+              onChange={e => update("pageLegalText", e.target.value || null)}
+              placeholder="CGV, politique d'annulation, mentions legales..."
+              rows={4}
+              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
+            />
+            <p className="text-xs text-slate-400">Affiche en bas de la sidebar de reservation</p>
+          </Section>
         </div>
 
-        {/* ── Right iframe ──────────────────────────────────────────────────── */}
+        {/* Right iframe */}
         <div className="flex-1 flex items-start justify-center overflow-auto bg-slate-200 p-4">
           <div
             className="relative bg-white shadow-2xl rounded-2xl overflow-hidden transition-all duration-300"
@@ -320,7 +502,7 @@ export default function PersonnalisationPage() {
               <div className="absolute inset-0 bg-slate-100 flex items-center justify-center z-10">
                 <div className="text-center space-y-3">
                   <Loader2 className="w-8 h-8 text-sky-500 animate-spin mx-auto" />
-                  <p className="text-sm text-slate-400">Chargement de l&apos;aperçu…</p>
+                  <p className="text-sm text-slate-400">Chargement de l&apos;apercu...</p>
                 </div>
               </div>
             )}
@@ -330,10 +512,9 @@ export default function PersonnalisationPage() {
               className="w-full h-full border-0"
               onLoad={() => {
                 setIframeReady(true)
-                // Small delay so the page has time to mount its listener
                 setTimeout(() => sendPreview(state), 200)
               }}
-              title="Aperçu page réservation"
+              title="Apercu page reservation"
             />
           </div>
         </div>

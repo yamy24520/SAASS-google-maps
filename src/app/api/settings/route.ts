@@ -33,6 +33,12 @@ const schema = z.object({
   pageTheme: z.string().optional(),
   pageTagline: z.string().nullable().optional(),
   pageAccentColor: z.string().nullable().optional(),
+  pageCoverDataUrl: z.string().nullable().optional(),
+  pageDescription: z.string().nullable().optional(),
+  pageLegalText: z.string().nullable().optional(),
+  pageLabels: z.record(z.string(), z.string()).nullable().optional(),
+  pageServiceOrder: z.array(z.string()).nullable().optional(),
+  pageShowHours: z.boolean().optional(),
 })
 
 async function getBusinessForUser(userId: string, bizId: string | null) {
@@ -70,19 +76,20 @@ export async function PUT(req: NextRequest) {
     let business = await getBusinessForUser(session.user.id, bizId)
 
     // Prisma requires Prisma.JsonNull (not JS null) for nullable JSON fields
-    const { spinPrizes, socialLinks, ...restData } = data
+    const { spinPrizes, socialLinks, pageLabels, pageServiceOrder, ...restData } = data
+
+    function jsonField(val: unknown) {
+      if (val === null) return Prisma.JsonNull
+      if (val !== undefined) return val as Prisma.InputJsonValue
+      return undefined
+    }
+
     const prismaData = {
       ...restData,
-      spinPrizes: spinPrizes === null
-        ? Prisma.JsonNull
-        : spinPrizes !== undefined
-          ? (spinPrizes as Prisma.InputJsonValue)
-          : undefined,
-      socialLinks: socialLinks === null
-        ? Prisma.JsonNull
-        : socialLinks !== undefined
-          ? (socialLinks as Prisma.InputJsonValue)
-          : undefined,
+      spinPrizes: jsonField(spinPrizes),
+      socialLinks: jsonField(socialLinks),
+      pageLabels: jsonField(pageLabels),
+      pageServiceOrder: jsonField(pageServiceOrder),
     }
 
     if (!business) {

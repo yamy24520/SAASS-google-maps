@@ -119,6 +119,12 @@ model Business {
   pageTheme            String  @default("dark")
   pageTagline          String?
   pageAccentColor      String?
+  pageCoverDataUrl     String? @db.Text
+  pageDescription      String?
+  pageLegalText        String? @db.Text
+  pageLabels           Json?
+  pageServiceOrder     Json?
+  pageShowHours        Boolean @default(false)
   pageSlug             String? @unique
   pageConfig           Json?
 
