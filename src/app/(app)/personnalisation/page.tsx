@@ -238,13 +238,36 @@ export default function PersonnalisationPage() {
     setSaving(false)
   }
 
+  function compressImage(file: File, maxW: number, maxH: number, quality: number): Promise<string> {
+    return new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onload = ev => {
+        const img = new window.Image()
+        img.onload = () => {
+          const ratio = Math.min(maxW / img.width, maxH / img.height, 1)
+          const w = Math.round(img.width * ratio)
+          const h = Math.round(img.height * ratio)
+          const canvas = document.createElement("canvas")
+          canvas.width = w; canvas.height = h
+          canvas.getContext("2d")!.drawImage(img, 0, 0, w, h)
+          resolve(canvas.toDataURL("image/jpeg", quality))
+        }
+        img.src = ev.target?.result as string
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
   function handleImageUpload(key: "logoDataUrl" | "pageCoverDataUrl") {
-    return (e: React.ChangeEvent<HTMLInputElement>) => {
+    return async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       if (!file) return
-      const reader = new FileReader()
-      reader.onload = ev => update(key, ev.target?.result as string ?? null)
-      reader.readAsDataURL(file)
+      // Logo: max 256x256, cover: max 1200x400 — both compressed to JPEG <200Ko
+      const dataUrl = key === "logoDataUrl"
+        ? await compressImage(file, 256, 256, 0.85)
+        : await compressImage(file, 1200, 400, 0.82)
+      update(key, dataUrl)
+      e.target.value = ""
     }
   }
 
