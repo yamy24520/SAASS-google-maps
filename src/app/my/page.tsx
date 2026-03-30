@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Mail, ArrowRight, Loader2 } from "lucide-react"
 
-export default function ClientPortalLoginPage() {
+function ClientPortalLoginForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const businessId = searchParams.get("biz") ?? ""
@@ -38,7 +38,6 @@ export default function ClientPortalLoginPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-gradient-to-br from-sky-400 to-cyan-500 px-6 py-8 text-center">
             <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-3">
@@ -86,5 +85,17 @@ export default function ClientPortalLoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function ClientPortalLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500" />
+      </div>
+    }>
+      <ClientPortalLoginForm />
+    </Suspense>
   )
 }

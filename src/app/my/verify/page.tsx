@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { Suspense, useState, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { KeyRound, ArrowLeft, Loader2, RefreshCw } from "lucide-react"
 
-export default function ClientPortalVerifyPage() {
+function ClientPortalVerifyForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const businessId = searchParams.get("biz") ?? ""
@@ -160,5 +160,17 @@ export default function ClientPortalVerifyPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function ClientPortalVerifyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-500" />
+      </div>
+    }>
+      <ClientPortalVerifyForm />
+    </Suspense>
   )
 }
