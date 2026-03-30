@@ -9,7 +9,7 @@ export async function GET() {
 
   const business = await prisma.business.findFirst({
     where: { userId: session.user.id },
-    select: { id: true, name: true, gbpLocationId: true, reputationPageEnabled: true },
+    select: { id: true, name: true, gbpLocationId: true, reputationPageEnabled: true, pageSlug: true },
   })
 
   if (!business) return NextResponse.json({ error: "Aucun établissement" }, { status: 404 })
@@ -18,7 +18,8 @@ export async function GET() {
   const base = process.env.NEXTAUTH_URL ?? ""
   const reviewUrl = `https://search.google.com/local/writereview?placeid=${business.gbpLocationId}`
   const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${business.gbpLocationId}`
-  const reputationPageUrl = `${base}/r/${business.id}`
+  const repSlug = business.pageSlug ?? business.id
+  const reputationPageUrl = `${base}/r/${repSlug}`
 
   return NextResponse.json({
     reviewUrl,

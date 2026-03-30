@@ -89,7 +89,7 @@ export default function ReputationPage() {
         </div>
         <div className="flex items-center gap-2">
           {data?.business?.id && (
-            <a href={`/r/${data.business.id}?edit=1`} target="_blank" rel="noopener noreferrer">
+            <a href="/personnalisation?tab=reputation">
               <Button variant="outline" size="sm" className="gap-2">
                 <Settings2 className="w-4 h-4" />
                 Personnaliser ma page
