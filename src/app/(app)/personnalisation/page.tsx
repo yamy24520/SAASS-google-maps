@@ -138,6 +138,7 @@ function SectionAccordion({ id, label, icon: Icon, openSection, setOpenSection, 
 export default function PersonnalisationPage() {
   const searchParams = useSearchParams()
   const bizParam = searchParams.get("biz") ? `?biz=${searchParams.get("biz")}` : ""
+  const initialTab = searchParams.get("tab") === "reputation" ? "reputation" : "booking"
 
   const iframeRef    = useRef<HTMLIFrameElement>(null)
   const repIframeRef = useRef<HTMLIFrameElement>(null)
@@ -147,11 +148,11 @@ export default function PersonnalisationPage() {
   const [saving, setSaving]           = useState(false)
   const [iframeReady, setIframeReady] = useState(false)
   const [repIframeReady, setRepIframeReady] = useState(false)
-  const [repTabVisited, setRepTabVisited] = useState(false)
+  const [repTabVisited, setRepTabVisited] = useState(() => initialTab === "reputation")
   const [viewport, setViewport]       = useState<"desktop" | "mobile">("desktop")
   const [services, setServices]       = useState<ServiceItem[]>([])
   const [openSection, setOpenSection] = useState<string>("theme")
-  const [tab, setTab]                 = useState<"booking" | "reputation">("booking")
+  const [tab, setTab]                 = useState<"booking" | "reputation">(initialTab)
   const [repSections, setRepSections] = useState<RepSection[]>(DEFAULT_REP_SECTIONS)
   const [savedRepSections, setSavedRepSections] = useState<RepSection[]>(DEFAULT_REP_SECTIONS)
   const [savingRep, setSavingRep]     = useState(false)
