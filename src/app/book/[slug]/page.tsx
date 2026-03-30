@@ -727,10 +727,10 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           className="hidden lg:flex flex-col w-80 shrink-0 sticky top-0 h-svh overflow-y-auto p-8 border-r"
           style={{ background: T.sidebarBg, borderColor: T.sidebarBorder }}
         >
-          {/* Cover image */}
+          {/* Cover image — 21:9, adapts to sidebar width, clamped between 80px and 180px */}
           {displayCover && (
-            <div className="mb-6 -mx-8 -mt-8">
-              <img src={displayCover} className="w-full h-36 object-cover" alt="" />
+            <div className="mb-6 -mx-8 -mt-8 overflow-hidden" style={{ aspectRatio: "21/9", maxHeight: 180, minHeight: 80 }}>
+              <img src={displayCover} className="w-full h-full object-cover" alt="" />
             </div>
           )}
 
@@ -806,7 +806,9 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           {stepIdx === 0 && (displayCover || displayDescription || displayTagline || displayShowHours) && (
             <div className="lg:hidden mb-6 space-y-3">
               {displayCover && (
-                <img src={displayCover} className="w-full h-40 rounded-2xl object-cover" alt="" />
+                <div className="w-full rounded-2xl overflow-hidden" style={{ aspectRatio: "21/9", maxHeight: 160, minHeight: 60 }}>
+                  <img src={displayCover} className="w-full h-full object-cover" alt="" />
+                </div>
               )}
               {displayTagline && (
                 <p className="text-sm font-medium" style={{ color: T.textMuted }}>{displayTagline}</p>
