@@ -869,8 +869,9 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
             }
             catMap.forEach((svcs, key) => categories.push({ name: key, services: svcs }))
             const hasCategories = categories.some(c => c.name !== null)
-            // If no categories, auto-expand the single null group
-            const allOpen = !hasCategories
+            // If only 1 category (or none), show flat — no dropdown
+            const singleCategory = categories.length <= 1
+            const allOpen = !hasCategories || singleCategory
 
             function toggleCat(catName: string) {
               setOpenCats(prev => {
@@ -886,31 +887,32 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                 <button
                   key={svc.id}
                   onClick={() => { setSelectedService(svc); setStep(hasStaff ? "staff" : "datetime") }}
-                  className="w-full hover:shadow-md rounded-2xl overflow-hidden text-left transition-all duration-200 group hover:scale-[1.01] shadow-sm"
-                  style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = T.primary)}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = T.cardBorder)}
+                  className="w-full rounded-2xl text-left transition-all duration-200 group"
+                  style={{ background: T.cardBg, border: `1.5px solid ${T.cardBorder}` }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = T.primary; e.currentTarget.style.boxShadow = `0 4px 16px ${T.primaryShadow}` }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = T.cardBorder; e.currentTarget.style.boxShadow = "none" }}
                 >
-                  <div className="flex items-stretch">
-                    <div className={`w-1 flex-shrink-0 ${serviceAccents[idx % serviceAccents.length]}`} />
-                    <div className="flex-1 p-4 flex items-start gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-base" style={{ color: T.textHeading }}>{svc.name}</p>
-                        {svc.description && (
-                          <p className="text-sm mt-1 line-clamp-2" style={{ color: T.textBody }}>{svc.description}</p>
-                        )}
-                        <div className="flex items-center gap-2 mt-3">
-                          <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border"
-                            style={{ color: T.textMuted, background: T.pageBg, borderColor: T.cardBorder }}>
-                            <Clock className="w-3 h-3" /> {svc.duration} min
-                          </span>
-                        </div>
+                  <div className="p-4 flex items-center gap-4">
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: `${T.primary}12` }}>
+                      <span className="text-base font-bold" style={{ color: T.primary }}>{serviceAccents[idx % serviceAccents.length] === "bg-sky-500" ? "1" : String(idx + 1)}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-[15px] leading-tight" style={{ color: T.textHeading }}>{svc.name}</p>
+                      {svc.description && (
+                        <p className="text-xs mt-1 line-clamp-1" style={{ color: T.textMuted }}>{svc.description}</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="text-xs font-medium" style={{ color: T.textMuted }}>
+                          <Clock className="w-3 h-3 inline mr-0.5 -mt-0.5" />{svc.duration} min
+                        </span>
                       </div>
-                      <div className="flex-shrink-0 flex flex-col items-end gap-2">
-                        <span className="text-lg font-bold" style={{ color: T.textHeading }}>{svc.price.toFixed(2)} &euro;</span>
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: T.stepFuture }}>
-                          <ChevronRight className="w-4 h-4" style={{ color: T.textMuted }} />
-                        </div>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <span className="text-base font-bold" style={{ color: T.textHeading }}>{svc.price.toFixed(0)}&euro;</span>
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center mt-1.5 mx-auto transition-colors group-hover:scale-110"
+                        style={{ background: `${T.primary}15` }}>
+                        <ChevronRight className="w-3.5 h-3.5" style={{ color: T.primary }} />
                       </div>
                     </div>
                   </div>
@@ -939,36 +941,39 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                     const catKey = cat.name ?? "__uncategorized"
                     const isOpen = allOpen || openCats.has(catKey)
 
-                    if (!hasCategories) {
-                      // No categories — flat list
+                    if (singleCategory) {
+                      // Single or no category — flat list, optional label
                       return (
-                        <div key="flat" className="space-y-3">
-                          {cat.services.map((svc, idx) => <ServiceCard key={svc.id} svc={svc} idx={idx} />)}
+                        <div key="flat">
+                          {cat.name && (
+                            <p className="text-xs font-semibold uppercase tracking-wider mb-3 px-1" style={{ color: T.textMuted }}>{cat.name}</p>
+                          )}
+                          <div className="space-y-2.5">
+                            {cat.services.map((svc, idx) => <ServiceCard key={svc.id} svc={svc} idx={idx} />)}
+                          </div>
                         </div>
                       )
                     }
 
                     return (
-                      <div key={catKey} className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${T.cardBorder}`, background: T.cardBg }}>
+                      <div key={catKey} className="rounded-2xl overflow-hidden" style={{ border: `1.5px solid ${T.cardBorder}`, background: T.cardBg }}>
                         <button
                           onClick={() => toggleCat(catKey)}
-                          className="w-full flex items-center gap-3 px-5 py-4 text-left transition-colors"
-                          style={{ background: isOpen ? `${T.primary}08` : "transparent" }}
+                          className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors"
+                          style={{ background: isOpen ? `${T.primary}06` : "transparent" }}
                         >
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                            style={{ background: `${T.primary}15` }}>
+                          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: `${T.primary}12` }}>
                             <span className="text-xs font-bold" style={{ color: T.primary }}>{cat.services.length}</span>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-sm" style={{ color: T.textHeading }}>{cat.name ?? "Autres"}</p>
-                          </div>
+                          <p className="font-semibold text-sm flex-1" style={{ color: T.textHeading }}>{cat.name ?? "Autres"}</p>
                           <ChevronRight
                             className="w-4 h-4 transition-transform duration-200 flex-shrink-0"
                             style={{ color: T.textMuted, transform: isOpen ? "rotate(90deg)" : "rotate(0)" }}
                           />
                         </button>
                         {isOpen && (
-                          <div className="px-3 pb-3 space-y-2">
+                          <div className="px-2.5 pb-2.5 space-y-2">
                             {cat.services.map((svc, idx) => <ServiceCard key={svc.id} svc={svc} idx={ci * 10 + idx} />)}
                           </div>
                         )}
@@ -1118,39 +1123,35 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
               <div className="mb-8">
                 <p className="text-2xl font-bold mb-5" style={{ color: T.textHeading }}>Choisissez une date</p>
 
-                <div className="rounded-2xl shadow-sm overflow-hidden" style={{ background: T.cardBg, border: `1px solid ${T.cardBorder}` }}>
+                <div className="rounded-2xl overflow-hidden" style={{ background: T.cardBg, border: `1.5px solid ${T.cardBorder}` }}>
                   {/* Month header */}
-                  <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: T.cardBorder }}>
-                    <button
-                      onClick={prevMonth}
-                      className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <button onClick={prevMonth}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
                       style={{ color: T.textBody }}
-                      onMouseEnter={e => (e.currentTarget.style.background = T.stepFuture)}
-                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                    >
+                      onMouseEnter={e => { e.currentTarget.style.background = `${T.primary}12`; e.currentTarget.style.color = T.primary }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.textBody }}>
                       <ChevronLeft className="w-4 h-4" />
                     </button>
-                    <p className="font-semibold capitalize" style={{ color: T.textHeading }}>{calMonthLabel}</p>
-                    <button
-                      onClick={nextMonth}
-                      className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
+                    <p className="font-bold text-sm capitalize tracking-wide" style={{ color: T.textHeading }}>{calMonthLabel}</p>
+                    <button onClick={nextMonth}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
                       style={{ color: T.textBody }}
-                      onMouseEnter={e => (e.currentTarget.style.background = T.stepFuture)}
-                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                    >
+                      onMouseEnter={e => { e.currentTarget.style.background = `${T.primary}12`; e.currentTarget.style.color = T.primary }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.textBody }}>
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
 
                   {/* Day headers */}
-                  <div className="grid grid-cols-7 px-3 pt-3 pb-1">
-                    {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
-                      <div key={i} className="text-center text-xs font-semibold py-1" style={{ color: T.textMuted }}>{d}</div>
+                  <div className="grid grid-cols-7 px-3 pb-1">
+                    {["Lu", "Ma", "Me", "Je", "Ve", "Sa", "Di"].map((d, i) => (
+                      <div key={i} className="text-center text-[11px] font-semibold uppercase tracking-wide py-1.5" style={{ color: T.textMuted }}>{d}</div>
                     ))}
                   </div>
 
                   {/* Day grid */}
-                  <div className="grid grid-cols-7 px-3 pb-4 gap-y-1">
+                  <div className="grid grid-cols-7 px-3 pb-4 gap-y-0.5">
                     {calDays.map((dayStr) => {
                       const dayNum = parseInt(dayStr.split("-")[2])
                       const dayMonthNum = parseInt(dayStr.split("-")[1]) - 1
@@ -1160,18 +1161,17 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                       const disabled = isDayDisabled(dayStr)
 
                       let dayStyle: React.CSSProperties = {}
-                      let dayClassName = "h-9 w-full rounded-xl text-sm font-medium transition-all duration-150"
 
                       if (isSelected) {
-                        dayStyle = { background: T.primary, color: T.primaryText, boxShadow: `0 4px 8px ${T.primaryShadow}` }
-                      } else if (isToday) {
-                        dayStyle = { boxShadow: `0 0 0 2px ${T.primary}`, color: T.textHeading }
+                        dayStyle = { background: T.primary, color: T.primaryText, fontWeight: 700, borderRadius: 12, boxShadow: `0 2px 8px ${T.primaryShadow}` }
+                      } else if (isToday && !disabled) {
+                        dayStyle = { background: `${T.primary}15`, color: T.primary, fontWeight: 700, borderRadius: 12 }
                       } else if (disabled) {
-                        dayStyle = { color: T.stepFuture, cursor: "default" }
+                        dayStyle = { color: `${T.textMuted}50`, cursor: "default", textDecoration: "line-through", textDecorationColor: `${T.textMuted}30` }
                       } else if (inCurrentMonth) {
-                        dayStyle = { color: T.textBody }
+                        dayStyle = { color: T.textBody, fontWeight: 500 }
                       } else {
-                        dayStyle = { color: T.textMuted }
+                        dayStyle = { color: `${T.textMuted}60` }
                       }
 
                       return (
@@ -1179,13 +1179,16 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                           key={dayStr}
                           disabled={disabled}
                           onClick={() => setSelectedDate(dayStr)}
-                          className={dayClassName}
+                          className="h-10 w-full rounded-xl text-sm transition-all duration-100"
                           style={dayStyle}
                           onMouseEnter={e => {
-                            if (!isSelected && !disabled) e.currentTarget.style.background = `${T.primary}18`
+                            if (!isSelected && !disabled) { e.currentTarget.style.background = `${T.primary}12`; e.currentTarget.style.color = T.primary }
                           }}
                           onMouseLeave={e => {
-                            if (!isSelected) e.currentTarget.style.background = "transparent"
+                            if (!isSelected && !disabled) {
+                              e.currentTarget.style.background = isToday ? `${T.primary}15` : "transparent"
+                              e.currentTarget.style.color = isToday ? T.primary : (inCurrentMonth ? T.textBody : `${T.textMuted}60`)
+                            }
                           }}
                         >
                           {dayNum}
@@ -1216,40 +1219,38 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                   ) : (() => {
                     const grouped = groupSlots(slots)
                     const periods = [
-                      { label: "Matin", emoji: "🌅", slots: grouped.morning },
-                      { label: "Après-midi", emoji: "☀️", slots: grouped.afternoon },
-                      { label: "Soir", emoji: "🌆", slots: grouped.evening },
+                      { label: "Matin", slots: grouped.morning },
+                      { label: "Apres-midi", slots: grouped.afternoon },
+                      { label: "Soir", slots: grouped.evening },
                     ].filter(p => p.slots.length > 0)
                     return (
-                      <div className="space-y-6 mb-6">
+                      <div className="space-y-5 mb-6">
                         {periods.map(period => (
                           <div key={period.label}>
-                            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: T.textMuted }}>
-                              {period.emoji} {period.label}
+                            <p className="text-xs font-semibold uppercase tracking-wider mb-2.5" style={{ color: T.textMuted }}>
+                              {period.label}
                             </p>
                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                               {period.slots.map(slot => (
                                 <button
                                   key={slot}
                                   onClick={() => setSelectedSlot(slot)}
-                                  className="py-3 px-4 rounded-xl text-sm font-semibold border-2 transition-all duration-150"
+                                  className="py-2.5 px-3 rounded-xl text-sm font-semibold transition-all duration-150"
                                   style={
                                     slot === selectedSlot
-                                      ? { background: T.primary, borderColor: T.primary, color: T.primaryText, boxShadow: `0 4px 12px ${T.primaryShadow}` }
-                                      : { background: T.cardBg, borderColor: T.cardBorder, color: T.textBody }
+                                      ? { background: T.primary, color: T.primaryText, boxShadow: `0 2px 8px ${T.primaryShadow}` }
+                                      : { background: `${T.cardBorder}40`, color: T.textBody }
                                   }
                                   onMouseEnter={e => {
                                     if (slot !== selectedSlot) {
-                                      e.currentTarget.style.borderColor = T.primary
+                                      e.currentTarget.style.background = `${T.primary}20`
                                       e.currentTarget.style.color = T.primary
-                                      e.currentTarget.style.background = `${T.primary}18`
                                     }
                                   }}
                                   onMouseLeave={e => {
                                     if (slot !== selectedSlot) {
-                                      e.currentTarget.style.borderColor = T.cardBorder
+                                      e.currentTarget.style.background = `${T.cardBorder}40`
                                       e.currentTarget.style.color = T.textBody
-                                      e.currentTarget.style.background = T.cardBg
                                     }
                                   }}
                                 >
@@ -1284,41 +1285,46 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
             <div key="form" className="animate-in fade-in slide-in-from-right-4 duration-300">
               <BackBtn onClick={() => setStep("datetime")} />
 
-              <h2 className="text-3xl font-bold mb-2" style={{ color: T.textHeading }}>Vos infos</h2>
-              <p className="mb-8" style={{ color: T.textBody }}>Dernière étape — presque terminé !</p>
+              <h2 className="text-2xl font-bold mb-1" style={{ color: T.textHeading }}>Vos coordonnees</h2>
+              <p className="text-sm mb-6" style={{ color: T.textMuted }}>Pour confirmer votre reservation</p>
 
-              {/* Booking summary */}
-              <div
-                className="rounded-2xl p-5 mb-8 shadow-lg"
-                style={{ background: `linear-gradient(135deg, ${T.primary}, ${T.primaryHover})`, boxShadow: `0 8px 24px ${T.primaryShadow}` }}
-              >
-                {isRestaurant ? (
-                  <>
-                    <p className="font-bold text-lg" style={{ color: T.primaryText }}>Table pour {partySize} personne{partySize > 1 ? "s" : ""}</p>
-                    <p className="text-sm mt-1" style={{ color: `${T.primaryText}cc` }}>{fmtDateLong(selectedDate)} à {selectedSlot}</p>
-                  </>
-                ) : selectedService && (
-                  <>
-                    <p className="font-bold text-lg" style={{ color: T.primaryText }}>{selectedService.name}</p>
-                    <p className="text-sm mt-1" style={{ color: `${T.primaryText}cc` }}>
-                      {fmtDateLong(selectedDate)} à {selectedSlot}
-                      {" · "}{selectedService.duration} min
-                      {" · "}<span className="font-semibold">{selectedService.price.toFixed(2)} €</span>
-                      {selectedStaff && !anyStaff ? ` · ${selectedStaff.name}` : ""}
-                    </p>
-                  </>
-                )}
+              {/* Compact recap */}
+              <div className="rounded-2xl p-4 mb-6" style={{ background: `${T.primary}08`, border: `1.5px solid ${T.primary}20` }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${T.primary}15` }}>
+                    <Calendar className="w-5 h-5" style={{ color: T.primary }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {isRestaurant ? (
+                      <>
+                        <p className="font-semibold text-sm" style={{ color: T.textHeading }}>Table pour {partySize}</p>
+                        <p className="text-xs capitalize" style={{ color: T.textMuted }}>{fmtDateLong(selectedDate)} - {selectedSlot}</p>
+                      </>
+                    ) : selectedService && (
+                      <>
+                        <p className="font-semibold text-sm truncate" style={{ color: T.textHeading }}>{selectedService.name}</p>
+                        <p className="text-xs capitalize" style={{ color: T.textMuted }}>
+                          {fmtDate(selectedDate)} - {selectedSlot} - {selectedService.duration} min
+                          {selectedStaff && !anyStaff ? ` - ${selectedStaff.name}` : ""}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  {selectedService && (
+                    <span className="text-sm font-bold flex-shrink-0" style={{ color: T.primary }}>{selectedService.price.toFixed(0)} &euro;</span>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-5 max-w-md">
+              <div className="space-y-4 max-w-md">
                 {[
                   { key: "name",  label: "Nom complet",   type: "text",  placeholder: "Jean Dupont",      required: true },
-                  { key: "email", label: "Adresse email",  type: "email", placeholder: "jean@exemple.fr", required: true },
-                  { key: "phone", label: "Téléphone",      type: "tel",   placeholder: "06 12 34 56 78",  required: false },
-                  { key: "notes", label: "Message / note", type: "text",  placeholder: isRestaurant ? "Chaise bébé, allergie, occasion spéciale…" : "Cheveux courts, allergie, préférence…", required: false },
+                  { key: "email", label: "Email",          type: "email", placeholder: "jean@exemple.fr",  required: true },
+                  { key: "phone", label: "Telephone",      type: "tel",   placeholder: "06 12 34 56 78",   required: false },
+                  { key: "notes", label: "Note (optionnel)", type: "text",  placeholder: isRestaurant ? "Chaise bebe, allergie..." : "Preference, allergie...", required: false },
                 ].map(({ key, label, type, placeholder, required }) => (
                   <div key={key}>
-                    <label className="block text-sm font-semibold mb-2" style={{ color: T.textBody }}>
+                    <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: T.textMuted }}>
                       {label} {required && <span style={{ color: T.primary }}>*</span>}
                     </label>
                     <input
@@ -1326,21 +1332,22 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
                       value={form[key as keyof typeof form]}
                       placeholder={placeholder}
                       onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border-2 text-sm outline-none transition-colors"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all"
                       style={{
                         background: T.inputBg,
-                        borderColor: T.inputBorder,
+                        border: `1.5px solid ${T.inputBorder}`,
                         color: T.textHeading,
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                       }}
-                      onFocus={e => (e.currentTarget.style.borderColor = T.inputFocusBorder)}
-                      onBlur={e => (e.currentTarget.style.borderColor = T.inputBorder)}
+                      onFocus={e => { e.currentTarget.style.borderColor = T.primary; e.currentTarget.style.boxShadow = `0 0 0 3px ${T.primaryShadow}` }}
+                      onBlur={e => { e.currentTarget.style.borderColor = T.inputBorder; e.currentTarget.style.boxShadow = "0 1px 2px rgba(0,0,0,0.04)" }}
                     />
                   </div>
                 ))}
 
-                <p className="text-xs flex items-center gap-1.5" style={{ color: T.textMuted }}>
+                <p className="text-xs flex items-center gap-1.5 pt-1" style={{ color: T.textMuted }}>
                   <Lock className="w-3 h-3" />
-                  Vos données ne sont partagées qu&apos;avec l&apos;établissement
+                  Vos donnees restent confidentielles
                 </p>
               </div>
 
@@ -1560,54 +1567,50 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
         </main>
       </div>
 
-      {/* ══ Mobile sticky bottom bar ═════════════════════════════════════════════ */}
-      {step === "form" && (
+      {/* ══ Mobile floating recap + CTA bar ═══════════════════════════════════ */}
+      {step !== "done" && step !== "service" && (
         <div
-          className="lg:hidden fixed bottom-0 left-0 right-0 border-t p-4 shadow-lg z-20"
-          style={{ background: T.sidebarBg, borderColor: T.sidebarBorder }}
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-20"
+          style={{ background: `${T.sidebarBg}f2`, backdropFilter: "blur(16px)", borderTop: `1px solid ${T.sidebarBorder}` }}
         >
-          <div className="flex items-center gap-3">
-            <button
-              onClick={submit}
-              disabled={submitting || !form.name || !form.email}
-              className="flex-1 py-4 rounded-2xl font-bold text-base transition-all duration-150"
-              style={
-                submitting || !form.name || !form.email
-                  ? { background: T.stepFuture, color: T.textMuted, cursor: "not-allowed" }
-                  : { background: T.primary, color: T.primaryText, boxShadow: `0 8px 24px ${T.primaryShadow}` }
-              }
-            >
-              {submitting ? "Envoi en cours…" : "Confirmer"}
-            </button>
-            {selectedService && (
-              <span className="text-base font-bold flex-shrink-0" style={{ color: T.textHeading }}>
-                {selectedService.price.toFixed(2)} €
+          {/* Mini recap */}
+          {(selectedService || isRestaurant) && (
+            <div className="px-4 pt-3 pb-1 flex items-center gap-2 text-xs" style={{ color: T.textMuted }}>
+              {selectedService && <span className="font-semibold truncate" style={{ color: T.textHeading }}>{selectedService.name}</span>}
+              {selectedStaff && !anyStaff && <><span>·</span><span>{selectedStaff.name}</span></>}
+              {selectedDate && <><span>·</span><span className="capitalize">{fmtDate(selectedDate)}</span></>}
+              {selectedSlot && <><span>·</span><span>{selectedSlot}</span></>}
+              {isRestaurant && <span className="font-semibold" style={{ color: T.textHeading }}>{partySize} pers.</span>}
+              <span className="ml-auto flex-shrink-0 font-bold text-sm" style={{ color: T.primary }}>
+                {selectedService ? `${selectedService.price.toFixed(0)}\u00A0\u20AC` : ""}
               </span>
-            )}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
 
-      {step === "datetime" && selectedSlot && (
-        <div
-          className="lg:hidden fixed bottom-0 left-0 right-0 border-t p-4 shadow-lg z-20"
-          style={{ background: T.sidebarBg, borderColor: T.sidebarBorder }}
-        >
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setStep("form")}
-              className="flex-1 py-4 rounded-2xl font-bold text-base transition-all duration-150"
-              style={{ background: T.primary, color: T.primaryText, boxShadow: `0 8px 24px ${T.primaryShadow}` }}
-              onMouseEnter={e => (e.currentTarget.style.background = T.primaryHover)}
-              onMouseLeave={e => (e.currentTarget.style.background = T.primary)}
-            >
-              Continuer →
-            </button>
-            {selectedService && (
-              <span className="text-base font-bold flex-shrink-0" style={{ color: T.textHeading }}>
-                {selectedService.price.toFixed(2)} €
-              </span>
-            )}
+          {/* CTA button */}
+          <div className="px-4 pb-4 pt-2">
+            {step === "form" ? (
+              <button
+                onClick={submit}
+                disabled={submitting || !form.name || !form.email}
+                className="w-full py-3.5 rounded-2xl font-bold text-[15px] transition-all"
+                style={
+                  submitting || !form.name || !form.email
+                    ? { background: T.stepFuture, color: T.textMuted, cursor: "not-allowed" }
+                    : { background: T.primary, color: T.primaryText, boxShadow: `0 4px 16px ${T.primaryShadow}` }
+                }
+              >
+                {submitting ? "Envoi en cours..." : "Confirmer la reservation"}
+              </button>
+            ) : step === "datetime" && selectedSlot ? (
+              <button
+                onClick={() => setStep("form")}
+                className="w-full py-3.5 rounded-2xl font-bold text-[15px] transition-all"
+                style={{ background: T.primary, color: T.primaryText, boxShadow: `0 4px 16px ${T.primaryShadow}` }}
+              >
+                Continuer
+              </button>
+            ) : null}
           </div>
         </div>
       )}
