@@ -37,8 +37,10 @@ export async function fetchReviewsOutscraper(
   placeId: string,
   limit = 100
 ): Promise<OutscraperReview[]> {
+  // Outscraper accepts Google Maps search URL or place name — try maps URL with place_id
+  const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${placeId}`
   const params = new URLSearchParams({
-    query: placeId,
+    query: mapsUrl,
     reviewsLimit: String(limit),
     language: "fr",
     sort: "newest",
