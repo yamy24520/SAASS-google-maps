@@ -35,6 +35,9 @@ export async function fetchReviewsOutscraper(
   }
 
   const json = await res.json()
+  console.log("[Outscraper] raw response keys:", JSON.stringify(Object.keys(json)))
+  console.log("[Outscraper] data[0] keys:", JSON.stringify(Object.keys(json?.data?.[0] ?? {})))
+  console.log("[Outscraper] reviews count:", json?.data?.[0]?.reviews_data?.length ?? "N/A")
   // Outscraper returns { data: [ { reviews_data: [...] } ] }
   const reviews: OutscraperReview[] = json?.data?.[0]?.reviews_data ?? []
   return reviews
