@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Star, MessageSquare, CheckCircle2, Clock, TrendingUp, Globe, ExternalLink } from "lucide-react"
+import { Star, MessageSquare, CheckCircle2, Clock, TrendingUp, Globe, ExternalLink, RefreshCw } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -44,7 +44,7 @@ export function DashboardClient() {
   const [pageStats, setPageStats] = useState<{ viewsTotal: number; viewsWeek: number; clicks: { type: string; count: number }[]; viewsByDay: { day: string; views: number }[] } | null>(null)
   const [pageSlug, setPageSlug] = useState<string | null>(null)
   const [reputationPageEnabled, setReputationPageEnabled] = useState(false)
-  const syncedRef = useRef(false)
+  const [syncing, setSyncing] = useState(false)
 
   async function fetchData() {
     const res = await fetch(`/api/dashboard${bizParam}`)
@@ -65,21 +65,20 @@ export function DashboardClient() {
     setLoading(false)
   }
 
-  async function autoSync() {
-    if (syncedRef.current) return
-    syncedRef.current = true
+  async function handleSync() {
+    setSyncing(true)
     try {
       const res = await fetch(`/api/reviews/sync${bizParam}`, { method: "POST" })
       if (res.ok) await fetchData()
     } catch {
       // non-blocking
+    } finally {
+      setSyncing(false)
     }
   }
 
   useEffect(() => {
-    syncedRef.current = false
     fetchData()
-    autoSync()
   }, [bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
@@ -96,9 +95,15 @@ export function DashboardClient() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Vue d&apos;ensemble de votre réputation</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Vue d&apos;ensemble de votre réputation</p>
+        </div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={handleSync} disabled={syncing}>
+          <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Synchro..." : "Synchroniser"}
+        </Button>
       </div>
 
       {/* Stats grid */}
