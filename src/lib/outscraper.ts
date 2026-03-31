@@ -33,7 +33,7 @@ async function pollJob(jobId: string, maxWait = 25000): Promise<OutscraperReview
 
 export async function fetchReviewsOutscraper(
   placeId: string,
-  limit = 20
+  limit = 100
 ): Promise<OutscraperReview[]> {
   const params = new URLSearchParams({
     query: placeId,

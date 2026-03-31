@@ -11,13 +11,15 @@ export async function GET(req: NextRequest) {
   const bizId = searchParams.get("biz")
   const status = searchParams.get("status")
   const rating = searchParams.get("rating")
+  const q = searchParams.get("q")?.trim()
   const pageRaw = parseInt(searchParams.get("page") ?? "1")
-  const limitRaw = parseInt(searchParams.get("limit") ?? "20")
+  const limitRaw = parseInt(searchParams.get("limit") ?? "50")
   const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1
-  const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 100 ? limitRaw : 20
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 100 ? limitRaw : 50
 
+  const isAdmin = session.user.role === "ADMIN"
   const business = bizId
-    ? await prisma.business.findFirst({ where: { id: bizId, userId: session.user.id } })
+    ? await prisma.business.findFirst({ where: isAdmin ? { id: bizId } : { id: bizId, userId: session.user.id } })
     : await prisma.business.findFirst({ where: { userId: session.user.id }, orderBy: { createdAt: "asc" } })
 
   if (!business) return NextResponse.json({ reviews: [], total: 0 })
@@ -26,6 +28,7 @@ export async function GET(req: NextRequest) {
     businessId: business.id,
     ...(status ? { status: status as never } : {}),
     ...(rating ? (() => { const r = parseInt(rating); return Number.isFinite(r) && r >= 1 && r <= 5 ? { rating: r } : {} })() : {}),
+    ...(q ? { comment: { contains: q, mode: "insensitive" as const } } : {}),
   }
 
   const [reviews, total] = await Promise.all([

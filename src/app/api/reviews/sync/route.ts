@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Place ID introuvable — connectez votre fiche Google" }, { status: 400 })
   }
 
-  const reviews = await fetchReviewsOutscraper(placeId, 20)
+  const reviews = await fetchReviewsOutscraper(placeId, 100)
   let synced = 0
 
   for (const r of reviews) {

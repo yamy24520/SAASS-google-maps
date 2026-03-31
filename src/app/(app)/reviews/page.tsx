@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { MessageSquare, Star, Filter, ChevronLeft, ChevronRight } from "lucide-react"
+import { MessageSquare, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatDate, getStatusLabel, getRatingColor } from "@/lib/utils"
+
+const LIMIT = 50
 
 interface Review {
   id: string
@@ -27,17 +29,19 @@ export default function ReviewsPage() {
   const [reviews, setReviews] = useState<Review[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const initialStatus = searchParams.get("status") ?? "ALL"
-  const [statusFilter, setStatusFilter] = useState(initialStatus)
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") ?? "ALL")
   const [ratingFilter, setRatingFilter] = useState("ALL")
+  const [search, setSearch] = useState("")
+  const [searchInput, setSearchInput] = useState("")
   const [loading, setLoading] = useState(true)
 
   async function fetchReviews() {
     setLoading(true)
-    const params = new URLSearchParams({ page: String(page), limit: "20" })
+    const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) })
     if (bizId) params.set("biz", bizId)
     if (statusFilter !== "ALL") params.set("status", statusFilter)
     if (ratingFilter !== "ALL") params.set("rating", ratingFilter)
+    if (search) params.set("q", search)
 
     const res = await fetch(`/api/reviews?${params}`)
     const data = await res.json()
@@ -46,22 +50,33 @@ export default function ReviewsPage() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchReviews() }, [page, statusFilter, ratingFilter, bizId]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchReviews() }, [page, statusFilter, ratingFilter, search, bizId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const totalPages = Math.ceil(total / 20)
+  const totalPages = Math.ceil(total / LIMIT)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Avis</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{total} avis au total</p>
-        </div>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Avis</h1>
+        <p className="text-slate-500 text-sm mt-0.5">{total} avis au total</p>
       </div>
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        <Filter className="w-4 h-4 text-slate-400" />
+        {/* Search */}
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") { setSearch(searchInput); setPage(1) } }}
+            onBlur={() => { setSearch(searchInput); setPage(1) }}
+            placeholder="Rechercher dans les avis..."
+            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+          />
+        </div>
+
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Statut" />
@@ -100,10 +115,8 @@ export default function ReviewsPage() {
                 <div className="flex gap-2">
                   <div className="h-4 w-28 bg-slate-200 rounded" />
                   <div className="h-4 w-16 bg-slate-200 rounded" />
-                  <div className="h-4 w-14 bg-slate-200 rounded" />
                 </div>
                 <div className="h-3.5 w-full bg-slate-100 rounded" />
-                <div className="h-3.5 w-3/4 bg-slate-100 rounded" />
                 <div className="h-3 w-20 bg-slate-100 rounded" />
               </div>
             </div>
@@ -112,8 +125,12 @@ export default function ReviewsPage() {
       ) : reviews.length === 0 ? (
         <Card className="p-12 text-center">
           <MessageSquare className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <p className="font-medium text-slate-600">Aucun avis pour le moment</p>
-          <p className="text-sm text-slate-400 mt-1">Synchronisez depuis le dashboard pour charger vos avis.</p>
+          <p className="font-medium text-slate-600">Aucun avis trouvé</p>
+          <p className="text-sm text-slate-400 mt-1">
+            {search || statusFilter !== "ALL" || ratingFilter !== "ALL"
+              ? "Essayez de modifier vos filtres."
+              : "Les avis apparaîtront ici automatiquement."}
+          </p>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -150,7 +167,6 @@ export default function ReviewsPage() {
                     )}
                     <p className="text-xs text-slate-400 mt-1">{formatDate(review.reviewPublishedAt)}</p>
                   </div>
-                  <Star className="w-4 h-4 text-slate-300 flex-shrink-0" />
                 </div>
               </Card>
             </Link>

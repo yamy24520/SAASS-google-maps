@@ -1,15 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Star, MessageSquare, CheckCircle2, Clock, TrendingUp, RefreshCw, Globe, ExternalLink } from "lucide-react"
+import { Star, MessageSquare, CheckCircle2, Clock, TrendingUp, Globe, ExternalLink } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts"
 import { formatDate, getStatusLabel, getRatingColor } from "@/lib/utils"
-import { toast } from "@/components/ui/toaster"
 
 interface Stats {
   totalReviews: number
@@ -40,11 +39,11 @@ export function DashboardClient() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentReviews, setRecentReviews] = useState<Review[]>([])
   const [chartData, setChartData] = useState<ChartPoint[]>([])
-  const [syncing, setSyncing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [pageStats, setPageStats] = useState<{ viewsTotal: number; viewsWeek: number; clicks: { type: string; count: number }[]; viewsByDay: { day: string; views: number }[] } | null>(null)
   const [pageSlug, setPageSlug] = useState<string | null>(null)
   const [reputationPageEnabled, setReputationPageEnabled] = useState(false)
+  const syncedRef = useRef(false)
 
   async function fetchData() {
     const res = await fetch(`/api/dashboard${bizParam}`)
@@ -64,20 +63,21 @@ export function DashboardClient() {
     setLoading(false)
   }
 
-  async function handleSync() {
-    setSyncing(true)
-    const res = await fetch(`/api/reviews/sync${bizParam}`, { method: "POST" })
-    const data = await res.json()
-    if (res.ok) {
-      toast({ title: "Synchronisé", description: `${data.synced} avis récupérés.`, variant: "success" })
+  async function autoSync() {
+    if (syncedRef.current) return
+    syncedRef.current = true
+    try {
+      await fetch(`/api/reviews/sync${bizParam}`, { method: "POST" })
       await fetchData()
-    } else {
-      toast({ title: "Erreur", description: data.error, variant: "destructive" })
+    } catch {
+      // non-blocking
     }
-    setSyncing(false)
   }
 
-  useEffect(() => { fetchData() }, [bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    syncedRef.current = false
+    fetchData().then(() => autoSync())
+  }, [bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -93,15 +93,9 @@ export function DashboardClient() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Vue d&apos;ensemble de votre réputation</p>
-        </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={handleSync} disabled={syncing}>
-          <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-          {syncing ? "Synchronisation..." : "Synchroniser"}
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-slate-500 text-sm mt-0.5">Vue d&apos;ensemble de votre réputation</p>
       </div>
 
       {/* Stats grid */}
@@ -190,7 +184,7 @@ export function DashboardClient() {
               </ResponsiveContainer>
             ) : (
               <div className="h-[200px] flex items-center justify-center text-slate-400 text-sm">
-                Pas assez de données. Synchronisez vos avis d&apos;abord.
+                Pas assez de données pour afficher le graphique.
               </div>
             )}
           </CardContent>
