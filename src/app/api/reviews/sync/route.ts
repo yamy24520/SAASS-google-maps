@@ -72,8 +72,11 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
-  const bizId = new URL(req.url).searchParams.get("biz")
+  const url = new URL(req.url)
+  const bizId = url.searchParams.get("biz")
   const isAdmin = session.user.role === "ADMIN"
+  // full=true for unlimited sync (cron), default = 50 most recent (fast, fits Vercel 30s limit)
+  const limit = url.searchParams.get("full") === "true" ? 0 : 50
   const business = await prisma.business.findFirst({
     where: bizId
       ? (isAdmin ? { id: bizId } : { id: bizId, userId: session.user.id })
@@ -96,7 +99,7 @@ export async function POST(req: NextRequest) {
   // Google
   if (placeId) {
     try {
-      const reviews = await fetchReviewsOutscraper(placeId, 100)
+      const reviews = await fetchReviewsOutscraper(placeId, limit)
       synced += await upsertReviews(reviews, "GOOGLE", business.id, business)
     } catch (e) {
       console.error("[sync] Google error:", e)
@@ -107,7 +110,7 @@ export async function POST(req: NextRequest) {
   // TripAdvisor
   if (business.tripAdvisorUrl) {
     try {
-      const reviews = await fetchTripAdvisorReviews(business.tripAdvisorUrl, 100)
+      const reviews = await fetchTripAdvisorReviews(business.tripAdvisorUrl, limit)
       synced += await upsertReviews(reviews, "TRIPADVISOR", business.id, business)
     } catch (e) {
       console.error("[sync] TripAdvisor error:", e)
@@ -118,7 +121,7 @@ export async function POST(req: NextRequest) {
   // Booking
   if (business.bookingUrl) {
     try {
-      const reviews = await fetchBookingReviews(business.bookingUrl, 100)
+      const reviews = await fetchBookingReviews(business.bookingUrl, limit)
       synced += await upsertReviews(reviews, "BOOKING", business.id, business)
     } catch (e) {
       console.error("[sync] Booking error:", e)
@@ -129,7 +132,7 @@ export async function POST(req: NextRequest) {
   // Trustpilot
   if (business.trustpilotUrl) {
     try {
-      const reviews = await fetchTrustpilotReviews(business.trustpilotUrl, 100)
+      const reviews = await fetchTrustpilotReviews(business.trustpilotUrl, limit)
       synced += await upsertReviews(reviews, "TRUSTPILOT", business.id, business)
     } catch (e) {
       console.error("[sync] Trustpilot error:", e)

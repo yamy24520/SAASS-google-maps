@@ -37,7 +37,7 @@ function extractReviews(data: unknown[]): OutscraperReview[] {
   return []
 }
 
-async function pollJob(jobId: string, maxWait = 25000): Promise<OutscraperReview[]> {
+async function pollJob(jobId: string, maxWait = 20000): Promise<OutscraperReview[]> {
   const start = Date.now()
   while (Date.now() - start < maxWait) {
     await new Promise(r => setTimeout(r, 2000))
@@ -56,9 +56,12 @@ async function pollJob(jobId: string, maxWait = 25000): Promise<OutscraperReview
 }
 
 async function fetchFromEndpoint(endpoint: string, params: URLSearchParams): Promise<OutscraperReview[]> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 25000)
   const res = await fetch(`${BASE_URL}/${endpoint}?${params}`, {
     headers: { "X-API-KEY": OUTSCRAPER_API_KEY },
-  })
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout))
 
   if (!res.ok) {
     const text = await res.text()
