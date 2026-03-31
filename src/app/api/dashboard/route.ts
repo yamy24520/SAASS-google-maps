@@ -27,8 +27,8 @@ export async function GET(req: NextRequest) {
     pendingCount,
     publishedCount,
     recentReviews,
-    ratingByWeek,
     sourceBreakdown,
+    ratingByWeek,
   ] = await Promise.all([
     prisma.review.count({ where: { businessId: business.id } }),
     prisma.review.count({ where: { businessId: business.id, reviewPublishedAt: { gte: thirtyDaysAgo } } }),
