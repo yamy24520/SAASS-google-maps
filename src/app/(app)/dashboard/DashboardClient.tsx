@@ -69,8 +69,8 @@ export function DashboardClient() {
     if (syncedRef.current) return
     syncedRef.current = true
     try {
-      await fetch(`/api/reviews/sync${bizParam}`, { method: "POST" })
-      await fetchData()
+      const res = await fetch(`/api/reviews/sync${bizParam}`, { method: "POST" })
+      if (res.ok) await fetchData()
     } catch {
       // non-blocking
     }
@@ -78,7 +78,8 @@ export function DashboardClient() {
 
   useEffect(() => {
     syncedRef.current = false
-    fetchData().then(() => autoSync())
+    fetchData()
+    autoSync()
   }, [bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
