@@ -13,6 +13,30 @@ export interface OutscraperReview {
   review_likes?: number
 }
 
+// Clean URL — strip tracking params, keep only the base path
+function cleanUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    // Keep only pathname (no query params, no hash)
+    return `${u.origin}${u.pathname}`
+  } catch {
+    return url
+  }
+}
+
+// Extract reviews from any Outscraper response shape
+function extractReviews(data: unknown[]): OutscraperReview[] {
+  if (!Array.isArray(data) || data.length === 0) return []
+  const first = data[0] as Record<string, unknown>
+  // Google Maps shape: { reviews_data: [...] }
+  if (Array.isArray(first?.reviews_data)) return first.reviews_data as OutscraperReview[]
+  // Flat array shape: data[0] is already a review object
+  if (first?.review_id !== undefined) return data as OutscraperReview[]
+  // Nested: { data: [...] }
+  if (Array.isArray(first?.data)) return first.data as OutscraperReview[]
+  return []
+}
+
 async function pollJob(jobId: string, maxWait = 25000): Promise<OutscraperReview[]> {
   const start = Date.now()
   while (Date.now() - start < maxWait) {
@@ -24,7 +48,7 @@ async function pollJob(jobId: string, maxWait = 25000): Promise<OutscraperReview
     const json = await res.json()
     console.log("[Outscraper] poll status:", json?.status, "data len:", json?.data?.length)
     if (json?.status === "Success" || json?.status === "Completed") {
-      return json?.data?.[0]?.reviews_data ?? []
+      return extractReviews(json?.data ?? [])
     }
     if (json?.status === "Error") throw new Error("Outscraper job failed")
   }
@@ -44,18 +68,19 @@ async function fetchFromEndpoint(endpoint: string, params: URLSearchParams): Pro
   const json = await res.json()
   console.log(`[Outscraper][${endpoint}] status:`, json?.status, "id:", json?.id, "data len:", json?.data?.length)
 
-  if (json?.data?.[0]?.reviews_data?.length > 0) {
-    return json.data[0].reviews_data
-  }
+  const reviews = extractReviews(json?.data ?? [])
+  if (reviews.length > 0) return reviews
 
-  if (json?.id && json?.data?.length === 0) {
+  // Async job — poll for result
+  if (json?.id && (!json?.data || json.data.length === 0)) {
     return await pollJob(json.id)
   }
 
   return []
 }
 
-export async function fetchReviewsOutscraper(placeId: string, limit = 100): Promise<OutscraperReview[]> {
+// Google Maps: reviewsLimit=0 means unlimited
+export async function fetchReviewsOutscraper(placeId: string, limit = 0): Promise<OutscraperReview[]> {
   const params = new URLSearchParams({
     query: placeId,
     reviewsLimit: String(limit),
@@ -66,31 +91,32 @@ export async function fetchReviewsOutscraper(placeId: string, limit = 100): Prom
   return fetchFromEndpoint("google-maps-reviews", params)
 }
 
-export async function fetchTripAdvisorReviews(url: string, limit = 100): Promise<OutscraperReview[]> {
+// TripAdvisor: param is `limit` not `reviewsLimit`
+export async function fetchTripAdvisorReviews(url: string, limit = 0): Promise<OutscraperReview[]> {
   const params = new URLSearchParams({
-    query: url,
-    reviewsLimit: String(limit),
+    query: cleanUrl(url),
+    limit: String(limit),
     language: "fr",
     async: "false",
   })
   return fetchFromEndpoint("tripadvisor-reviews", params)
 }
 
-export async function fetchBookingReviews(url: string, limit = 100): Promise<OutscraperReview[]> {
+// Booking: param is `limit` not `reviewsLimit`
+export async function fetchBookingReviews(url: string, limit = 0): Promise<OutscraperReview[]> {
   const params = new URLSearchParams({
-    query: url,
-    reviewsLimit: String(limit),
-    language: "fr",
+    query: cleanUrl(url),
+    limit: String(limit),
     async: "false",
   })
   return fetchFromEndpoint("booking-reviews", params)
 }
 
-export async function fetchTrustpilotReviews(url: string, limit = 100): Promise<OutscraperReview[]> {
+// Trustpilot: param is `limit` not `reviewsLimit`
+export async function fetchTrustpilotReviews(url: string, limit = 0): Promise<OutscraperReview[]> {
   const params = new URLSearchParams({
-    query: url,
-    reviewsLimit: String(limit),
-    language: "fr",
+    query: cleanUrl(url),
+    limit: String(limit),
     async: "false",
   })
   return fetchFromEndpoint("trustpilot-reviews", params)
