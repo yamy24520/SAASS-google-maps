@@ -29,6 +29,7 @@ export default function ReviewDetailPage() {
   const bizId = searchParams.get("biz")
   const bizParam = bizId ? `?biz=${bizId}` : ""
   const [review, setReview] = useState<Review | null>(null)
+  const [placeId, setPlaceId] = useState<string | null>(null)
   const [loadingReview, setLoadingReview] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [response, setResponse] = useState("")
@@ -44,6 +45,7 @@ export default function ReviewDetailPage() {
         const data = await r.json()
         if (!data.review) { setNotFound(true); setLoadingReview(false); return }
         setReview(data.review)
+        setPlaceId(data.placeId ?? null)
         if (data.review?.aiDraftResponse) setResponse(data.review.aiDraftResponse)
         if (data.review?.publishedResponse) setResponse(data.review.publishedResponse)
         setLoadingReview(false)
@@ -105,20 +107,24 @@ export default function ReviewDetailPage() {
     if (!response.trim()) return
     setPublishing(true)
 
-    const res = await fetch(`/api/reviews/${reviewId}/publish${bizParam}`, {
+    // Copy response to clipboard
+    try { await navigator.clipboard.writeText(response) } catch { /* ignore */ }
+
+    // Save locally as APPROVED
+    await fetch(`/api/reviews/${reviewId}/publish${bizParam}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ response }),
-    })
+    }).catch(() => {})
 
-    if (res.ok) {
-      toast({ title: "Publié !", description: "Votre réponse a été publiée sur Google.", variant: "success" })
-      router.push(`/reviews${bizParam}`)
-    } else {
-      const data = await res.json()
-      toast({ title: "Erreur", description: data.error, variant: "destructive" })
-      setPublishing(false)
-    }
+    // Open Google Business reply page
+    const googleUrl = placeId
+      ? `https://search.google.com/local/reviews?placeid=${placeId}`
+      : "https://business.google.com/reviews"
+    window.open(googleUrl, "_blank")
+
+    toast({ title: "Réponse copiée !", description: "Collez-la sur la page Google qui vient de s'ouvrir.", variant: "success" })
+    setPublishing(false)
   }
 
   async function handleIgnore() {

@@ -23,7 +23,8 @@
       "Bash(find \"c:\\\\Users\\\\yamy\\\\Desktop\\\\SAASS-google-maps\\\\src\\\\app\\\\\\(auth\\)\" -name \"page.tsx\" -type f)",
       "Bash(grep -l \"CRON_SECRET\" /c/Users/yamy/Desktop/SAASS-google-maps/src/app/api/cron/*.ts)",
       "Bash(xargs grep:*)",
-      "Bash(grep -L \"getServerSession\\\\|CRON_SECRET\\\\|crypto.randomUUID\" /c/Users/yamy/Desktop/SAASS-google-maps/src/app/api/**/route.ts)"
+      "Bash(grep -L \"getServerSession\\\\|CRON_SECRET\\\\|crypto.randomUUID\" /c/Users/yamy/Desktop/SAASS-google-maps/src/app/api/**/route.ts)",
+      "WebFetch(domain:app.outscraper.cloud)"
     ]
   }
 }

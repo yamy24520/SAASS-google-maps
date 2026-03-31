@@ -8,12 +8,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ revi
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
   const { reviewId } = await params
+  const bizId = new URL(req.url).searchParams.get("biz")
+  const isAdmin = session.user.role === "ADMIN"
 
-  const business = await prisma.business.findFirst({ where: { userId: session.user.id } })
+  const business = await prisma.business.findFirst({
+    where: bizId
+      ? (isAdmin ? { id: bizId } : { id: bizId, userId: session.user.id })
+      : { userId: session.user.id },
+  })
   if (!business) return NextResponse.json({ error: "Introuvable" }, { status: 404 })
 
   const review = await prisma.review.findFirst({ where: { id: reviewId, businessId: business.id } })
   if (!review) return NextResponse.json({ error: "Avis introuvable" }, { status: 404 })
 
-  return NextResponse.json({ review })
+  // Resolve placeId for Google reply page
+  const snapshot = await prisma.reputationSnapshot.findFirst({
+    where: { businessId: business.id },
+    orderBy: { recordedAt: "desc" },
+    select: { placeId: true },
+  })
+  const placeId = business.gbpLocationId ?? snapshot?.placeId ?? null
+
+  return NextResponse.json({ review, placeId })
 }
