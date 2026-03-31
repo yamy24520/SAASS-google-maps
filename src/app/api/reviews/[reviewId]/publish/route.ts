@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { replyToReview } from "@/lib/google-business"
 import { z } from "zod"
 
-const schema = z.object({ response: z.string().min(10) })
+const schema = z.object({ response: z.string().min(1) })
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ reviewId: string }> }) {
   const session = await getServerSession(authOptions)
