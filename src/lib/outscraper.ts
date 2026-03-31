@@ -1,5 +1,5 @@
 const OUTSCRAPER_API_KEY = process.env.OUTSCRAPER_API_KEY!
-const BASE_URL = "https://api.app.outscraper.com"
+const BASE_URL = "https://api.outscraper.cloud"
 
 export interface OutscraperReview {
   review_id: string
@@ -13,7 +13,6 @@ export interface OutscraperReview {
   review_likes?: number
 }
 
-// Poll until job is done (Outscraper is async even with async=false for large requests)
 async function pollJob(jobId: string, maxWait = 25000): Promise<OutscraperReview[]> {
   const start = Date.now()
   while (Date.now() - start < maxWait) {
@@ -23,9 +22,8 @@ async function pollJob(jobId: string, maxWait = 25000): Promise<OutscraperReview
     })
     if (!res.ok) continue
     const json = await res.json()
-    console.log("[Outscraper] poll status:", json?.status)
+    console.log("[Outscraper] poll status:", json?.status, "data len:", json?.data?.length)
     if (json?.status === "Success" || json?.status === "Completed") {
-      console.log("[Outscraper] poll data len:", json?.data?.length, "data[0] keys:", JSON.stringify(Object.keys(json?.data?.[0] ?? {})))
       return json?.data?.[0]?.reviews_data ?? []
     }
     if (json?.status === "Error") throw new Error("Outscraper job failed")
@@ -35,19 +33,17 @@ async function pollJob(jobId: string, maxWait = 25000): Promise<OutscraperReview
 
 export async function fetchReviewsOutscraper(
   placeId: string,
-  limit = 100
+  limit = 20
 ): Promise<OutscraperReview[]> {
-  // Outscraper accepts Google Maps search URL or place name — try maps URL with place_id
-  const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${placeId}`
   const params = new URLSearchParams({
-    query: mapsUrl,
+    query: placeId,
     reviewsLimit: String(limit),
     language: "fr",
     sort: "newest",
     async: "false",
   })
 
-  const res = await fetch(`${BASE_URL}/maps/reviews-v3?${params}`, {
+  const res = await fetch(`${BASE_URL}/google-maps-reviews?${params}`, {
     headers: { "X-API-KEY": OUTSCRAPER_API_KEY },
   })
 
@@ -59,13 +55,13 @@ export async function fetchReviewsOutscraper(
   const json = await res.json()
   console.log("[Outscraper] status:", json?.status, "id:", json?.id, "data len:", json?.data?.length)
 
-  // If data already present (sync response)
+  // Sync response with data
   if (json?.data?.[0]?.reviews_data?.length > 0) {
     return json.data[0].reviews_data
   }
 
-  // If async job — poll for result
-  if (json?.id && (json?.status === "Pending" || json?.status === "Running" || json?.data?.length === 0)) {
+  // Async job — poll for result
+  if (json?.id && json?.data?.length === 0) {
     return await pollJob(json.id)
   }
 
