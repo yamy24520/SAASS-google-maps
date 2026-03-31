@@ -99,11 +99,11 @@ export function extractTripAdvisorReviews(data: unknown[]): OutscraperReview[] {
 async function pollJob(
   jobId: string,
   extractor: (data: unknown[]) => OutscraperReview[],
-  maxWait = 20000
+  maxWait = 15000
 ): Promise<OutscraperReview[]> {
   const start = Date.now()
   while (Date.now() - start < maxWait) {
-    await new Promise(r => setTimeout(r, 2000))
+    await new Promise(r => setTimeout(r, 1500))
     const res = await fetch(`${BASE_URL}/requests/${jobId}`, {
       headers: { "X-API-KEY": OUTSCRAPER_API_KEY },
     })

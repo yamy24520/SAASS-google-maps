@@ -35,7 +35,7 @@ async function upsertReviews(
         reviewerPhotoUrl: r.author_image ?? null,
         rating,
         comment: r.review_text ?? null,
-        reviewPublishedAt: new Date(r.review_datetime_utc),
+        reviewPublishedAt: r.review_datetime_utc ? new Date(r.review_datetime_utc) : new Date(),
         isNegative,
         status: r.owner_answer ? "PUBLISHED" : "PENDING",
         publishedResponse: r.owner_answer ?? null,

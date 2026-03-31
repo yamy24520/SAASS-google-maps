@@ -50,9 +50,9 @@ const schema = z.object({
   emailGreeting: z.string().nullable().optional(),
   emailFooterMessage: z.string().nullable().optional(),
   emailSenderName: z.string().nullable().optional(),
-  tripAdvisorUrl: z.string().url().nullable().optional(),
-  bookingUrl: z.string().url().nullable().optional(),
-  trustpilotUrl: z.string().url().nullable().optional(),
+  tripAdvisorUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
+  bookingUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
+  trustpilotUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
 })
 
 async function getBusinessForUser(userId: string, bizId: string | null) {
@@ -104,6 +104,9 @@ export async function PUT(req: NextRequest) {
       socialLinks: jsonField(socialLinks),
       pageLabels: jsonField(pageLabels),
       pageServiceOrder: jsonField(pageServiceOrder),
+      tripAdvisorUrl: restData.tripAdvisorUrl === "" ? null : restData.tripAdvisorUrl,
+      bookingUrl: restData.bookingUrl === "" ? null : restData.bookingUrl,
+      trustpilotUrl: restData.trustpilotUrl === "" ? null : restData.trustpilotUrl,
     }
 
     if (!business) {
