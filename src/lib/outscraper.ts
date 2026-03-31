@@ -25,6 +25,7 @@ async function pollJob(jobId: string, maxWait = 25000): Promise<OutscraperReview
     const json = await res.json()
     console.log("[Outscraper] poll status:", json?.status)
     if (json?.status === "Success" || json?.status === "Completed") {
+      console.log("[Outscraper] poll data len:", json?.data?.length, "data[0] keys:", JSON.stringify(Object.keys(json?.data?.[0] ?? {})))
       return json?.data?.[0]?.reviews_data ?? []
     }
     if (json?.status === "Error") throw new Error("Outscraper job failed")
@@ -37,7 +38,7 @@ export async function fetchReviewsOutscraper(
   limit = 100
 ): Promise<OutscraperReview[]> {
   const params = new URLSearchParams({
-    query: `place_id:${placeId}`,
+    query: placeId,
     reviewsLimit: String(limit),
     language: "fr",
     sort: "newest",
