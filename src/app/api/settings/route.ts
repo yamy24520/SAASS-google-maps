@@ -50,6 +50,7 @@ const schema = z.object({
   emailGreeting: z.string().nullable().optional(),
   emailFooterMessage: z.string().nullable().optional(),
   emailSenderName: z.string().nullable().optional(),
+  gbpLocationId: z.string().nullable().optional(),
   tripAdvisorUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
   bookingUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
   trustpilotUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
@@ -98,15 +99,37 @@ export async function PUT(req: NextRequest) {
       return undefined
     }
 
+    const newTripAdvisorUrl = restData.tripAdvisorUrl === "" ? null : restData.tripAdvisorUrl
+    const newBookingUrl = restData.bookingUrl === "" ? null : restData.bookingUrl
+    const newTrustpilotUrl = restData.trustpilotUrl === "" ? null : restData.trustpilotUrl
+    const newGbpLocationId = restData.gbpLocationId === "" ? null : restData.gbpLocationId
+
+    // Delete reviews when a platform URL/ID changes (stale data from another establishment)
+    if (business) {
+      const sourcesToReset: string[] = []
+      if (newGbpLocationId !== undefined && newGbpLocationId !== business.gbpLocationId) sourcesToReset.push("GOOGLE")
+      if (newTripAdvisorUrl !== undefined && newTripAdvisorUrl !== business.tripAdvisorUrl) sourcesToReset.push("TRIPADVISOR")
+      if (newBookingUrl !== undefined && newBookingUrl !== business.bookingUrl) sourcesToReset.push("BOOKING")
+      if (newTrustpilotUrl !== undefined && newTrustpilotUrl !== business.trustpilotUrl) sourcesToReset.push("TRUSTPILOT")
+
+      if (sourcesToReset.length > 0) {
+        await prisma.review.deleteMany({
+          where: { businessId: business.id, source: { in: sourcesToReset as ("GOOGLE" | "TRIPADVISOR" | "BOOKING" | "TRUSTPILOT")[] } },
+        })
+        console.log(`[settings] reset reviews for ${business.id}: ${sourcesToReset.join(", ")}`)
+      }
+    }
+
     const prismaData = {
       ...restData,
       spinPrizes: jsonField(spinPrizes),
       socialLinks: jsonField(socialLinks),
       pageLabels: jsonField(pageLabels),
       pageServiceOrder: jsonField(pageServiceOrder),
-      tripAdvisorUrl: restData.tripAdvisorUrl === "" ? null : restData.tripAdvisorUrl,
-      bookingUrl: restData.bookingUrl === "" ? null : restData.bookingUrl,
-      trustpilotUrl: restData.trustpilotUrl === "" ? null : restData.trustpilotUrl,
+      gbpLocationId: newGbpLocationId,
+      tripAdvisorUrl: newTripAdvisorUrl,
+      bookingUrl: newBookingUrl,
+      trustpilotUrl: newTrustpilotUrl,
     }
 
     if (!business) {

@@ -32,6 +32,7 @@ interface Business {
   language: string
   gbpConnectedAt: string | null
   gbpLocationName: string | null
+  gbpLocationId: string | null
   tripAdvisorUrl: string | null
   bookingUrl: string | null
   trustpilotUrl: string | null
@@ -78,6 +79,7 @@ export default function SettingsPage() {
     language: "fr",
     gbpConnectedAt: null,
     gbpLocationName: null,
+    gbpLocationId: null,
     tripAdvisorUrl: null,
     bookingUrl: null,
     trustpilotUrl: null,
@@ -353,7 +355,7 @@ export default function SettingsPage() {
               <CardTitle>Connexion Google Business</CardTitle>
               <CardDescription>Nécessaire pour synchroniser vos avis Google</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               {form.gbpConnectedAt ? (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -387,6 +389,16 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               )}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-600">Place ID Google Maps</Label>
+                <Input
+                  value={form.gbpLocationId ?? ""}
+                  onChange={e => setForm({ ...form, gbpLocationId: e.target.value || null })}
+                  placeholder="ChIJ... (trouvable sur Google Maps)"
+                  className="text-sm font-mono"
+                />
+                <p className="text-xs text-slate-400">Recherchez votre établissement sur <a href="https://maps.google.com" target="_blank" rel="noreferrer" className="underline">Google Maps</a>, clic droit sur le pin → copier le Place ID</p>
+              </div>
             </CardContent>
           </Card>
 
