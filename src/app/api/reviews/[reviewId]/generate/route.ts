@@ -11,7 +11,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ rev
 
   const { reviewId } = await params
 
-  const business = await prisma.business.findFirst({ where: { userId: session.user.id } })
+  const bizId = new URL(req.url).searchParams.get("biz")
+  const isAdmin = session.user.role === "ADMIN"
+  const business = await prisma.business.findFirst({
+    where: bizId
+      ? (isAdmin ? { id: bizId } : { id: bizId, userId: session.user.id })
+      : { userId: session.user.id },
+  })
   if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
 
   const review = await prisma.review.findFirst({

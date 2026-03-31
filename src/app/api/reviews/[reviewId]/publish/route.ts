@@ -15,7 +15,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ rev
   const body = await req.json()
   const { response } = schema.parse(body)
 
-  const business = await prisma.business.findFirst({ where: { userId: session.user.id } })
+  const bizId = new URL(req.url).searchParams.get("biz")
+  const isAdmin = session.user.role === "ADMIN"
+  const business = await prisma.business.findFirst({
+    where: bizId
+      ? (isAdmin ? { id: bizId } : { id: bizId, userId: session.user.id })
+      : { userId: session.user.id },
+  })
   if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
 
   const review = await prisma.review.findFirst({
@@ -23,11 +29,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ rev
   })
   if (!review) return NextResponse.json({ error: "Avis introuvable" }, { status: 404 })
 
+  // Try to publish on Google — if GBP API unavailable, save locally anyway
   try {
     await replyToReview(business, review.googleReviewId, response)
   } catch {
-    await prisma.review.update({ where: { id: reviewId }, data: { status: "FAILED" } })
-    return NextResponse.json({ error: "Impossible de publier sur Google" }, { status: 502 })
+    // GBP unavailable — save response locally as APPROVED (not yet published on Google)
+    await prisma.review.update({
+      where: { id: reviewId },
+      data: { publishedResponse: response, publishedAt: new Date(), status: "APPROVED" },
+    })
+    return NextResponse.json({ success: true, warning: "Réponse sauvegardée localement. Publication Google indisponible pour le moment." })
   }
 
   await prisma.review.update({
