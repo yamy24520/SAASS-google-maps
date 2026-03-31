@@ -50,6 +50,9 @@ const schema = z.object({
   emailGreeting: z.string().nullable().optional(),
   emailFooterMessage: z.string().nullable().optional(),
   emailSenderName: z.string().nullable().optional(),
+  tripAdvisorUrl: z.string().url().nullable().optional(),
+  bookingUrl: z.string().url().nullable().optional(),
+  trustpilotUrl: z.string().url().nullable().optional(),
 })
 
 async function getBusinessForUser(userId: string, bizId: string | null) {

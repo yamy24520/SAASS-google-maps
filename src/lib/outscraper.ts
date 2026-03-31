@@ -31,19 +31,8 @@ async function pollJob(jobId: string, maxWait = 25000): Promise<OutscraperReview
   throw new Error("Outscraper job timed out")
 }
 
-export async function fetchReviewsOutscraper(
-  placeId: string,
-  limit = 100
-): Promise<OutscraperReview[]> {
-  const params = new URLSearchParams({
-    query: placeId,
-    reviewsLimit: String(limit),
-    language: "fr",
-    sort: "newest",
-    async: "false",
-  })
-
-  const res = await fetch(`${BASE_URL}/google-maps-reviews?${params}`, {
+async function fetchFromEndpoint(endpoint: string, params: URLSearchParams): Promise<OutscraperReview[]> {
+  const res = await fetch(`${BASE_URL}/${endpoint}?${params}`, {
     headers: { "X-API-KEY": OUTSCRAPER_API_KEY },
   })
 
@@ -53,17 +42,56 @@ export async function fetchReviewsOutscraper(
   }
 
   const json = await res.json()
-  console.log("[Outscraper] status:", json?.status, "id:", json?.id, "data len:", json?.data?.length)
+  console.log(`[Outscraper][${endpoint}] status:`, json?.status, "id:", json?.id, "data len:", json?.data?.length)
 
-  // Sync response with data
   if (json?.data?.[0]?.reviews_data?.length > 0) {
     return json.data[0].reviews_data
   }
 
-  // Async job — poll for result
   if (json?.id && json?.data?.length === 0) {
     return await pollJob(json.id)
   }
 
   return []
+}
+
+export async function fetchReviewsOutscraper(placeId: string, limit = 100): Promise<OutscraperReview[]> {
+  const params = new URLSearchParams({
+    query: placeId,
+    reviewsLimit: String(limit),
+    language: "fr",
+    sort: "newest",
+    async: "false",
+  })
+  return fetchFromEndpoint("google-maps-reviews", params)
+}
+
+export async function fetchTripAdvisorReviews(url: string, limit = 100): Promise<OutscraperReview[]> {
+  const params = new URLSearchParams({
+    query: url,
+    reviewsLimit: String(limit),
+    language: "fr",
+    async: "false",
+  })
+  return fetchFromEndpoint("tripadvisor-reviews", params)
+}
+
+export async function fetchBookingReviews(url: string, limit = 100): Promise<OutscraperReview[]> {
+  const params = new URLSearchParams({
+    query: url,
+    reviewsLimit: String(limit),
+    language: "fr",
+    async: "false",
+  })
+  return fetchFromEndpoint("booking-reviews", params)
+}
+
+export async function fetchTrustpilotReviews(url: string, limit = 100): Promise<OutscraperReview[]> {
+  const params = new URLSearchParams({
+    query: url,
+    reviewsLimit: String(limit),
+    language: "fr",
+    async: "false",
+  })
+  return fetchFromEndpoint("trustpilot-reviews", params)
 }

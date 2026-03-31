@@ -2,48 +2,35 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { fetchReviewsOutscraper } from "@/lib/outscraper"
+import {
+  fetchReviewsOutscraper,
+  fetchTripAdvisorReviews,
+  fetchBookingReviews,
+  fetchTrustpilotReviews,
+  OutscraperReview,
+} from "@/lib/outscraper"
 import { sendNegativeReviewAlert } from "@/lib/email"
+import { ReviewSource } from "@prisma/client"
 
-export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
-
-  const bizId = new URL(req.url).searchParams.get("biz")
-  const isAdmin = session.user.role === "ADMIN"
-  const business = await prisma.business.findFirst({
-    where: bizId
-      ? (isAdmin ? { id: bizId } : { id: bizId, userId: session.user.id })
-      : { userId: session.user.id },
-    include: { user: { select: { email: true, name: true } } },
-  })
-  if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
-
-  // Resolve placeId
-  const snapshot = await prisma.reputationSnapshot.findFirst({
-    where: { businessId: business.id },
-    orderBy: { recordedAt: "desc" },
-    select: { placeId: true },
-  })
-  const placeId = business.gbpLocationId ?? snapshot?.placeId ?? null
-
-  if (!placeId) {
-    return NextResponse.json({ error: "Place ID introuvable — connectez votre fiche Google" }, { status: 400 })
-  }
-
-  const reviews = await fetchReviewsOutscraper(placeId, 100)
+async function upsertReviews(
+  reviews: OutscraperReview[],
+  source: ReviewSource,
+  businessId: string,
+  business: { id: string; alertEmailEnabled: boolean; user: { email: string | null; name: string | null }; name: string }
+) {
   let synced = 0
-
   for (const r of reviews) {
     if (!r.review_id) continue
     const rating = Math.round(r.review_rating)
     const isNegative = rating <= 2
+    const externalId = `${source}:${r.review_id}`
 
     const review = await prisma.review.upsert({
-      where: { googleReviewId: r.review_id },
+      where: { externalReviewId: externalId },
       create: {
-        businessId: business.id,
-        googleReviewId: r.review_id,
+        businessId,
+        externalReviewId: externalId,
+        source,
         reviewerName: r.author_title,
         reviewerPhotoUrl: r.author_image ?? null,
         rating,
@@ -78,6 +65,77 @@ export async function POST(req: NextRequest) {
 
     synced++
   }
+  return synced
+}
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+
+  const bizId = new URL(req.url).searchParams.get("biz")
+  const isAdmin = session.user.role === "ADMIN"
+  const business = await prisma.business.findFirst({
+    where: bizId
+      ? (isAdmin ? { id: bizId } : { id: bizId, userId: session.user.id })
+      : { userId: session.user.id },
+    include: { user: { select: { email: true, name: true } } },
+  })
+  if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
+
+  // Resolve Google placeId
+  const snapshot = await prisma.reputationSnapshot.findFirst({
+    where: { businessId: business.id },
+    orderBy: { recordedAt: "desc" },
+    select: { placeId: true },
+  })
+  const placeId = business.gbpLocationId ?? snapshot?.placeId ?? null
+
+  let synced = 0
+  const errors: string[] = []
+
+  // Google
+  if (placeId) {
+    try {
+      const reviews = await fetchReviewsOutscraper(placeId, 100)
+      synced += await upsertReviews(reviews, "GOOGLE", business.id, business)
+    } catch (e) {
+      console.error("[sync] Google error:", e)
+      errors.push("Google")
+    }
+  }
+
+  // TripAdvisor
+  if (business.tripAdvisorUrl) {
+    try {
+      const reviews = await fetchTripAdvisorReviews(business.tripAdvisorUrl, 100)
+      synced += await upsertReviews(reviews, "TRIPADVISOR", business.id, business)
+    } catch (e) {
+      console.error("[sync] TripAdvisor error:", e)
+      errors.push("TripAdvisor")
+    }
+  }
+
+  // Booking
+  if (business.bookingUrl) {
+    try {
+      const reviews = await fetchBookingReviews(business.bookingUrl, 100)
+      synced += await upsertReviews(reviews, "BOOKING", business.id, business)
+    } catch (e) {
+      console.error("[sync] Booking error:", e)
+      errors.push("Booking")
+    }
+  }
+
+  // Trustpilot
+  if (business.trustpilotUrl) {
+    try {
+      const reviews = await fetchTrustpilotReviews(business.trustpilotUrl, 100)
+      synced += await upsertReviews(reviews, "TRUSTPILOT", business.id, business)
+    } catch (e) {
+      console.error("[sync] Trustpilot error:", e)
+      errors.push("Trustpilot")
+    }
+  }
 
   // Update business stats
   const stats = await prisma.review.aggregate({
@@ -99,5 +157,5 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  return NextResponse.json({ synced })
+  return NextResponse.json({ synced, errors: errors.length ? errors : undefined })
 }

@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ rev
 
   // Try to publish on Google — if GBP API unavailable, save locally anyway
   try {
-    await replyToReview(business, review.googleReviewId, response)
+    await replyToReview(business, review.externalReviewId, response)
   } catch {
     // GBP unavailable — save response locally as APPROVED (not yet published on Google)
     await prisma.review.update({

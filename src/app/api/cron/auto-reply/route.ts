@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       try {
         const { text, promptTokens, completionTokens } = await generateAIResponse(review, business)
 
-        await replyToReview(business, review.googleReviewId, text)
+        await replyToReview(business, review.externalReviewId, text)
 
         await prisma.review.update({
           where: { id: review.id },

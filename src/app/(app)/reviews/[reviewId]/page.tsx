@@ -18,8 +18,42 @@ interface Review {
   comment: string | null
   reviewPublishedAt: string
   status: string
+  source: string
   aiDraftResponse: string | null
   publishedResponse: string | null
+}
+
+const SOURCE_META: Record<string, { label: string; emoji: string; color: string; publishUrl: (placeId: string | null, url: string | null) => string; publishLabel: string }> = {
+  GOOGLE: {
+    label: "Google",
+    emoji: "🔵",
+    color: "bg-blue-50 text-blue-700 border-blue-200",
+    publishUrl: (placeId) => placeId
+      ? `https://search.google.com/local/reviews?placeid=${placeId}`
+      : "https://business.google.com/reviews",
+    publishLabel: "Publier sur Google",
+  },
+  TRIPADVISOR: {
+    label: "TripAdvisor",
+    emoji: "🦉",
+    color: "bg-green-50 text-green-700 border-green-200",
+    publishUrl: (_, url) => url ?? "https://www.tripadvisor.fr",
+    publishLabel: "Publier sur TripAdvisor",
+  },
+  BOOKING: {
+    label: "Booking.com",
+    emoji: "🏨",
+    color: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    publishUrl: (_, url) => url ?? "https://account.booking.com",
+    publishLabel: "Publier sur Booking",
+  },
+  TRUSTPILOT: {
+    label: "Trustpilot",
+    emoji: "⭐",
+    color: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    publishUrl: (_, url) => url ?? "https://businessapp.b2b.trustpilot.com",
+    publishLabel: "Publier sur Trustpilot",
+  },
 }
 
 export default function ReviewDetailPage() {
@@ -30,6 +64,7 @@ export default function ReviewDetailPage() {
   const bizParam = bizId ? `?biz=${bizId}` : ""
   const [review, setReview] = useState<Review | null>(null)
   const [placeId, setPlaceId] = useState<string | null>(null)
+  const [platformUrl, setPlatformUrl] = useState<string | null>(null)
   const [loadingReview, setLoadingReview] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [response, setResponse] = useState("")
@@ -46,6 +81,7 @@ export default function ReviewDetailPage() {
         if (!data.review) { setNotFound(true); setLoadingReview(false); return }
         setReview(data.review)
         setPlaceId(data.placeId ?? null)
+        setPlatformUrl(data.platformUrl ?? null)
         if (data.review?.aiDraftResponse) setResponse(data.review.aiDraftResponse)
         if (data.review?.publishedResponse) setResponse(data.review.publishedResponse)
         setLoadingReview(false)
@@ -104,26 +140,26 @@ export default function ReviewDetailPage() {
   }
 
   async function handlePublish() {
-    if (!response.trim()) return
+    if (!response.trim() || !review) return
     setPublishing(true)
 
     // Copy response to clipboard
     try { await navigator.clipboard.writeText(response) } catch { /* ignore */ }
 
-    // Save locally as APPROVED
+    // Save locally
     await fetch(`/api/reviews/${reviewId}/publish${bizParam}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ response }),
     }).catch(() => {})
 
-    // Open Google Business reply page
-    const googleUrl = placeId
-      ? `https://search.google.com/local/reviews?placeid=${placeId}`
-      : "https://business.google.com/reviews"
-    window.open(googleUrl, "_blank")
+    // Open platform reply page
+    const meta = SOURCE_META[review.source] ?? SOURCE_META.GOOGLE
+    const url = meta.publishUrl(placeId, platformUrl)
+    window.open(url, "_blank")
 
-    toast({ title: "Réponse copiée !", description: "Collez-la sur la page Google qui vient de s'ouvrir.", variant: "success" })
+    const platformName = meta.label
+    toast({ title: "Réponse copiée !", description: `Collez-la sur la page ${platformName} qui vient de s'ouvrir.`, variant: "success" })
     setPublishing(false)
   }
 
@@ -159,6 +195,7 @@ export default function ReviewDetailPage() {
 
   const r = review as Review
   const isPublished = r.status === "PUBLISHED"
+  const sourceMeta = SOURCE_META[r.source] ?? SOURCE_META.GOOGLE
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -182,6 +219,9 @@ export default function ReviewDetailPage() {
             <div className="flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-slate-900 text-lg">{r.reviewerName}</span>
+                <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${sourceMeta.color}`}>
+                  {sourceMeta.emoji} {sourceMeta.label}
+                </span>
                 <Badge
                   variant={r.status === "PUBLISHED" ? "success" : r.status === "PENDING" ? "warning" : "info"}
                 >
@@ -263,7 +303,7 @@ export default function ReviewDetailPage() {
                 {publishing ? (
                   <><Loader2 className="w-4 h-4 animate-spin" />Publication...</>
                 ) : (
-                  <><Send className="w-4 h-4" />Publier sur Google</>
+                  <><Send className="w-4 h-4" />{sourceMeta.publishLabel}</>
                 )}
               </Button>
 
@@ -283,7 +323,7 @@ export default function ReviewDetailPage() {
           {isPublished && (
             <div className="flex items-center gap-2 text-emerald-600 text-sm">
               <CheckCircle2 className="w-4 h-4" />
-              Réponse publiée sur Google
+              Réponse publiée sur {sourceMeta.label}
             </div>
           )}
         </CardContent>

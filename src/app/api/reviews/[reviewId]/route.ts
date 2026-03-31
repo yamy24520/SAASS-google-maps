@@ -15,6 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ revi
     where: bizId
       ? (isAdmin ? { id: bizId } : { id: bizId, userId: session.user.id })
       : { userId: session.user.id },
+    select: { id: true, gbpLocationId: true, tripAdvisorUrl: true, bookingUrl: true, trustpilotUrl: true },
   })
   if (!business) return NextResponse.json({ error: "Introuvable" }, { status: 404 })
 
@@ -29,5 +30,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ revi
   })
   const placeId = business.gbpLocationId ?? snapshot?.placeId ?? null
 
-  return NextResponse.json({ review, placeId })
+  // Resolve platform URL based on review source
+  const platformUrlMap: Record<string, string | null> = {
+    TRIPADVISOR: business.tripAdvisorUrl ?? null,
+    BOOKING: business.bookingUrl ?? null,
+    TRUSTPILOT: business.trustpilotUrl ?? null,
+  }
+  const platformUrl = platformUrlMap[review.source] ?? null
+
+  return NextResponse.json({ review, placeId, platformUrl })
 }

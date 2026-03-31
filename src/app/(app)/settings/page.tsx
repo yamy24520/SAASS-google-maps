@@ -32,6 +32,9 @@ interface Business {
   language: string
   gbpConnectedAt: string | null
   gbpLocationName: string | null
+  tripAdvisorUrl: string | null
+  bookingUrl: string | null
+  trustpilotUrl: string | null
   offerEnabled: boolean
   offerText: string | null
   offerType: "FIXED" | "SPIN_WHEEL"
@@ -75,6 +78,9 @@ export default function SettingsPage() {
     language: "fr",
     gbpConnectedAt: null,
     gbpLocationName: null,
+    tripAdvisorUrl: null,
+    bookingUrl: null,
+    trustpilotUrl: null,
     offerEnabled: false,
     offerText: null,
     offerType: "FIXED",
@@ -443,6 +449,46 @@ export default function SettingsPage() {
                   placeholder={`L'équipe ${form.name || "de votre établissement"}`}
                 />
                 <p className="text-xs text-slate-400">Laissez vide pour utiliser le nom de l&apos;établissement</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Plateformes d'avis */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Autres plateformes d&apos;avis</CardTitle>
+              <CardDescription>Collez l&apos;URL de votre page sur chaque plateforme pour synchroniser vos avis</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-2">
+                  <span className="text-base">🦉</span> TripAdvisor
+                </Label>
+                <Input
+                  value={form.tripAdvisorUrl ?? ""}
+                  onChange={e => setForm({ ...form, tripAdvisorUrl: e.target.value || null })}
+                  placeholder="https://www.tripadvisor.fr/Restaurant_Review-..."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-2">
+                  <span className="text-base">🏨</span> Booking.com
+                </Label>
+                <Input
+                  value={form.bookingUrl ?? ""}
+                  onChange={e => setForm({ ...form, bookingUrl: e.target.value || null })}
+                  placeholder="https://www.booking.com/hotel/fr/..."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-2">
+                  <span className="text-base">⭐</span> Trustpilot
+                </Label>
+                <Input
+                  value={form.trustpilotUrl ?? ""}
+                  onChange={e => setForm({ ...form, trustpilotUrl: e.target.value || null })}
+                  placeholder="https://fr.trustpilot.com/review/..."
+                />
               </div>
             </CardContent>
           </Card>

@@ -143,6 +143,11 @@ model Business {
   // Sync calendrier
   calendarToken        String?  @unique
 
+  // External review platforms
+  tripAdvisorUrl   String?
+  bookingUrl       String?
+  trustpilotUrl    String?
+
   // IA Vocale (Vapi)
   vapiAssistantId  String?
   vapiPhoneNumber  String?
@@ -207,7 +212,8 @@ model Review {
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  googleReviewId    String   @unique
+  externalReviewId  String   @unique
+  source            ReviewSource @default(GOOGLE)
   reviewerName      String
   reviewerPhotoUrl  String?
   rating            Int
@@ -225,14 +231,21 @@ model Review {
 
   publishedResponse String?  @db.Text
   publishedAt       DateTime?
-  googleReplyName   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([businessId, status])
   @@index([businessId, rating])
+  @@index([businessId, source])
   @@index([businessId, reviewPublishedAt])
+}
+
+enum ReviewSource {
+  GOOGLE
+  TRIPADVISOR
+  BOOKING
+  TRUSTPILOT
 }
 
 enum ReviewStatus {

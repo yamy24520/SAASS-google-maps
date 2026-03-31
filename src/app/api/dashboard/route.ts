@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     publishedCount,
     recentReviews,
     ratingByWeek,
+    sourceBreakdown,
   ] = await Promise.all([
     prisma.review.count({ where: { businessId: business.id } }),
     prisma.review.count({ where: { businessId: business.id, reviewPublishedAt: { gte: thirtyDaysAgo } } }),
@@ -41,6 +42,7 @@ export async function GET(req: NextRequest) {
       orderBy: { reviewPublishedAt: "desc" },
       take: 5,
     }),
+    prisma.review.groupBy({ by: ["source"], where: { businessId: business.id }, _count: { source: true }, _avg: { rating: true } }),
     prisma.$queryRaw<{ week: Date; avg: number; count: bigint }[]>`
       SELECT
         date_trunc('week', "reviewPublishedAt") as week,
@@ -94,6 +96,11 @@ export async function GET(req: NextRequest) {
         views: Number(r.count),
       })),
     },
+    sourceBreakdown: (sourceBreakdown as { source: string; _count: { source: number }; _avg: { rating: number | null } }[]).map(s => ({
+      source: s.source,
+      count: s._count.source,
+      avg: s._avg.rating ? Math.round(s._avg.rating * 10) / 10 : 0,
+    })),
     pageSlug: business.pageSlug,
     reputationPageEnabled: business.reputationPageEnabled,
   })

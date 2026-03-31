@@ -39,6 +39,7 @@ export function DashboardClient() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentReviews, setRecentReviews] = useState<Review[]>([])
   const [chartData, setChartData] = useState<ChartPoint[]>([])
+  const [sourceBreakdown, setSourceBreakdown] = useState<{ source: string; count: number; avg: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [pageStats, setPageStats] = useState<{ viewsTotal: number; viewsWeek: number; clicks: { type: string; count: number }[]; viewsByDay: { day: string; views: number }[] } | null>(null)
   const [pageSlug, setPageSlug] = useState<string | null>(null)
@@ -57,6 +58,7 @@ export function DashboardClient() {
         count: r.count,
       }))
     )
+    if (data.sourceBreakdown) setSourceBreakdown(data.sourceBreakdown)
     if (data.pageStats) setPageStats(data.pageStats)
     if (data.pageSlug) setPageSlug(data.pageSlug)
     setReputationPageEnabled(!!data.reputationPageEnabled)
@@ -150,6 +152,38 @@ export function DashboardClient() {
           </Link>
         ))}
       </div>
+
+      {/* Source breakdown */}
+      {sourceBreakdown.length > 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Avis par plateforme</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {sourceBreakdown.map(s => {
+                const meta: Record<string, { emoji: string; label: string; color: string }> = {
+                  GOOGLE:      { emoji: "🔵", label: "Google",      color: "bg-blue-50 border-blue-100" },
+                  TRIPADVISOR: { emoji: "🦉", label: "TripAdvisor", color: "bg-green-50 border-green-100" },
+                  BOOKING:     { emoji: "🏨", label: "Booking",     color: "bg-indigo-50 border-indigo-100" },
+                  TRUSTPILOT:  { emoji: "⭐", label: "Trustpilot",  color: "bg-emerald-50 border-emerald-100" },
+                }
+                const m = meta[s.source] ?? { emoji: "🌐", label: s.source, color: "bg-slate-50 border-slate-100" }
+                return (
+                  <Link key={s.source} href={`/reviews${bizParam ? bizParam + "&source=" + s.source : "?source=" + s.source}`}>
+                    <div className={`p-3 rounded-xl border ${m.color} hover:shadow-sm transition-all cursor-pointer`}>
+                      <div className="text-xl mb-1">{m.emoji}</div>
+                      <p className="text-xs text-slate-500 font-medium">{m.label}</p>
+                      <p className="text-xl font-bold text-slate-900">{s.count}</p>
+                      <p className="text-xs text-amber-500 font-medium">★ {s.avg}</p>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Chart + Recent reviews */}
       <div className="grid lg:grid-cols-3 gap-6">

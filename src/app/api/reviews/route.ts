@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const bizId = searchParams.get("biz")
   const status = searchParams.get("status")
+  const source = searchParams.get("source")
   const rating = searchParams.get("rating")
   const q = searchParams.get("q")?.trim()
   const pageRaw = parseInt(searchParams.get("page") ?? "1")
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
   const where = {
     businessId: business.id,
     ...(status ? { status: status as never } : {}),
+    ...(source ? { source: source as never } : {}),
     ...(rating ? (() => { const r = parseInt(rating); return Number.isFinite(r) && r >= 1 && r <= 5 ? { rating: r } : {} })() : {}),
     ...(q ? { comment: { contains: q, mode: "insensitive" as const } } : {}),
   }
