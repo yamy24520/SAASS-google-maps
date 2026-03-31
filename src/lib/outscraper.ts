@@ -14,10 +14,10 @@ export interface OutscraperReview {
 }
 
 // Poll until job is done (Outscraper is async even with async=false for large requests)
-async function pollJob(jobId: string, maxWait = 60000): Promise<OutscraperReview[]> {
+async function pollJob(jobId: string, maxWait = 25000): Promise<OutscraperReview[]> {
   const start = Date.now()
   while (Date.now() - start < maxWait) {
-    await new Promise(r => setTimeout(r, 3000))
+    await new Promise(r => setTimeout(r, 2000))
     const res = await fetch(`${BASE_URL}/requests/${jobId}`, {
       headers: { "X-API-KEY": OUTSCRAPER_API_KEY },
     })
