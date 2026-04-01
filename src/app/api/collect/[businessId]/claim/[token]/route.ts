@@ -21,7 +21,7 @@ export async function GET(
     where: { claimToken: token, businessId },
     include: {
       business: {
-        select: { name: true, offerText: true, offerType: true, spinPrizes: true },
+        select: { name: true, offerText: true, offerType: true, spinPrizes: true, gbpLocationId: true },
       },
     },
   })
@@ -33,6 +33,7 @@ export async function GET(
     offerType: request.business.offerType,
     offerText: request.business.offerText,
     spinPrizes: request.business.spinPrizes,
+    placeId: request.business.gbpLocationId,
     alreadyClaimed: request.claimStatus === "CLAIMED",
     prizeWon: request.prizeWon,
   })
@@ -48,7 +49,7 @@ export async function POST(
     where: { claimToken: token, businessId },
     include: {
       business: {
-        select: { name: true, offerText: true, offerType: true, spinPrizes: true },
+        select: { name: true, offerText: true, offerType: true, spinPrizes: true, gbpLocationId: true },
       },
     },
   })
