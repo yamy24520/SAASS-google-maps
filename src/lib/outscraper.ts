@@ -79,15 +79,28 @@ export function extractTripAdvisorReviews(data: unknown[]): OutscraperReview[] {
 
   for (const item of items) {
     const r = item as Record<string, unknown>
-    if (!r?.review_id && !r?.id) continue
+
+    // Extract ID: prefer review_id, fallback to id, fallback to parse review_link (r123456789)
+    let reviewId = r.review_id ?? r.id
+    if (!reviewId && typeof r.review_link === "string") {
+      const m = r.review_link.match(/-r(\d+)-/)
+      if (m) reviewId = m[1]
+    }
+    if (!reviewId) continue
+
+    const rawRating = typeof r.review_rating === "number" ? r.review_rating : typeof r.rating === "number" ? r.rating : null
+    const rating = rawRating !== null ? Math.min(5, Math.max(1, Math.round(rawRating))) : 3
+
+    const ownerAnswer = r.owner_answer ?? r.owner_response
+    const dateUtc = r.review_datetime_utc ?? r.review_date ?? r.date ?? ""
 
     reviews.push({
-      review_id: String(r.review_id ?? r.id),
+      review_id: String(reviewId),
       author_title: String(r.author_title ?? r.username ?? "Anonyme"),
-      review_rating: typeof r.review_rating === "number" ? Math.min(5, Math.max(1, Math.round(r.review_rating))) : typeof r.rating === "number" ? Math.min(5, Math.max(1, Math.round(r.rating))) : 3,
+      review_rating: rating,
       review_text: r.review_text ? String(r.review_text) : undefined,
-      owner_answer: r.owner_answer ? String(r.owner_answer) : undefined,
-      review_datetime_utc: String(r.review_datetime_utc ?? r.date ?? ""),
+      owner_answer: ownerAnswer ? String(ownerAnswer) : undefined,
+      review_datetime_utc: String(dateUtc),
     })
   }
 
