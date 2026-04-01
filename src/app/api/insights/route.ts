@@ -2,7 +2,6 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { getPlaceReviews } from "@/lib/google-places"
 import Anthropic from "@anthropic-ai/sdk"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -16,40 +15,25 @@ export async function GET() {
     include: {
       reviews: {
         orderBy: { reviewPublishedAt: "desc" },
-        take: 50,
-        select: { rating: true, comment: true, reviewerName: true, reviewPublishedAt: true },
+        take: 200,
+        select: { rating: true, comment: true, reviewerName: true, source: true },
       },
     },
   })
 
   if (!business) return NextResponse.json({ error: "Aucun établissement" }, { status: 404 })
 
-  // Gather reviews: from DB first, then supplement with Places API public reviews
-  type ReviewItem = { rating: number; text: string; author: string }
-  let reviews: ReviewItem[] = business.reviews
+  type ReviewItem = { rating: number; text: string; author: string; source: string }
+  const reviews: ReviewItem[] = business.reviews
     .filter((r) => r.comment)
-    .map((r) => ({ rating: r.rating, text: r.comment!, author: r.reviewerName }))
-
-  if (reviews.length < 5 && business.gbpLocationId) {
-    try {
-      const placeReviews = await getPlaceReviews(business.gbpLocationId)
-      const existing = new Set(reviews.map((r) => r.text.slice(0, 30)))
-      for (const pr of placeReviews) {
-        if (pr.text && !existing.has(pr.text.slice(0, 30))) {
-          reviews.push({ rating: pr.rating, text: pr.text, author: pr.authorName })
-        }
-      }
-    } catch {
-      // non-blocking
-    }
-  }
+    .map((r) => ({ rating: r.rating, text: r.comment!, author: r.reviewerName, source: r.source }))
 
   if (reviews.length === 0) {
     return NextResponse.json({ error: "Pas assez d'avis pour analyser" }, { status: 400 })
   }
 
   const reviewsText = reviews
-    .map((r, i) => `Avis ${i + 1} (${r.rating}/5 - ${r.author}): "${r.text}"`)
+    .map((r, i) => `Avis ${i + 1} (${r.rating}/5 - ${r.source} - ${r.author}): "${r.text}"`)
     .join("\n")
 
   const prompt = `Tu es un expert en analyse de réputation pour les établissements locaux (restaurants, hôtels, bars).
