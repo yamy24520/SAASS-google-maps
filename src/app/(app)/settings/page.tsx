@@ -505,6 +505,38 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+          {/* Zone de danger */}
+          <Card className="border-red-200">
+            <CardHeader>
+              <CardTitle className="text-red-600">Zone de danger</CardTitle>
+              <CardDescription>Actions irréversibles — à utiliser avec précaution</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Effacer tous les avis</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Supprime tous les avis synchronisés. Le prochain sync les récupère à nouveau.</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-500 hover:text-red-600 hover:border-red-300 gap-2"
+                  onClick={async () => {
+                    if (!confirm("Effacer tous les avis ? Cette action est irréversible.")) return
+                    const res = await fetch(`/api/reviews/clear${bizParam}`, { method: "DELETE" })
+                    if (res.ok) {
+                      toast({ title: "Avis effacés", description: "Tous les avis ont été supprimés.", variant: "success" })
+                    } else {
+                      toast({ title: "Erreur", description: "Impossible d'effacer les avis.", variant: "destructive" })
+                    }
+                  }}
+                >
+                  Effacer les avis
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Auto-réponse */}
           <Card>
             <CardHeader>
