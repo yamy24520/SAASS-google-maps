@@ -391,16 +391,7 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               )}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-slate-600">Place ID Google Maps</Label>
-                <Input
-                  value={form.gbpLocationId ?? ""}
-                  onChange={e => setForm({ ...form, gbpLocationId: e.target.value || null })}
-                  placeholder="ChIJ... (trouvable sur Google Maps)"
-                  className="text-sm font-mono"
-                />
-                <p className="text-xs text-slate-400">Recherchez votre établissement sur <a href="https://maps.google.com" target="_blank" rel="noreferrer" className="underline">Google Maps</a>, clic droit sur le pin → copier le Place ID</p>
-              </div>
+              <p className="text-xs text-slate-400">La fiche Google Maps se configure dans <a href="/reputation" className="underline text-sky-600">Réputation</a>.</p>
             </CardContent>
           </Card>
 
