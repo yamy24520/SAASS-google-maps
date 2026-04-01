@@ -67,12 +67,16 @@ export function DashboardClient() {
 
   async function handleSync() {
     setSyncing(true)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 28000)
     try {
-      const res = await fetch(`/api/reviews/sync${bizParam}`, { method: "POST" })
+      const res = await fetch(`/api/reviews/sync${bizParam}`, { method: "POST", signal: controller.signal })
       if (res.ok) await fetchData()
     } catch {
-      // non-blocking
+      // timeout or network error — still refresh data
+      await fetchData()
     } finally {
+      clearTimeout(timeout)
       setSyncing(false)
     }
   }
