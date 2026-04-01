@@ -84,7 +84,7 @@ export function extractTripAdvisorReviews(data: unknown[]): OutscraperReview[] {
     reviews.push({
       review_id: String(r.review_id ?? r.id),
       author_title: String(r.author_title ?? r.username ?? "Anonyme"),
-      review_rating: typeof r.rating === "number" ? Math.min(5, Math.max(1, Math.round(r.rating))) : 3,
+      review_rating: typeof r.review_rating === "number" ? Math.min(5, Math.max(1, Math.round(r.review_rating))) : typeof r.rating === "number" ? Math.min(5, Math.max(1, Math.round(r.rating))) : 3,
       review_text: r.review_text ? String(r.review_text) : undefined,
       owner_answer: r.owner_answer ? String(r.owner_answer) : undefined,
       review_datetime_utc: String(r.review_datetime_utc ?? r.date ?? ""),
