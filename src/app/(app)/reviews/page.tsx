@@ -12,13 +12,12 @@ import { formatDate, getStatusLabel, getRatingColor } from "@/lib/utils"
 
 const LIMIT = 50
 
-const SOURCE_TABS = [
-  { value: "ALL", label: "Tous", emoji: "🌐" },
-  { value: "GOOGLE", label: "Google", emoji: "🔵" },
-  { value: "TRIPADVISOR", label: "TripAdvisor", emoji: "🦉" },
-  { value: "BOOKING", label: "Booking", emoji: "🏨" },
-  { value: "TRUSTPILOT", label: "Trustpilot", emoji: "⭐" },
-  { value: "AIRBNB", label: "Airbnb", emoji: "🏠" },
+const ALL_SOURCE_TABS = [
+  { value: "GOOGLE",      label: "Google",      emoji: "🔵", urlKey: null },
+  { value: "TRIPADVISOR", label: "TripAdvisor", emoji: "🦉", urlKey: "tripAdvisorUrl" },
+  { value: "BOOKING",     label: "Booking",     emoji: "🏨", urlKey: "bookingUrl" },
+  { value: "TRUSTPILOT",  label: "Trustpilot",  emoji: "⭐", urlKey: "trustpilotUrl" },
+  { value: "AIRBNB",      label: "Airbnb",      emoji: "🏠", urlKey: "airbnbUrl" },
 ]
 
 interface Review {
@@ -51,6 +50,7 @@ function SourceBadge({ source }: { source: string }) {
 export default function ReviewsPage() {
   const searchParams = useSearchParams()
   const bizId = searchParams.get("biz")
+  const bizParam = bizId ? `?biz=${bizId}` : ""
 
   const [reviews, setReviews] = useState<Review[]>([])
   const [total, setTotal] = useState(0)
@@ -61,6 +61,7 @@ export default function ReviewsPage() {
   const [search, setSearch] = useState("")
   const [searchInput, setSearchInput] = useState("")
   const [loading, setLoading] = useState(true)
+  const [activeSources, setActiveSources] = useState<string[]>(["GOOGLE"])
 
   async function fetchReviews() {
     setLoading(true)
@@ -78,6 +79,21 @@ export default function ReviewsPage() {
     setLoading(false)
   }
 
+  useEffect(() => {
+    fetch(`/api/settings${bizParam}`)
+      .then(r => r.json())
+      .then(data => {
+        const b = data.business
+        if (!b) return
+        const sources = ["GOOGLE"]
+        if (b.tripAdvisorUrl) sources.push("TRIPADVISOR")
+        if (b.bookingUrl) sources.push("BOOKING")
+        if (b.trustpilotUrl) sources.push("TRUSTPILOT")
+        if (b.airbnbUrl) sources.push("AIRBNB")
+        setActiveSources(sources)
+      }).catch(() => {})
+  }, [bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => { fetchReviews() }, [page, sourceFilter, statusFilter, ratingFilter, search, bizId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalPages = Math.ceil(total / LIMIT)
@@ -89,9 +105,9 @@ export default function ReviewsPage() {
         <p className="text-slate-500 text-sm mt-0.5">{total} avis au total</p>
       </div>
 
-      {/* Source tabs */}
+      {/* Source tabs — only show active platforms */}
       <div className="flex gap-1.5 flex-wrap">
-        {SOURCE_TABS.map(tab => (
+        {[{ value: "ALL", label: "Tous", emoji: "🌐" }, ...ALL_SOURCE_TABS.filter(t => activeSources.includes(t.value))].map(tab => (
           <button
             key={tab.value}
             onClick={() => { setSourceFilter(tab.value); setPage(1) }}

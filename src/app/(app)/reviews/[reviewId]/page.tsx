@@ -31,35 +31,35 @@ const SOURCE_META: Record<string, { label: string; emoji: string; color: string;
     publishUrl: (placeId) => placeId
       ? `https://search.google.com/local/reviews?placeid=${placeId}`
       : "https://business.google.com/reviews",
-    publishLabel: "Publier sur Google",
+    publishLabel: "Copier & ouvrir Google",
   },
   TRIPADVISOR: {
     label: "TripAdvisor",
     emoji: "🦉",
     color: "bg-green-50 text-green-700 border-green-200",
     publishUrl: (_, url) => url ?? "https://www.tripadvisor.fr",
-    publishLabel: "Publier sur TripAdvisor",
+    publishLabel: "Copier & ouvrir TripAdvisor",
   },
   BOOKING: {
     label: "Booking.com",
     emoji: "🏨",
     color: "bg-indigo-50 text-indigo-700 border-indigo-200",
     publishUrl: (_, url) => url ?? "https://account.booking.com",
-    publishLabel: "Publier sur Booking",
+    publishLabel: "Copier & ouvrir Booking",
   },
   TRUSTPILOT: {
     label: "Trustpilot",
     emoji: "⭐",
     color: "bg-emerald-50 text-emerald-700 border-emerald-200",
     publishUrl: (_, url) => url ?? "https://businessapp.b2b.trustpilot.com",
-    publishLabel: "Publier sur Trustpilot",
+    publishLabel: "Copier & ouvrir Trustpilot",
   },
   AIRBNB: {
     label: "Airbnb",
     emoji: "🏠",
     color: "bg-rose-50 text-rose-700 border-rose-200",
     publishUrl: (_, url) => url ?? "https://www.airbnb.fr/hosting",
-    publishLabel: "Répondre sur Airbnb",
+    publishLabel: "Copier & ouvrir Airbnb",
   },
 }
 
