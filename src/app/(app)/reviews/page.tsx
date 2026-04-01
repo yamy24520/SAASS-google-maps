@@ -18,6 +18,7 @@ const SOURCE_TABS = [
   { value: "TRIPADVISOR", label: "TripAdvisor", emoji: "🦉" },
   { value: "BOOKING", label: "Booking", emoji: "🏨" },
   { value: "TRUSTPILOT", label: "Trustpilot", emoji: "⭐" },
+  { value: "AIRBNB", label: "Airbnb", emoji: "🏠" },
 ]
 
 interface Review {
@@ -37,6 +38,7 @@ function SourceBadge({ source }: { source: string }) {
     TRIPADVISOR: { emoji: "🦉", label: "TripAdvisor", color: "bg-green-50 text-green-700 border-green-200" },
     BOOKING:     { emoji: "🏨", label: "Booking",     color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
     TRUSTPILOT:  { emoji: "⭐", label: "Trustpilot",  color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    AIRBNB:      { emoji: "🏠", label: "Airbnb",      color: "bg-rose-50 text-rose-700 border-rose-200" },
   }
   const s = map[source] ?? { emoji: "🌐", label: source, color: "bg-slate-50 text-slate-600 border-slate-200" }
   return (

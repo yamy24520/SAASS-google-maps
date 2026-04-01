@@ -54,6 +54,13 @@ const SOURCE_META: Record<string, { label: string; emoji: string; color: string;
     publishUrl: (_, url) => url ?? "https://businessapp.b2b.trustpilot.com",
     publishLabel: "Publier sur Trustpilot",
   },
+  AIRBNB: {
+    label: "Airbnb",
+    emoji: "🏠",
+    color: "bg-rose-50 text-rose-700 border-rose-200",
+    publishUrl: (_, url) => url ?? "https://www.airbnb.fr/hosting",
+    publishLabel: "Répondre sur Airbnb",
+  },
 }
 
 export default function ReviewDetailPage() {

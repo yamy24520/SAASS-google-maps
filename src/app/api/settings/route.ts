@@ -54,6 +54,7 @@ const schema = z.object({
   tripAdvisorUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
   bookingUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
   trustpilotUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
+  airbnbUrl: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
 })
 
 async function getBusinessForUser(userId: string, bizId: string | null) {
@@ -102,6 +103,7 @@ export async function PUT(req: NextRequest) {
     const newTripAdvisorUrl = restData.tripAdvisorUrl === "" ? null : restData.tripAdvisorUrl
     const newBookingUrl = restData.bookingUrl === "" ? null : restData.bookingUrl
     const newTrustpilotUrl = restData.trustpilotUrl === "" ? null : restData.trustpilotUrl
+    const newAirbnbUrl = restData.airbnbUrl === "" ? null : restData.airbnbUrl
     const newGbpLocationId = restData.gbpLocationId === "" ? null : restData.gbpLocationId
 
     // Delete reviews when a platform URL/ID changes (stale data from another establishment)
@@ -111,10 +113,11 @@ export async function PUT(req: NextRequest) {
       if (newTripAdvisorUrl !== undefined && newTripAdvisorUrl !== business.tripAdvisorUrl) sourcesToReset.push("TRIPADVISOR")
       if (newBookingUrl !== undefined && newBookingUrl !== business.bookingUrl) sourcesToReset.push("BOOKING")
       if (newTrustpilotUrl !== undefined && newTrustpilotUrl !== business.trustpilotUrl) sourcesToReset.push("TRUSTPILOT")
+      if (newAirbnbUrl !== undefined && newAirbnbUrl !== business.airbnbUrl) sourcesToReset.push("AIRBNB")
 
       if (sourcesToReset.length > 0) {
         await prisma.review.deleteMany({
-          where: { businessId: business.id, source: { in: sourcesToReset as ("GOOGLE" | "TRIPADVISOR" | "BOOKING" | "TRUSTPILOT")[] } },
+          where: { businessId: business.id, source: { in: sourcesToReset as ("GOOGLE" | "TRIPADVISOR" | "BOOKING" | "TRUSTPILOT" | "AIRBNB")[] } },
         })
         console.log(`[settings] reset reviews for ${business.id}: ${sourcesToReset.join(", ")}`)
       }
@@ -130,6 +133,7 @@ export async function PUT(req: NextRequest) {
       tripAdvisorUrl: newTripAdvisorUrl,
       bookingUrl: newBookingUrl,
       trustpilotUrl: newTrustpilotUrl,
+      airbnbUrl: newAirbnbUrl,
     }
 
     if (!business) {

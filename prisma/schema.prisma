@@ -147,6 +147,7 @@ model Business {
   tripAdvisorUrl   String?
   bookingUrl       String?
   trustpilotUrl    String?
+  airbnbUrl        String?
 
   // IA Vocale (Vapi)
   vapiAssistantId  String?
@@ -246,6 +247,7 @@ enum ReviewSource {
   TRIPADVISOR
   BOOKING
   TRUSTPILOT
+  AIRBNB
 }
 
 enum ReviewStatus {

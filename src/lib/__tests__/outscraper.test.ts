@@ -4,6 +4,7 @@ import {
   extractGoogleReviews,
   extractBookingReviews,
   extractTripAdvisorReviews,
+  extractAirbnbReviews,
 } from "../outscraper"
 
 // ── cleanUrl ──────────────────────────────────────────────────────────────────
@@ -202,6 +203,106 @@ describe("extractTripAdvisorReviews", () => {
   it("skips entries with no review_id or id", () => {
     const data = [{ author_title: "Ghost", rating: 4, review_datetime_utc: "2024-01-01" }]
     expect(extractTripAdvisorReviews(data)).toHaveLength(0)
+  })
+})
+
+// ── extractAirbnbReviews ──────────────────────────────────────────────────────
+
+describe("extractAirbnbReviews", () => {
+  const mockReviewer = { first_name: "Liam", host_name: "Liam", picture_url: "https://img.example.com/a.jpg", id: "562915190", deleted: false }
+
+  it("returns empty for empty input", () => {
+    expect(extractAirbnbReviews([])).toEqual([])
+  })
+
+  it("extracts from nested array (data[0] is array)", () => {
+    const data = [[{
+      id: 1651482972959784221,
+      rating: 5,
+      comments: "Great stay!",
+      reviewer: mockReviewer,
+      response: null,
+      created_at: "2026-03-28T14:41:51Z",
+      review_timestamp: 1774708865.1,
+    }]]
+    const result = extractAirbnbReviews(data)
+    expect(result).toHaveLength(1)
+    expect(result[0].review_id).toMatch(/^165148297295978/)  // large int loses precision in JS
+    expect(result[0].author_title).toBe("Liam")
+    expect(result[0].review_rating).toBe(5)
+    expect(result[0].review_text).toBe("Great stay!")
+    expect(result[0].review_datetime_utc).toBe("2026-03-28T14:41:51Z")
+    expect(result[0].owner_answer).toBeUndefined()
+  })
+
+  it("extracts from flat array", () => {
+    const data = [{
+      id: 999,
+      rating: 3,
+      comments: "Correct",
+      reviewer: mockReviewer,
+      response: null,
+      created_at: "2025-01-01T00:00:00Z",
+      review_timestamp: 1735689600,
+    }]
+    const result = extractAirbnbReviews(data)
+    expect(result).toHaveLength(1)
+    expect(result[0].review_rating).toBe(3)
+  })
+
+  it("captures host response when present", () => {
+    const data = [[{
+      id: 123,
+      rating: 4,
+      comments: "Nice but noisy",
+      reviewer: mockReviewer,
+      response: "Thank you for your feedback!",
+      created_at: "2026-01-01T00:00:00Z",
+      review_timestamp: 1751404800,
+    }]]
+    const result = extractAirbnbReviews(data)
+    expect(result[0].owner_answer).toBe("Thank you for your feedback!")
+  })
+
+  it("uses review_timestamp when created_at missing", () => {
+    const data = [[{
+      id: 456,
+      rating: 5,
+      comments: "Perfect",
+      reviewer: mockReviewer,
+      response: null,
+      review_timestamp: 1774708865,
+    }]]
+    const result = extractAirbnbReviews(data)
+    expect(result[0].review_datetime_utc).toContain("2026-03-")
+  })
+
+  it("skips entries without id", () => {
+    const data = [[{ rating: 5, comments: "No id", reviewer: mockReviewer, created_at: "2026-01-01T00:00:00Z" }]]
+    expect(extractAirbnbReviews(data)).toHaveLength(0)
+  })
+
+  it("clamps rating to 1-5", () => {
+    const data = [[
+      { id: 1, rating: 0, comments: "bad", reviewer: mockReviewer, created_at: "2026-01-01T00:00:00Z" },
+      { id: 2, rating: 6, comments: "good", reviewer: mockReviewer, created_at: "2026-01-01T00:00:00Z" },
+    ]]
+    const result = extractAirbnbReviews(data)
+    expect(result[0].review_rating).toBe(1)
+    expect(result[1].review_rating).toBe(5)
+  })
+
+  it("falls back to host_name when first_name missing", () => {
+    const data = [[{
+      id: 789,
+      rating: 4,
+      comments: "Good",
+      reviewer: { host_name: "HostOnly", id: "1", deleted: false },
+      response: null,
+      created_at: "2026-01-01T00:00:00Z",
+    }]]
+    const result = extractAirbnbReviews(data)
+    expect(result[0].author_title).toBe("HostOnly")
   })
 })
 

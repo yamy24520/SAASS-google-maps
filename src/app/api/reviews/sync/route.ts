@@ -7,6 +7,7 @@ import {
   fetchTripAdvisorReviews,
   fetchBookingReviews,
   fetchTrustpilotReviews,
+  fetchAirbnbReviews,
   OutscraperReview,
 } from "@/lib/outscraper"
 import { sendNegativeReviewAlert } from "@/lib/email"
@@ -137,6 +138,17 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       console.error("[sync] Trustpilot error:", e)
       errors.push("Trustpilot")
+    }
+  }
+
+  // Airbnb
+  if (business.airbnbUrl) {
+    try {
+      const reviews = await fetchAirbnbReviews(business.airbnbUrl, limit)
+      synced += await upsertReviews(reviews, "AIRBNB", business.id, business)
+    } catch (e) {
+      console.error("[sync] Airbnb error:", e)
+      errors.push("Airbnb")
     }
   }
 

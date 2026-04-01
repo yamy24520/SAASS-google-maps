@@ -206,3 +206,43 @@ export async function fetchTrustpilotReviews(url: string, limit = 0): Promise<Ou
   })
   return fetchFromEndpoint("trustpilot-reviews", params, extractTripAdvisorReviews) // similar shape to TA
 }
+
+// Airbnb: data[0] is array, rating 1-5, reviewer.first_name, response is string|null
+export function extractAirbnbReviews(data: unknown[]): OutscraperReview[] {
+  if (!Array.isArray(data) || data.length === 0) return []
+  const items = Array.isArray(data[0]) ? data[0] : data
+  const reviews: OutscraperReview[] = []
+
+  for (const item of items) {
+    const r = item as Record<string, unknown>
+    if (!r?.id) continue
+
+    const reviewer = r.reviewer as Record<string, unknown> | null
+    const dateUtc = typeof r.created_at === "string"
+      ? r.created_at
+      : r.review_timestamp
+        ? new Date((r.review_timestamp as number) * 1000).toISOString()
+        : ""
+
+    reviews.push({
+      review_id: String(r.id),
+      author_title: String(reviewer?.first_name ?? reviewer?.host_name ?? "Anonyme"),
+      author_image: typeof reviewer?.picture_url === "string" ? reviewer.picture_url : undefined,
+      review_rating: typeof r.rating === "number" ? Math.min(5, Math.max(1, Math.round(r.rating))) : 3,
+      review_text: r.comments ? String(r.comments) : undefined,
+      owner_answer: r.response ? String(r.response) : undefined,
+      review_datetime_utc: dateUtc,
+    })
+  }
+
+  return reviews
+}
+
+export async function fetchAirbnbReviews(url: string, limit = 0): Promise<OutscraperReview[]> {
+  const params = new URLSearchParams({
+    query: cleanUrl(url),
+    limit: String(limit),
+    async: "false",
+  })
+  return fetchFromEndpoint("airbnb-reviews", params, extractAirbnbReviews)
+}

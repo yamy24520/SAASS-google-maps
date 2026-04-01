@@ -36,6 +36,7 @@ interface Business {
   tripAdvisorUrl: string | null
   bookingUrl: string | null
   trustpilotUrl: string | null
+  airbnbUrl: string | null
   offerEnabled: boolean
   offerText: string | null
   offerType: "FIXED" | "SPIN_WHEEL"
@@ -83,6 +84,7 @@ export default function SettingsPage() {
     tripAdvisorUrl: null,
     bookingUrl: null,
     trustpilotUrl: null,
+    airbnbUrl: null,
     offerEnabled: false,
     offerText: null,
     offerType: "FIXED",
@@ -500,6 +502,16 @@ export default function SettingsPage() {
                   value={form.trustpilotUrl ?? ""}
                   onChange={e => setForm({ ...form, trustpilotUrl: e.target.value || null })}
                   placeholder="https://fr.trustpilot.com/review/..."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-2">
+                  <span className="text-base">🏠</span> Airbnb
+                </Label>
+                <Input
+                  value={form.airbnbUrl ?? ""}
+                  onChange={e => setForm({ ...form, airbnbUrl: e.target.value || null })}
+                  placeholder="https://www.airbnb.fr/rooms/..."
                 />
               </div>
             </CardContent>
