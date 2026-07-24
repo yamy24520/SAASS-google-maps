@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
       user: { subscription: { status: { in: ["ACTIVE", "TRIALING"] } } },
     },
     include: {
-      user: { select: { email: true, name: true } },
+      user: { select: { email: true, name: true, subscription: { select: { status: true } } } },
       reputationSnapshots: {
         orderBy: { recordedAt: "desc" },
         take: 1,
@@ -92,16 +92,22 @@ export async function GET(req: NextRequest) {
     },
   })
 
+  // Économie de crédits Outscraper : les comptes d'essai ne sont synchronisés que le lundi
+  const syncTrialsToday = new Date().getDay() === 1
+  const toSync = businesses.filter(
+    (b) => b.user.subscription?.status === "ACTIVE" || syncTrialsToday
+  )
+
   let totalSynced = 0
   const errors: string[] = []
 
-  for (const business of businesses) {
+  for (const business of toSync) {
     const placeId = business.gbpLocationId ?? business.reputationSnapshots[0]?.placeId ?? null
 
     // Google
     if (placeId) {
       try {
-        const reviews = await fetchReviewsOutscraper(placeId, 200)
+        const reviews = await fetchReviewsOutscraper(placeId, 25)
         totalSynced += await upsertReviews(reviews, "GOOGLE", business)
       } catch (err) {
         errors.push(`[Google] ${business.id}: ${err}`)
@@ -111,7 +117,7 @@ export async function GET(req: NextRequest) {
     // TripAdvisor
     if (business.tripAdvisorUrl) {
       try {
-        const reviews = await fetchTripAdvisorReviews(business.tripAdvisorUrl, 100)
+        const reviews = await fetchTripAdvisorReviews(business.tripAdvisorUrl, 25)
         totalSynced += await upsertReviews(reviews, "TRIPADVISOR", business)
       } catch (err) {
         errors.push(`[TripAdvisor] ${business.id}: ${err}`)
@@ -121,7 +127,7 @@ export async function GET(req: NextRequest) {
     // Booking
     if (business.bookingUrl) {
       try {
-        const reviews = await fetchBookingReviews(business.bookingUrl, 100)
+        const reviews = await fetchBookingReviews(business.bookingUrl, 25)
         totalSynced += await upsertReviews(reviews, "BOOKING", business)
       } catch (err) {
         errors.push(`[Booking] ${business.id}: ${err}`)
@@ -131,7 +137,7 @@ export async function GET(req: NextRequest) {
     // Trustpilot
     if (business.trustpilotUrl) {
       try {
-        const reviews = await fetchTrustpilotReviews(business.trustpilotUrl, 100)
+        const reviews = await fetchTrustpilotReviews(business.trustpilotUrl, 25)
         totalSynced += await upsertReviews(reviews, "TRUSTPILOT", business)
       } catch (err) {
         errors.push(`[Trustpilot] ${business.id}: ${err}`)
@@ -141,7 +147,7 @@ export async function GET(req: NextRequest) {
     // Airbnb
     if (business.airbnbUrl) {
       try {
-        const reviews = await fetchAirbnbReviews(business.airbnbUrl, 100)
+        const reviews = await fetchAirbnbReviews(business.airbnbUrl, 25)
         totalSynced += await upsertReviews(reviews, "AIRBNB", business)
       } catch (err) {
         errors.push(`[Airbnb] ${business.id}: ${err}`)
