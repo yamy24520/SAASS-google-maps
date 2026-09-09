@@ -3,6 +3,8 @@ import { listReviews, starRatingToNumber } from "@/lib/google-business"
 import { fetchReviewsOutscraper, fetchTripAdvisorReviews, fetchBookingReviews, fetchTrustpilotReviews, fetchAirbnbReviews, outscraperEnabled, type OutscraperReview } from "@/lib/outscraper"
 import type { Business, ReviewSource } from "@prisma/client"
 import { sendNegativeReviewAlert } from "@/lib/email"
+import { getPlaceReviews } from "@/lib/google-places"
+import { createHash } from "node:crypto"
 
 export function normalizedDate(value: string | undefined, fallback: Date): Date {
   const date = value ? new Date(value) : fallback
@@ -103,7 +105,17 @@ export async function synchronizeReviews(business: Business, mode: "manual" | "c
       } catch { errors.push("Google : synchronisation impossible. Vérifiez votre connexion et les autorisations Business Profile.") }
     } else if (paid && business.gbpLocationId) {
       try { synced += await storeReviews(business.id, "GOOGLE", await fetchReviewsOutscraper(business.gbpLocationId, 25)); completed++ }
-      catch { errors.push("Google : l’import payant a échoué.") }
+      catch {
+        try {
+          const sample = await getPlaceReviews(business.gbpLocationId)
+          synced += await storeReviews(business.id, "GOOGLE", sample.slice(0, 5).map(review => ({
+            review_id: review.id ?? `places-${createHash("sha256").update(`${business.gbpLocationId}:${review.authorName}:${review.publishTime}`).digest("hex")}`,
+            author_title: review.authorName, review_rating: review.rating, review_text: review.text, review_datetime_utc: review.publishTime,
+          })))
+          completed++
+          warnings.push("Outscraper indisponible : aperçu Google Places limité à 5 avis. L’historique complet nécessite un fournisseur opérationnel ou la connexion Google Business Profile.")
+        } catch { errors.push("Import indisponible : Outscraper et Google Places n’ont pas répondu correctement.") }
+      }
     } else {
       warnings.push("Google : connectez votre compte et sélectionnez l’établissement dans Paramètres pour synchroniser sans Outscraper.")
     }

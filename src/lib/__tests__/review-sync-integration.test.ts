@@ -72,3 +72,18 @@ it("does not make paid cron requests when only manual imports are enabled", asyn
     expect(fetch).not.toHaveBeenCalled()
   } finally { vi.unstubAllGlobals() }
 })
+it("imports a clearly limited Places preview when Outscraper billing refuses", async () => {
+  vi.stubEnv("OUTSCRAPER_ENABLED", "true")
+  vi.stubEnv("OUTSCRAPER_API_KEY", "test-only")
+  const fetch = vi.fn()
+    .mockResolvedValueOnce(new Response("Billing required", { status: 402 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ reviews: [{ name: "places/p/reviews/r", authorAttribution: { displayName: "Client" }, rating: 5, publishTime: "2026-09-01", text: { text: "Très bien" } }] })))
+  vi.stubGlobal("fetch", fetch)
+  try {
+    const result = await synchronizeReviews({ ...business, gbpReviewLocationId: null, gbpRefreshToken: null, gbpAccessToken: null, tripAdvisorUrl: null }, "manual")
+    expect(result.synced).toBe(1)
+    expect(result.errors).toEqual([])
+    expect(result.warnings.join(" ")).toContain("limité à 5 avis")
+    expect(fetch).toHaveBeenCalledTimes(2)
+  } finally { vi.unstubAllGlobals() }
+})

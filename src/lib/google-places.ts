@@ -4,7 +4,7 @@ interface GooglePlace {
   photos?: { name: string }[]; location?: { latitude: number; longitude: number };
   websiteUri?: string; nationalPhoneNumber?: string; regularOpeningHours?: { weekdayDescriptions: string[] };
 }
-interface GoogleReview { authorAttribution?: { displayName: string }; rating?: number; text?: { text: string }; publishTime?: string }
+interface GoogleReview { name?: string; authorAttribution?: { displayName: string }; rating?: number; text?: { text: string }; publishTime?: string }
 const PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY!
 const BASE = "https://places.googleapis.com/v1"
 
@@ -88,6 +88,7 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceDetails> {
 }
 
 export interface PlaceReview {
+  id?: string
   authorName: string
   rating: number
   text: string
@@ -97,15 +98,17 @@ export interface PlaceReview {
 // Get public reviews for a Place ID (up to 5 via Places API)
 export async function getPlaceReviews(placeId: string): Promise<PlaceReview[]> {
   const res = await fetch(`${BASE}/places/${placeId}`, {
+    signal: AbortSignal.timeout(15000),
     headers: {
       "X-Goog-Api-Key": PLACES_API_KEY,
       "X-Goog-FieldMask": "reviews",
       "Accept-Language": "fr",
     },
   })
-  if (!res.ok) return []
+  if (!res.ok) throw new Error(`Google Places reviews unavailable (${res.status})`)
   const p = await res.json()
   return (p.reviews ?? []).map((r: GoogleReview) => ({
+    id: r.name,
     authorName: r.authorAttribution?.displayName ?? "Anonyme",
     rating: r.rating ?? 0,
     text: r.text?.text ?? "",
