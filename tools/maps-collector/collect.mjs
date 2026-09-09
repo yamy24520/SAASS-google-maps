@@ -20,13 +20,12 @@ try{
  await reviewTab.click();await page.locator('div[data-review-id][aria-label]').first().waitFor({timeout:15000});
  await page.waitForTimeout(3000);
  console.log('Opened: '+page.url());
- const download=page.waitForEvent('download',{timeout:32*60*1000}); download.catch(()=>{});
- const running=page.evaluate(await fs.readFile(path.join(here,'collector.js'),'utf8')).catch(e=>console.error(e.message));
- await page.locator('#reputix-collector').waitFor({timeout:10000});
+ await page.evaluate(()=>{document.documentElement.dataset.reputixWorker='true'});
  const progress=setInterval(()=>page.locator('#reputix-collector p').innerText().then(t=>console.log(t)).catch(()=>{}),15000);
- download.finally(()=>clearInterval(progress)).catch(()=>{});
- const file=await download;await fs.mkdir(path.dirname(output),{recursive:true});await file.saveAs(output);
- const result=JSON.parse(await fs.readFile(output,'utf8'));
+ let result;
+ try{result=await page.evaluate(await fs.readFile(path.join(here,'collector.js'),'utf8'))}finally{clearInterval(progress)}
+ if(!result?.reviews?.length)throw new Error('Aucun avis collecté');
+ await fs.mkdir(path.dirname(output),{recursive:true});await fs.writeFile(output,JSON.stringify(result));
  console.log(JSON.stringify({file:output,business:result.business.name,collected:result.reviews.length,announced:result.business.total,stopReason:result.stopReason}));
  if(result.reviews.length<result.business.total)process.exitCode=2;
 }catch(error){console.error(error.message);process.exitCode=1}finally{await context.close()}
