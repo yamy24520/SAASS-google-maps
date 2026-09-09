@@ -28,7 +28,7 @@ export async function GET(req: Request) {
   let placeLat = business.placeLat
   let placeLng = business.placeLng
   let placeType = business.placeType
-  if (business.gbpLocationId && (placeLat == null || placeLng == null || placeType == null)) {
+  if (process.env.REVIEW_COLLECTION_MODE !== "scraping" && business.gbpLocationId && (placeLat == null || placeLng == null || placeType == null)) {
     try {
       const details = await getPlaceDetails(business.gbpLocationId)
       const updates: Record<string, unknown> = {}
@@ -64,17 +64,29 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  if (process.env.REVIEW_COLLECTION_MODE === "scraping") return NextResponse.json({ error: "Utilisez le collecteur Maps et importez le fichier dans la rubrique Avis." }, { status: 409 })
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
   const { placeId } = await req.json()
   if (typeof placeId !== "string" || !/^[A-Za-z0-9_-]{1,255}$/.test(placeId)) return NextResponse.json({ error: "Identifiant Google Maps invalide" }, { status: 400 })
 
-  const business = await prisma.business.findFirst({ where: businessScope(req, session.user.id) })
+  let business = await prisma.business.findFirst({ where: businessScope(req, session.user.id) })
   if (!business) return NextResponse.json({ error: "Aucun établissement" }, { status: 404 })
 
   try {
     const details = await getPlaceDetails(placeId)
+
+    // A different Maps place is a different business: preserve reviews, bookings,
+    // payment connections and settings attached to the original establishment.
+    if (business.gbpLocationId && business.gbpLocationId !== placeId) {
+      const ownerId = business.userId
+      const category = business.category
+      business = await prisma.$transaction(async tx => {
+        const existing = await tx.business.findFirst({ where: { userId: ownerId, gbpLocationId: placeId }, orderBy: { createdAt: "asc" } })
+        return existing ?? tx.business.create({ data: { userId: ownerId, name: details.name, category, gbpLocationId: placeId } })
+      }, { isolationLevel: "Serializable" })
+    }
 
     // Save snapshot
     await prisma.reputationSnapshot.create({
@@ -102,7 +114,7 @@ export async function POST(req: Request) {
     const sync = await synchronizeReviews(updatedBusiness, "manual")
     // The public Maps total is distinct from the number of imported reviews.
     await prisma.business.update({ where: { id: business.id }, data: { averageRating: details.rating, totalReviews: details.reviewCount } })
-    return NextResponse.json({ success: sync.errors.length === 0, details, sync })
+    return NextResponse.json({ success: sync.errors.length === 0, businessId: business.id, details, sync })
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur Places API"
     return NextResponse.json({ error: msg }, { status: 500 })

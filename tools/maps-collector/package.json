@@ -1,0 +1,1 @@
+{"name":"reputix-maps-worker","private":true,"type":"module","scripts":{"collect":"node collect.mjs","login":"node collect.mjs --login"},"dependencies":{"playwright":"^1.58.0","review-saas":"file:../.."}}

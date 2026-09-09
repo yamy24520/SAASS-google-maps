@@ -1,5 +1,6 @@
 "use client"
 import { toast } from "@/components/ui/toaster"
+import { ScrapeImport } from "@/components/ScrapeImport"
 import type { ApiData } from "@/types/api-data"
 import type { GET as getApiData } from "@/app/api/reputation/route"
 
@@ -45,6 +46,7 @@ export default function ReputationPage() {
 
 
   async function handleRefresh() {
+    if (process.env.NEXT_PUBLIC_REVIEW_COLLECTION_MODE === "scraping") { await load(); return }
     if (data?.business?.placeId) await handleLink(data.business.placeId)
     else await load()
   }
@@ -71,6 +73,10 @@ export default function ReputationPage() {
       setSearchResults([])
       setSearchQuery("")
       setChangingPlace(false)
+      if (result.businessId && result.businessId !== data?.business.id) {
+        window.location.assign(`/reputation?biz=${encodeURIComponent(result.businessId)}`)
+        return
+      }
       await load()
     } catch (error) {
       toast({ title: "Récupération impossible", description: error instanceof Error ? error.message : "Réessayez plus tard", variant: "destructive" })
@@ -112,6 +118,7 @@ export default function ReputationPage() {
       </div>
 
       {/* Fiche liée */}
+      {process.env.NEXT_PUBLIC_REVIEW_COLLECTION_MODE === "scraping" && <ScrapeImport />}
       {business?.placeId && !changingPlace ? (
         <Card className="border-emerald-200 bg-emerald-50">
           <CardContent className="pt-4 pb-4">
@@ -128,7 +135,7 @@ export default function ReputationPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => { setChangingPlace(true); setSearchResults([]); setSearchQuery("") }}
+                onClick={() => { if (process.env.NEXT_PUBLIC_REVIEW_COLLECTION_MODE === "scraping") { window.open("https://www.google.com/maps", "_blank", "noopener,noreferrer"); return }; setChangingPlace(true); setSearchResults([]); setSearchQuery("") }}
                 className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-100 flex-shrink-0"
               >
                 <Pencil className="w-3.5 h-3.5" />
@@ -140,7 +147,7 @@ export default function ReputationPage() {
       ) : null}
 
       {/* Search form — shown when not linked OR when changing */}
-      {(!business?.placeId || changingPlace) && (
+      {process.env.NEXT_PUBLIC_REVIEW_COLLECTION_MODE !== "scraping" && (!business?.placeId || changingPlace) && (
         <Card className="border-sky-200 bg-sky-50">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-1">

@@ -1,5 +1,6 @@
 "use client"
 import { toast } from "@/components/ui/toaster"
+import { ScrapeImport } from "@/components/ScrapeImport"
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
@@ -27,6 +28,8 @@ interface Review {
   rating: number
   comment: string | null
   reviewPublishedAt: string
+  sourceDateLabel?: string | null
+  publishedResponse?: string | null
   status: string
   isNegative: boolean
   source: string
@@ -100,6 +103,7 @@ export default function ReviewsPage() {
 
   return (
     <div className="space-y-5">
+      <ScrapeImport />
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Avis</h1>
         <p className="text-slate-500 text-sm mt-0.5">{total} avis au total</p>
@@ -228,7 +232,8 @@ export default function ReviewsPage() {
                     {review.comment && (
                       <p className="text-sm text-slate-600 line-clamp-2">{review.comment}</p>
                     )}
-                    <p className="text-xs text-slate-400 mt-1">{formatDate(review.reviewPublishedAt)}</p>
+                    {review.publishedResponse && <p className="mt-2 border-l-2 border-emerald-300 pl-3 text-sm text-emerald-800 line-clamp-3">Réponse du propriétaire : {review.publishedResponse}</p>}
+                    <p className="text-xs text-slate-400 mt-1">{review.sourceDateLabel || formatDate(review.reviewPublishedAt)}</p>
                   </div>
                 </div>
               </Card>

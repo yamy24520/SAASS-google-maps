@@ -54,6 +54,7 @@ export async function updateReviewStats(businessId: string) {
 }
 
 export async function synchronizeReviews(business: Business, mode: "manual" | "cron") {
+  if (process.env.REVIEW_COLLECTION_MODE === "scraping") return { synced: 0, errors: [] as string[], warnings: ["Collecte par navigateur : lancez le collecteur Maps puis importez son fichier dans Avis."], cached: false }
   const now = new Date()
   const paid = outscraperEnabled() && (mode === "manual" || process.env.OUTSCRAPER_CRON_ENABLED === "true")
   const hasGoogleAccess = !!(business.gbpReviewLocationId && (business.gbpRefreshToken || business.gbpAccessToken))

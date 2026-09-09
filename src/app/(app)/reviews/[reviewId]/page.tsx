@@ -22,6 +22,8 @@ interface Review {
   source: string
   aiDraftResponse: string | null
   publishedResponse: string | null
+  reviewUrl?: string | null
+  sourceDateLabel?: string | null
 }
 
 const SOURCE_META: Record<string, { label: string; emoji: string; color: string; publishUrl: (placeId: string | null, url: string | null) => string; publishLabel: string }> = {
@@ -113,6 +115,8 @@ export default function ReviewDetailPage() {
 
   async function handlePublish() {
     if (!response.trim() || !review || publishing) return
+    const opened = window.open("about:blank", "_blank")
+    if (opened) opened.opener = null
     setPublishing(true)
     try {
       await navigator.clipboard.writeText(response)
@@ -122,10 +126,11 @@ export default function ReviewDetailPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? "Impossible de sauvegarder la réponse.")
       const meta = SOURCE_META[review.source] ?? SOURCE_META.GOOGLE
-      window.open(meta.publishUrl(placeId, platformUrl), "_blank", "noopener,noreferrer")
+      if (opened) opened.location.href = review.reviewUrl || meta.publishUrl(placeId, platformUrl)
       setReview({ ...review, status: "APPROVED", aiDraftResponse: response })
       toast({ title: "Réponse copiée et sauvegardée", description: `Collez-la sur ${meta.label} pour terminer la publication.`, variant: "success" })
     } catch (error) {
+      opened?.close()
       toast({ title: "Action interrompue", description: error instanceof Error ? error.message : "Copiez votre texte manuellement et réessayez.", variant: "destructive" })
     } finally { setPublishing(false) }
   }
@@ -219,7 +224,7 @@ export default function ReviewDetailPage() {
                 <span className={`text-xl font-bold ${getRatingColor(r.rating)}`}>
                   {"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}
                 </span>
-                <span className="text-sm text-slate-400">{formatDate(r.reviewPublishedAt)}</span>
+                <span className="text-sm text-slate-400">{r.sourceDateLabel || formatDate(r.reviewPublishedAt)}</span>
               </div>
             </div>
           </div>

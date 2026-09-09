@@ -92,6 +92,7 @@ model Business {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name                 String
+  scrapePlaceKey       String?
   category             BusinessCategory @default(RESTAURANT)
   language             String           @default("fr")
 
@@ -195,6 +196,7 @@ model Business {
   updatedAt            DateTime @updatedAt
 
   @@index([userId])
+  @@unique([userId, scrapePlaceKey])
 }
 
 enum BusinessCategory {
@@ -225,6 +227,8 @@ model Review {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   externalReviewId  String   @unique
+  reviewUrl         String?
+  sourceDateLabel   String?
   source            ReviewSource @default(GOOGLE)
   reviewerName      String
   reviewerPhotoUrl  String?
