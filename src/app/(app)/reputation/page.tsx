@@ -119,7 +119,7 @@ export default function ReputationPage() {
 
       {/* Fiche liée */}
       {process.env.NEXT_PUBLIC_REVIEW_COLLECTION_MODE === "scraping" && <ScrapeImport />}
-      {business?.placeId && !changingPlace ? (
+      {(business?.placeId || business?.scrapePlaceKey) && !changingPlace ? (
         <Card className="border-emerald-200 bg-emerald-50">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between gap-4">
@@ -129,7 +129,7 @@ export default function ReputationPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-emerald-900">{business.name}</p>
-                  <p className="text-xs text-emerald-700">Fiche Google Maps liée · {business.totalReviews} avis · ⭐ {business.rating?.toFixed(1)}</p>
+                  <p className="text-xs text-emerald-700">{business.scrapePlaceKey ? "Fiche importée" : "Fiche Google Maps liée"} · {business.totalReviews} avis annoncés par Google · ⭐ {business.rating?.toFixed(1)}</p>
                 </div>
               </div>
               <Button

@@ -48,6 +48,7 @@ export async function GET(req: Request) {
       id: business.id,
       name: business.name,
       placeId: business.gbpLocationId,
+      scrapePlaceKey: business.scrapePlaceKey,
       rating: business.averageRating,
       totalReviews: business.totalReviews,
       responseRate: business.responseRate,

@@ -15,6 +15,8 @@ Pour répondre : générer un brouillon dans Reputix, copier puis ouvrir le lien
 Ce prototype est lancé par l'utilisateur dans Chrome. Il ne tourne pas automatiquement sur Vercel. Une collecte interrompue conserve les avis déjà parcourus ; utiliser « Exporter maintenant » avant de fermer la page.
 
 ## Mode script (sans extension)
+Le test sans connexion a récupéré 5 avis sur 1 158 pour Le Saint James. La collecte complète n'est pas validée. Google peut refuser la connexion dans la fenêtre automatisée : dans ce cas, arrêtez cette tentative ; le collecteur ne contourne pas ce blocage.
+
 Dans ce dossier :
 
     npm install

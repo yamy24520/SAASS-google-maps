@@ -11,6 +11,23 @@ vi.mock("@/lib/prisma", () => ({ prisma: {
 vi.mock("@/lib/google-business", () => ({ listReviews: vi.fn(), starRatingToNumber: () => 4 }))
 vi.mock("@/lib/email", () => ({ sendNegativeReviewAlert: vi.fn() }))
 const business = { id: "business", gbpLocationId: "public-place", gbpReviewLocationId: "accounts/a/locations/b", gbpRefreshToken: "test", alertEmailEnabled: false, tripAdvisorUrl: "https://tripadvisor.fr/example" } as Business
+it("never contacts a review provider in scraping mode, even with paid collection enabled", async () => {
+  vi.stubEnv("REVIEW_COLLECTION_MODE", "scraping")
+  vi.stubEnv("OUTSCRAPER_ENABLED", "true")
+  vi.stubEnv("OUTSCRAPER_CRON_ENABLED", "true")
+  const fetch = vi.fn()
+  vi.stubGlobal("fetch", fetch)
+  try {
+    for (const mode of ["manual", "cron"] as const) {
+      const result = await synchronizeReviews(business, mode)
+      expect(result.synced).toBe(0)
+      expect(result.warnings.join(" ")).toContain("collecteur")
+    }
+    expect(fetch).not.toHaveBeenCalled()
+    expect(listReviews).not.toHaveBeenCalled()
+    expect(prisma.business.updateMany).not.toHaveBeenCalled()
+  } finally { vi.unstubAllGlobals() }
+})
 beforeEach(() => {
   vi.stubEnv("OUTSCRAPER_ENABLED", "false")
   vi.mocked(prisma.business.updateMany).mockResolvedValue({ count: 1 })
