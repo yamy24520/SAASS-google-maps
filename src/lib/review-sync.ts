@@ -54,6 +54,10 @@ export async function updateReviewStats(businessId: string) {
 export async function synchronizeReviews(business: Business, mode: "manual" | "cron") {
   const now = new Date()
   const paid = outscraperEnabled() && (mode === "manual" || process.env.OUTSCRAPER_CRON_ENABLED === "true")
+  const hasGoogleAccess = !!(business.gbpReviewLocationId && (business.gbpRefreshToken || business.gbpAccessToken))
+  if (!hasGoogleAccess && !paid) {
+    return { synced: 0, errors: [] as string[], warnings: [mode === "cron" ? "Import automatique payant désactivé. Utilisez la synchronisation manuelle." : "Import indisponible : configurez un fournisseur ou connectez Google Business Profile."], cached: false }
+  }
   const cooldownMs = paid ? 24 * 60 * 60_000 : 15 * 60_000
   const leaseUntil = new Date(now.getTime() + 300_000)
   const claimed = await prisma.business.updateMany({

@@ -4,6 +4,9 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getPlaceDetails } from "@/lib/google-places"
+import { synchronizeReviews } from "@/lib/review-sync"
+
+export const maxDuration = 300
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
@@ -65,6 +68,7 @@ export async function POST(req: Request) {
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
   const { placeId } = await req.json()
+  if (typeof placeId !== "string" || !/^[A-Za-z0-9_-]{1,255}$/.test(placeId)) return NextResponse.json({ error: "Identifiant Google Maps invalide" }, { status: 400 })
 
   const business = await prisma.business.findFirst({ where: businessScope(req, session.user.id) })
   if (!business) return NextResponse.json({ error: "Aucun établissement" }, { status: 404 })
@@ -83,7 +87,7 @@ export async function POST(req: Request) {
     })
 
     // Update business with placeId, coords, type and latest stats
-    await prisma.business.update({
+    const updatedBusiness = await prisma.business.update({
       where: { id: business.id },
       data: {
         gbpLocationId: placeId,
@@ -95,7 +99,10 @@ export async function POST(req: Request) {
       },
     })
 
-    return NextResponse.json({ success: true, details })
+    const sync = await synchronizeReviews(updatedBusiness, "manual")
+    // The public Maps total is distinct from the number of imported reviews.
+    await prisma.business.update({ where: { id: business.id }, data: { averageRating: details.rating, totalReviews: details.reviewCount } })
+    return NextResponse.json({ success: sync.errors.length === 0, details, sync })
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur Places API"
     return NextResponse.json({ error: msg }, { status: 500 })

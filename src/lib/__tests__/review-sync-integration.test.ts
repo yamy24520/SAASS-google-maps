@@ -46,3 +46,29 @@ it("scopes review IDs per business, counts inserted rows, and sanitizes invalid 
   await storeReviews("other-business", "GOOGLE", [{ review_id: "same-id", author_title: "Test", review_rating: 7, review_datetime_utc: "invalid" }])
   expect(prisma.review.createMany).toHaveBeenCalledWith(expect.objectContaining({ data: [expect.objectContaining({ businessId: "other-business", externalReviewId: "other-business:GOOGLE:same-id", rating: 5, reviewPublishedAt: expect.any(Date) })], skipDuplicates: true }))
 })
+
+it("imports public Maps reviews without a Google login, capped at 25", async () => {
+  vi.stubEnv("OUTSCRAPER_ENABLED", "true")
+  vi.stubEnv("OUTSCRAPER_API_KEY", "test-only")
+  const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [{ reviews_data: [{ review_id: "public-review", author_title: "Client", review_rating: 5, review_datetime_utc: "2026-09-01" }] }] })))
+  vi.stubGlobal("fetch", fetch)
+  try {
+    const result = await synchronizeReviews({ ...business, gbpReviewLocationId: null, gbpRefreshToken: null, gbpAccessToken: null, tripAdvisorUrl: null }, "manual")
+    expect(result.synced).toBe(1)
+    expect(result.errors).toEqual([])
+    expect(listReviews).not.toHaveBeenCalled()
+    expect(new URL(fetch.mock.calls[0][0]).searchParams.get("reviewsLimit")).toBe("25")
+    expect(fetch).toHaveBeenCalledTimes(1)
+  } finally { vi.unstubAllGlobals() }
+})
+
+it("does not make paid cron requests when only manual imports are enabled", async () => {
+  vi.stubEnv("OUTSCRAPER_ENABLED", "true")
+  vi.stubEnv("OUTSCRAPER_API_KEY", "test-only")
+  vi.stubEnv("OUTSCRAPER_CRON_ENABLED", "false")
+  const fetch = vi.fn(); vi.stubGlobal("fetch", fetch)
+  try {
+    await synchronizeReviews({ ...business, gbpReviewLocationId: null, gbpRefreshToken: null }, "cron")
+    expect(fetch).not.toHaveBeenCalled()
+  } finally { vi.unstubAllGlobals() }
+})

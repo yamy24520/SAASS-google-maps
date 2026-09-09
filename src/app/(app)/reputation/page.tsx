@@ -45,32 +45,38 @@ export default function ReputationPage() {
 
 
   async function handleRefresh() {
-    if (!data?.business?.placeId) {
-      await load()
-      return
-    }
-    setLinking(true)
-    await fetch(`/api/reputation${bizParam}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ placeId: data.business.placeId }),
-    })
-    await load()
-    setLinking(false)
+    if (data?.business?.placeId) await handleLink(data.business.placeId)
+    else await load()
   }
 
   async function handleLink(placeId: string) {
     setLinking(true)
-    await fetch(`/api/reputation${bizParam}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ placeId }),
-    })
-    setSearchResults([])
-    setSearchQuery("")
-    setChangingPlace(false)
-    await load()
-    setLinking(false)
+    try {
+      const res = await fetch(`/api/reputation${bizParam}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId }),
+        signal: AbortSignal.timeout(290_000),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || "La récupération a échoué")
+      const sync = result.sync
+      const errors: string[] = sync?.errors ?? []
+      const warnings: string[] = sync?.warnings ?? []
+      toast({
+        title: errors.length ? "Fiche liée, import des avis incomplet" : sync?.cached ? "Fiche actualisée — import récent" : `Fiche actualisée : ${sync?.synced ?? 0} nouveaux avis importés`,
+        description: [...errors, ...warnings].join(" ") || "Les avis sont disponibles dans la rubrique Avis.",
+        ...(errors.length ? { variant: "destructive" as const } : {}),
+      })
+      setSearchResults([])
+      setSearchQuery("")
+      setChangingPlace(false)
+      await load()
+    } catch (error) {
+      toast({ title: "Récupération impossible", description: error instanceof Error ? error.message : "Réessayez plus tard", variant: "destructive" })
+    } finally {
+      setLinking(false)
+    }
   }
 
   if (loading) return (
