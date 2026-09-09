@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatDate, getStatusLabel, getRatingColor } from "@/lib/utils"
+import { readReviewStream } from "@/lib/review-stream"
 import { toast } from "@/components/ui/toaster"
 
 interface Review {
@@ -97,84 +98,63 @@ export default function ReviewDetailPage() {
   }, [reviewId, bizParam])
 
   async function handleGenerate() {
-    if (!review) return
+    if (!review || generating) return
     setGenerating(true)
-    setResponse("")
-
     abortRef.current = new AbortController()
-
-    const res = await fetch(`/api/reviews/${reviewId}/generate${bizParam}`, {
-      method: "POST",
-      signal: abortRef.current.signal,
-    })
-
-    if (!res.ok) {
-      toast({ title: "Erreur", description: "Impossible de générer la réponse.", variant: "destructive" })
-      setGenerating(false)
-      return
-    }
-
-    const reader = res.body!.getReader()
-    const decoder = new TextDecoder()
-    let text = ""
-
     try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value)
-        const lines = chunk.split("\n").filter(Boolean)
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              if (data.type === "content_block_delta" && data.delta?.type === "text_delta") {
-                text += data.delta.text
-                setResponse(text)
-              }
-            } catch {
-              // ignore parse errors
-            }
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock()
-      setGenerating(false)
-    }
+      const res = await fetch(`/api/reviews/${reviewId}/generate${bizParam}`, { method: "POST", signal: abortRef.current.signal })
+      if (!res.ok || !res.body) throw new Error("Impossible de générer la réponse.")
+      setResponse("")
+      await readReviewStream(res.body, setResponse)
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "AbortError")) toast({ title: "Erreur", description: error instanceof Error ? error.message : "Génération interrompue.", variant: "destructive" })
+    } finally { setGenerating(false) }
   }
 
   async function handlePublish() {
-    if (!response.trim() || !review) return
+    if (!response.trim() || !review || publishing) return
     setPublishing(true)
+    try {
+      await navigator.clipboard.writeText(response)
+      const res = await fetch(`/api/reviews/${reviewId}/publish${bizParam}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ response }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Impossible de sauvegarder la réponse.")
+      const meta = SOURCE_META[review.source] ?? SOURCE_META.GOOGLE
+      window.open(meta.publishUrl(placeId, platformUrl), "_blank", "noopener,noreferrer")
+      setReview({ ...review, status: "APPROVED", aiDraftResponse: response })
+      toast({ title: "Réponse copiée et sauvegardée", description: `Collez-la sur ${meta.label} pour terminer la publication.`, variant: "success" })
+    } catch (error) {
+      toast({ title: "Action interrompue", description: error instanceof Error ? error.message : "Copiez votre texte manuellement et réessayez.", variant: "destructive" })
+    } finally { setPublishing(false) }
+  }
 
-    // Copy response to clipboard
-    try { await navigator.clipboard.writeText(response) } catch { /* ignore */ }
-
-    // Save locally
-    await fetch(`/api/reviews/${reviewId}/publish${bizParam}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ response }),
-    }).catch(() => {})
-
-    // Open platform reply page
-    const meta = SOURCE_META[review.source] ?? SOURCE_META.GOOGLE
-    const url = meta.publishUrl(placeId, platformUrl)
-    window.open(url, "_blank")
-
-    const platformName = meta.label
-    toast({ title: "Réponse copiée !", description: `Collez-la sur la page ${platformName} qui vient de s'ouvrir.`, variant: "success" })
-    setPublishing(false)
+  async function handleGooglePublish() {
+    if (!response.trim() || !review || publishing) return
+    setPublishing(true)
+    try {
+      const res = await fetch(`/api/reviews/${reviewId}/publish${bizParam}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ response, publish: true }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.published) throw new Error(data.error ?? "Publication indisponible pour cet avis.")
+      setReview({ ...review, status: "PUBLISHED", publishedResponse: response })
+      toast({ title: "Réponse publiée sur Google", variant: "success" })
+    } catch (error) {
+      toast({ title: "Publication impossible", description: error instanceof Error ? error.message : "Réessayez plus tard.", variant: "destructive" })
+    } finally { setPublishing(false) }
   }
 
   async function handleIgnore() {
     if (!confirm("Ignorer cet avis ? Il sera masqué de votre liste.")) return
     setIgnoring(true)
-    await fetch(`/api/reviews/${reviewId}/ignore${bizParam}`, { method: "POST" })
-    router.push(`/reviews${bizParam}`)
+    try {
+      const res = await fetch(`/api/reviews/${reviewId}/ignore${bizParam}`, { method: "POST" })
+      if (!res.ok) throw new Error("Impossible d’ignorer cet avis.")
+      router.push(`/reviews${bizParam}`)
+    } catch { toast({ title: "Erreur", description: "L’avis n’a pas été ignoré. Réessayez.", variant: "destructive" }) }
+    finally { setIgnoring(false) }
   }
 
   if (loadingReview) {
@@ -286,12 +266,7 @@ export default function ReviewDetailPage() {
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Génération...
-                    <button
-                      onClick={(e) => { e.stopPropagation(); abortRef.current?.abort(); setGenerating(false) }}
-                      className="ml-1 p-0.5 hover:bg-slate-200 rounded"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+
                   </>
                 ) : (
                   <>
@@ -314,6 +289,7 @@ export default function ReviewDetailPage() {
                 )}
               </Button>
 
+              {r.source === "GOOGLE" && <Button variant="outline" disabled={!response.trim() || publishing || generating} onClick={handleGooglePublish}>Publier via Google</Button>}
               <Button
                 variant="ghost"
                 size="sm"

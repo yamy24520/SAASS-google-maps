@@ -1,4 +1,5 @@
 "use client"
+import { GoogleLocationPicker } from "@/components/GoogleLocationPicker"
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
@@ -391,7 +392,8 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               )}
-              <p className="text-xs text-slate-400">La fiche Google Maps se configure dans <a href="/reputation" className="underline text-sky-600">Réputation</a>.</p>
+              {form.gbpConnectedAt && <GoogleLocationPicker bizParam={bizParam} />}
+              <p className="text-xs text-slate-400">La fiche Google Maps se configure dans <a href={`/reputation${bizParam}`} className="underline text-sky-600">Réputation</a>.</p>
             </CardContent>
           </Card>
 
@@ -462,7 +464,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Autres plateformes d&apos;avis</CardTitle>
-              <CardDescription>Collez l&apos;URL de votre page sur chaque plateforme pour synchroniser vos avis</CardDescription>
+              <CardDescription>Enregistrez vos liens. Les imports de ces plateformes nécessitent l’activation du service payant ; vos avis existants restent consultables.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">

@@ -399,6 +399,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
+  const [createdBookingToken, setCreatedBookingToken] = useState<string | null>(null)
   const [createdBookingId, setCreatedBookingId] = useState<string | null>(null)
   const [payingOnline, setPayingOnline] = useState(false)
 
@@ -484,6 +485,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
     if (info.bookingType === "appointment" && !selectedService) return
     setSubmitting(true)
     setSubmitError("")
+    try {
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -505,6 +507,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
     if (res.ok) {
       if (info?.paymentEnabled && data.booking?.id) {
         setCreatedBookingId(data.booking.id)
+        setCreatedBookingToken(data.booking.cancelToken)
         setStep("payment")
       } else {
         setStep("done")
@@ -512,23 +515,27 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
     } else {
       setSubmitError(data.error ?? "Une erreur est survenue")
     }
-    setSubmitting(false)
+    } catch { setSubmitError("Connexion interrompue. Vérifiez votre réservation avant de réessayer.") }
+    finally { setSubmitting(false) }
   }
 
   async function payOnline() {
     if (!createdBookingId) return
     setPayingOnline(true)
+    try {
     const checkoutRes = await fetch("/api/bookings/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookingId: createdBookingId }),
+      body: JSON.stringify({ bookingId: createdBookingId, bookingToken: createdBookingToken }),
     })
     const checkoutData = await checkoutRes.json()
     if (checkoutData.url) {
       window.location.href = checkoutData.url
     } else {
-      setPayingOnline(false)
+      setSubmitError(checkoutData.error ?? "Le paiement n’a pas pu être ouvert.")
     }
+    } catch { setSubmitError("Connexion au paiement impossible. Réessayez.") }
+    finally { setPayingOnline(false) }
   }
 
   // ── Loading ──────────────────────────────────────────────────────────────────
@@ -636,7 +643,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
 
   // ── Vertical step progress (sidebar) ─────────────────────────────────────────
 
-  function SidebarSteps() {
+  function renderSidebarSteps() {
     return (
       <div className="flex flex-col gap-0">
         {STEPS.map((s, i) => {
@@ -686,7 +693,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
 
   // ── Reusable Back Button ──────────────────────────────────────────────────────
 
-  function BackBtn({ onClick }: { onClick: () => void }) {
+  function renderBackButton({ onClick }: { onClick: () => void }) {
     return (
       <button
         onClick={onClick}
@@ -821,7 +828,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           )}
 
           {/* Step progress */}
-          {step !== "done" && <SidebarSteps />}
+          {step !== "done" && renderSidebarSteps()}
 
           {/* Live recap card */}
           {step !== "done" && (
@@ -1004,7 +1011,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           {/* ── STEP: Staff ──────────────────────────────────────────────────────── */}
           {step === "staff" && hasStaff && (
             <div key="staff" className="animate-in fade-in slide-in-from-right-4 duration-300">
-              <BackBtn onClick={() => setStep("service")} />
+              {renderBackButton({ onClick: () => setStep("service") })}
               <div className="mb-8">
                 <h2 className="text-3xl font-bold leading-tight" style={{ color: T.textHeading }}>{displayLabels?.staff ?? "Avec qui ?"}</h2>
                 <p className="mt-2" style={{ color: T.textBody }}>{displayLabels?.staffSub ?? "Choisissez votre prestataire"}</p>
@@ -1072,9 +1079,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           {/* ── STEP: DateTime ───────────────────────────────────────────────────── */}
           {step === "datetime" && (
             <div key="datetime" className="animate-in fade-in slide-in-from-right-4 duration-300">
-              {!isRestaurant && (
-                <BackBtn onClick={() => setStep(hasStaff ? "staff" : "service")} />
-              )}
+              {!isRestaurant && renderBackButton({ onClick: () => setStep(hasStaff ? "staff" : "service") })}
 
               {/* Service recap pill */}
               {selectedService && (
@@ -1297,7 +1302,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           {/* ── STEP: Form ───────────────────────────────────────────────────────── */}
           {step === "form" && (
             <div key="form" className="animate-in fade-in slide-in-from-right-4 duration-300">
-              <BackBtn onClick={() => setStep("datetime")} />
+              {renderBackButton({ onClick: () => setStep("datetime") })}
 
               <h2 className="text-2xl font-bold mb-1" style={{ color: T.textHeading }}>Vos coordonnees</h2>
               <p className="text-sm mb-6" style={{ color: T.textMuted }}>Pour confirmer votre reservation</p>
@@ -1406,7 +1411,7 @@ export default function BookPage({ params }: { params: Promise<{ slug: string }>
           {/* ── STEP: Payment ────────────────────────────────────────────────────── */}
           {step === "payment" && (
             <div key="payment" className="animate-in fade-in slide-in-from-right-4 duration-300">
-              <BackBtn onClick={() => setStep("form")} />
+              {renderBackButton({ onClick: () => setStep("form") })}
 
               <h2 className="text-3xl font-bold mb-2" style={{ color: T.textHeading }}>Paiement</h2>
               <p className="mb-8" style={{ color: T.textBody }}>Choisissez votre mode de règlement</p>

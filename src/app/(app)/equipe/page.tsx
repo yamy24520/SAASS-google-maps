@@ -1,4 +1,6 @@
 "use client"
+import type { ApiData } from "@/types/api-data"
+import type { GET as getApiData } from "@/app/api/staff/stats/route"
 
 import { useEffect, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
@@ -60,7 +62,7 @@ export default function EquipePage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [copiedId, setCopiedId]     = useState<string | null>(null)
   const [tab, setTab]               = useState<"equipe" | "stats">("equipe")
-  const [statsData, setStatsData]   = useState<any[]>([])
+  const [statsData, setStatsData]   = useState<ApiData<typeof getApiData>["stats"]>([])
   const [loadingStats, setLoadingStats] = useState(false)
 
   // Add form
@@ -81,12 +83,11 @@ export default function EquipePage() {
 
   const APP_URL = typeof window !== "undefined" ? window.location.origin : ""
 
-  const fetchAll = useCallback(async () => {
-    const [sRes, aRes, tRes] = await Promise.all([
+  const fetchAll = useCallback(() => Promise.all([
       fetch(`/api/staff${bizParam}`),
       fetch(`/api/staff/absences${bizParam}`),
       fetch(`/api/calendar/token${bizParam}`),
-    ])
+    ]).then(async ([sRes, aRes, tRes]) => {
     const [sData, aData, tData] = await Promise.all([sRes.json(), aRes.json(), tRes.json()])
     setStaffs(sData.staffs ?? [])
     setAbsences(aData.absences ?? [])
@@ -97,21 +98,20 @@ export default function EquipePage() {
     }
     setStaffTokens(map)
     setLoading(false)
-  }, [bizParam, APP_URL])
+  }).catch(() => { setLoading(false); toast({ title: "Chargement impossible", description: "Actualisez la page pour réessayer.", variant: "destructive" }) }), [bizParam, APP_URL])
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  async function fetchStats() {
-    setLoadingStats(true)
-    const res = await fetch(`/api/staff/stats${bizParam}`)
-    const data = await res.json()
+  function fetchStats() {
+    return fetch(`/api/staff/stats${bizParam}`).then(res => res.json()).then(data => {
     setStatsData(data.stats ?? [])
     setLoadingStats(false)
+    }).catch(() => { setLoadingStats(false); toast({ title: "Statistiques indisponibles", variant: "destructive" }) })
   }
 
   useEffect(() => {
     if (tab === "stats") fetchStats()
-  }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tab, bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function addStaff() {
     if (!newName.trim()) return

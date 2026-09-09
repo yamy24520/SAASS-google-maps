@@ -1,4 +1,6 @@
 "use client"
+import type { ApiData } from "@/types/api-data"
+import type { GET as getApiData } from "@/app/api/campaigns/route"
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
@@ -31,7 +33,7 @@ export default function CampaignsPage() {
   const bizId = searchParams.get("biz")
   const bizParam = bizId ? `?biz=${bizId}` : ""
 
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<ApiData<typeof getApiData> | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
   const [resetting, setResetting] = useState(false)
@@ -42,10 +44,8 @@ export default function CampaignsPage() {
   const [offerText, setOfferText] = useState("")
   const [spinPrizes, setSpinPrizes] = useState<SpinPrize[]>(DEFAULT_SPIN_PRIZES)
 
-  async function load() {
-    setLoading(true)
-    const res = await fetch(`/api/campaigns${bizParam}`)
-    const json = await res.json()
+  function load() {
+    return fetch(`/api/campaigns${bizParam}`).then(res => { if (!res.ok) throw new Error("Chargement impossible"); return res.json() }).then(json => {
     setData(json)
     if (json?.business) {
       setOfferEnabled(json.business.offerEnabled ?? false)
@@ -54,6 +54,7 @@ export default function CampaignsPage() {
       setSpinPrizes(json.business.spinPrizes ?? DEFAULT_SPIN_PRIZES)
     }
     setLoading(false)
+    }).catch(() => { setLoading(false); toast({ title: "Chargement impossible", variant: "destructive" }) })
   }
 
   useEffect(() => { load() }, [bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -101,7 +102,7 @@ export default function CampaignsPage() {
     </div>
   )
 
-  const { business, stats, requests } = data ?? {}
+  const { business, stats, requests = [] } = data ?? {}
 
   return (
     <div className="space-y-6">
@@ -318,7 +319,7 @@ export default function CampaignsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {requests.slice(0, 10).map((r: any) => (
+                  {requests.slice(0, 10).map((r) => (
                     <div key={r.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 text-sm font-bold">

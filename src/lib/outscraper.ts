@@ -1,5 +1,18 @@
-const OUTSCRAPER_API_KEY = process.env.OUTSCRAPER_API_KEY!
 const BASE_URL = "https://api.outscraper.cloud"
+
+export function outscraperEnabled(): boolean {
+  return process.env.OUTSCRAPER_ENABLED === "true" && !!process.env.OUTSCRAPER_API_KEY
+}
+
+// Zero means unlimited at the provider. Never send it, even for legacy callers.
+export function boundedReviewLimit(limit = 25): number {
+  return Number.isFinite(limit) && limit > 0 ? Math.min(50, Math.max(1, Math.floor(limit))) : 25
+}
+
+function apiKey(): string {
+  if (!outscraperEnabled()) throw new Error("Import payant désactivé. Connectez Google Business Profile pour synchroniser sans Outscraper.")
+  return process.env.OUTSCRAPER_API_KEY!
+}
 
 // Normalized review shape used across all platforms
 export interface OutscraperReview {
@@ -118,7 +131,8 @@ async function pollJob(
   while (Date.now() - start < maxWait) {
     await new Promise(r => setTimeout(r, 1500))
     const res = await fetch(`${BASE_URL}/requests/${jobId}`, {
-      headers: { "X-API-KEY": OUTSCRAPER_API_KEY },
+      headers: { "X-API-KEY": apiKey() },
+      signal: AbortSignal.timeout(5000),
     })
     if (!res.ok) continue
     const json = await res.json()
@@ -138,11 +152,12 @@ async function fetchFromEndpoint(
   params: URLSearchParams,
   extractor: (data: unknown[]) => OutscraperReview[]
 ): Promise<OutscraperReview[]> {
+  const key = apiKey()
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 25000)
 
   const res = await fetch(`${BASE_URL}/${endpoint}?${params}`, {
-    headers: { "X-API-KEY": OUTSCRAPER_API_KEY },
+    headers: { "X-API-KEY": key },
     signal: controller.signal,
   }).finally(() => clearTimeout(timeout))
 
@@ -167,11 +182,11 @@ async function fetchFromEndpoint(
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-// Google Maps: reviewsLimit=0 = unlimited
-export async function fetchReviewsOutscraper(placeId: string, limit = 0): Promise<OutscraperReview[]> {
+// Paid imports always use a bounded volume.
+export async function fetchReviewsOutscraper(placeId: string, limit = 25): Promise<OutscraperReview[]> {
   const params = new URLSearchParams({
     query: placeId,
-    reviewsLimit: String(limit),
+    reviewsLimit: String(boundedReviewLimit(limit)),
     language: "fr",
     sort: "newest",
     async: "false",
@@ -179,29 +194,29 @@ export async function fetchReviewsOutscraper(placeId: string, limit = 0): Promis
   return fetchFromEndpoint("google-maps-reviews", params, extractGoogleReviews)
 }
 
-export async function fetchTripAdvisorReviews(url: string, limit = 0): Promise<OutscraperReview[]> {
+export async function fetchTripAdvisorReviews(url: string, limit = 25): Promise<OutscraperReview[]> {
   const params = new URLSearchParams({
     query: cleanUrl(url),
-    limit: String(limit),
+    limit: String(boundedReviewLimit(limit)),
     language: "fr",
     async: "false",
   })
   return fetchFromEndpoint("tripadvisor-reviews", params, extractTripAdvisorReviews)
 }
 
-export async function fetchBookingReviews(url: string, limit = 0): Promise<OutscraperReview[]> {
+export async function fetchBookingReviews(url: string, limit = 25): Promise<OutscraperReview[]> {
   const params = new URLSearchParams({
     query: cleanUrl(url),
-    limit: String(limit),
+    limit: String(boundedReviewLimit(limit)),
     async: "false",
   })
   return fetchFromEndpoint("booking-reviews", params, extractBookingReviews)
 }
 
-export async function fetchTrustpilotReviews(url: string, limit = 0): Promise<OutscraperReview[]> {
+export async function fetchTrustpilotReviews(url: string, limit = 25): Promise<OutscraperReview[]> {
   const params = new URLSearchParams({
     query: cleanUrl(url),
-    limit: String(limit),
+    limit: String(boundedReviewLimit(limit)),
     async: "false",
   })
   return fetchFromEndpoint("trustpilot-reviews", params, extractTripAdvisorReviews) // similar shape to TA
@@ -238,10 +253,10 @@ export function extractAirbnbReviews(data: unknown[]): OutscraperReview[] {
   return reviews
 }
 
-export async function fetchAirbnbReviews(url: string, limit = 0): Promise<OutscraperReview[]> {
+export async function fetchAirbnbReviews(url: string, limit = 25): Promise<OutscraperReview[]> {
   const params = new URLSearchParams({
     query: cleanUrl(url),
-    limit: String(limit),
+    limit: String(boundedReviewLimit(limit)),
     async: "false",
   })
   return fetchFromEndpoint("airbnb-reviews", params, extractAirbnbReviews)

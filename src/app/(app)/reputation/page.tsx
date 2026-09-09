@@ -1,4 +1,7 @@
 "use client"
+import { toast } from "@/components/ui/toaster"
+import type { ApiData } from "@/types/api-data"
+import type { GET as getApiData } from "@/app/api/reputation/route"
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
@@ -13,21 +16,20 @@ export default function ReputationPage() {
   const bizId = searchParams.get("biz")
   const bizParam = bizId ? `?biz=${bizId}` : ""
 
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<ApiData<typeof getApiData> | null>(null)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchResults, setSearchResults] = useState<import("@/lib/google-places").PlaceResult[]>([])
   const [searching, setSearching] = useState(false)
   const [linking, setLinking] = useState(false)
   const [changingPlace, setChangingPlace] = useState(false)
 
 
-  async function load() {
-    setLoading(true)
-    const res = await fetch(`/api/reputation${bizParam}`)
-    const json = await res.json()
+  function load() {
+    return fetch(`/api/reputation${bizParam}`).then(res => { if (!res.ok) throw new Error("Chargement impossible"); return res.json() }).then(json => {
     setData(json)
     setLoading(false)
+    }).catch(() => { setLoading(false); toast({ title: "Chargement impossible", variant: "destructive" }) })
   }
 
   useEffect(() => { load() }, [bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -223,7 +225,7 @@ export default function ReputationPage() {
                 <YAxis domain={[1, 5]} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
                 <Tooltip
                   contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", fontSize: "13px" }}
-                  formatter={(v: any) => [`${v} / 5`, "Note"]}
+                  formatter={(v) => [`${v} / 5`, "Note"]}
                 />
                 <Line type="monotone" dataKey="rating" stroke="#0ea5e9" strokeWidth={2} dot={false} />
               </LineChart>

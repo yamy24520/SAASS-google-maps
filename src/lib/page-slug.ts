@@ -10,9 +10,9 @@ export function slugify(name: string): string {
 
 export async function generateUniqueSlug(
   name: string,
-  prisma: { business: { findUnique: (args: any) => Promise<any> } }
+  prisma: Pick<import("@prisma/client").PrismaClient, "business">
 ): Promise<string> {
-  const base = slugify(name)
+  const base = slugify(name) || "etablissement"
   let slug = base
   let attempt = 0
   while (attempt < 10) {

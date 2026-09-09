@@ -1,7 +1,14 @@
 import { Resend } from "resend"
 
 function getResend() {
-  return new Resend(process.env.RESEND_API_KEY ?? "placeholder")
+  if (process.env.NOTIFICATIONS_ENABLED === "false") throw new Error("Envoi d’emails désactivé dans cet environnement.")
+  if (!process.env.RESEND_API_KEY) throw new Error("Service email non configuré.")
+  const client = new Resend(process.env.RESEND_API_KEY)
+  return { emails: { send: async (params: Parameters<typeof client.emails.send>[0]) => {
+    const result = await client.emails.send(params)
+    if (result.error) throw new Error(`Échec de l’envoi email : ${result.error.message}`)
+    return result
+  } } }
 }
 
 export async function sendPasswordResetEmail(params: {

@@ -69,12 +69,11 @@ export default function ServicesPage() {
     setSettings(s => ({ ...s, [key]: value })); markDirty()
   }
 
-  const fetchData = useCallback(async () => {
-    const [svcRes, pageRes, cdRes] = await Promise.all([
+  const fetchData = useCallback(() => Promise.all([
       fetch(`/api/services${bizParam}`),
       fetch(`/api/page${bizParam}`),
       fetch(`/api/closed-dates${bizParam}`),
-    ])
+    ]).then(async ([svcRes, pageRes, cdRes]) => {
     const [svcData, pageData, cdData] = await Promise.all([svcRes.json(), pageRes.json(), cdRes.json()])
     setServices(svcData.services ?? [])
     setBookingEnabled(!!svcData.bookingEnabled)
@@ -86,7 +85,7 @@ export default function ServicesPage() {
     setPageSlug(pageData.pageSlug ?? null)
     setLoading(false)
     setDirty(false)
-  }, [bizParam])
+  }).catch(() => { setLoading(false); toast({ title: "Chargement impossible", description: "Actualisez la page pour réessayer.", variant: "destructive" }) }), [bizParam])
 
   useEffect(() => { fetchData() }, [fetchData])
 

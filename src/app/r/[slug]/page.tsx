@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useEffect, useRef, useState, useCallback } from "react"
+import { use, useEffect, useRef, useState, useId, useCallback } from "react"
 import {
   Camera, ChevronRight, MapPin, Pencil, Plus, Trash2, X, Search,
   Star as StarIcon, Clock, ExternalLink, CalendarDays, ArrowRight, Settings
@@ -183,11 +183,12 @@ function SocialIcon({ p, color, size = 18 }: { p: string; color: string; size?: 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function Stars({ n, color, size = 14 }: { n: number; color: string; size?: number }) {
+  const uniqueId = useId()
   return (
     <span style={{ display: "inline-flex", gap: 1 }}>
       {[1,2,3,4,5].map(i => {
         const fill = n >= i ? 1 : n >= i - 0.5 ? 0.5 : 0
-        const id = `h-${i}-${Math.random().toString(36).slice(2,6)}`
+        const id = `h-${uniqueId}-${i}`
         if (fill === 0.5) return (
           <svg key={i} width={size} height={size} viewBox="0 0 24 24">
             <defs>
@@ -283,23 +284,20 @@ input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:0.5
 // ── Scroll Reveal Hook ───────────────────────────────────────────────────────
 
 function useReveal(delay = 0) {
-  const ref = useRef<HTMLDivElement>(null)
+  const [element, setElement] = useState<HTMLDivElement | null>(null)
   const [visible, setVisible] = useState(false)
   useEffect(() => {
-    const el = ref.current
+    const el = element
     if (!el) return
     const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } }, { threshold: 0.08 })
     obs.observe(el)
     return () => obs.disconnect()
-  }, [])
-  return {
-    ref,
-    style: {
+  }, [element])
+  return [setElement, {
       opacity: visible ? 1 : 0,
       transform: visible ? "translateY(0)" : "translateY(28px)",
       transition: `opacity 0.65s ease ${delay}ms, transform 0.65s ease ${delay}ms`,
-    } as React.CSSProperties,
-  }
+    } as React.CSSProperties] as const
 }
 
 // ── Section: Menu ─────────────────────────────────────────────────────────────
@@ -326,9 +324,6 @@ function MenuSection({ categories, t }: { categories: MenuCategory[]; t: ThemeCo
   const [menuSearch, setMenuSearch] = useState("")
   const activeCat = categories.find(c => c.id === activeCatId) ?? categories[0] ?? null
 
-  useEffect(() => {
-    if (!activeCatId || !categories.find(c => c.id === activeCatId)) setActiveCatId(categories[0]?.id ?? null)
-  }, [categories, activeCatId])
 
   if (!categories.length) return null
 
@@ -393,9 +388,6 @@ function MenuSectionEdit({ categories, t, onChange }: { categories: MenuCategory
   const [activeCatId, setActiveCatId] = useState<string | null>(categories[0]?.id ?? null)
   const activeCat = categories.find(c => c.id === activeCatId) ?? categories[0] ?? null
 
-  useEffect(() => {
-    if (!activeCatId || !categories.find(c => c.id === activeCatId)) setActiveCatId(categories[0]?.id ?? null)
-  }, [categories, activeCatId])
 
   async function scanFile(file: File): Promise<MenuCategory[] | null> {
     return new Promise(resolve => {
@@ -783,8 +775,8 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
   // Live preview overrides — reçus via postMessage depuis /personnalisation
   const [preview, setPreview] = useState<Partial<PageData> | null>(null)
 
-  const heroReveal  = useReveal(0)
-  const ratingReveal = useReveal(120)
+  const [heroAttach, heroStyle] = useReveal(0)
+  const [ratingAttach, ratingStyle] = useReveal(120)
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
@@ -971,7 +963,7 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
             <div style={{ position: "absolute", inset: 0, background: t.heroGradient, pointerEvents: "none" }} />
             <div style={{ position: "absolute", top: -80, left: "50%", transform: "translateX(-50%)", width: 320, height: 320, borderRadius: "50%", background: t.accent, opacity: t.isDark ? 0.06 : 0.04, filter: "blur(90px)", pointerEvents: "none" }} />
 
-            <div ref={heroReveal.ref} style={{ ...heroReveal.style, textAlign: "center", padding: "64px 24px 0", position: "relative" }}>
+            <div ref={heroAttach} style={{ ...heroStyle, textAlign: "center", padding: "64px 24px 0", position: "relative" }}>
               {/* Logo */}
               {d.logoDataUrl ? (
                 <div style={{ display: "inline-block", marginBottom: 24, animation: "float 4s ease-in-out infinite" }}>
@@ -994,8 +986,8 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
 
               {/* Rating badge */}
               {d.rating > 0 && (
-                <div ref={ratingReveal.ref} style={{
-                  ...ratingReveal.style,
+                <div ref={ratingAttach} style={{
+                  ...ratingStyle,
                   display: "inline-flex", alignItems: "center", gap: 10,
                   background: t.isDark ? `${t.surface}cc` : `${t.surface}ee`,
                   backdropFilter: "blur(12px)",
@@ -1254,10 +1246,10 @@ export default function Page({ params }: { params: Promise<{ slug: string }> }) 
 // ── Reveal section wrapper ────────────────────────────────────────────────────
 
 function RevealSection({ children, idx, section, showLabel, t }: { children: React.ReactNode; idx: number; section: Section; showLabel: boolean; t: ThemeConfig }) {
-  const reveal = useReveal(idx * 80)
+  const [sectionAttach, sectionStyle] = useReveal(idx * 80)
   return (
-    <div ref={reveal.ref} style={{
-      ...reveal.style,
+    <div ref={sectionAttach} style={{
+      ...sectionStyle,
       borderTop: idx > 0 ? `1px solid ${t.border}` : "none",
       padding: "32px 20px 0",
     }}>

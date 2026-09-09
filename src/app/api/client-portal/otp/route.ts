@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendClientOtpEmail } from "@/lib/email"
+import { randomInt } from "node:crypto"
+import { rateLimit } from "@/lib/rate-limit"
+import { z } from "zod"
 
 function generateOtp() {
-  return String(Math.floor(100000 + Math.random() * 900000))
+  return String(randomInt(100000, 1000000))
 }
 
 export async function POST(req: NextRequest) {
-  const { email, businessId } = await req.json()
+  const parsed = z.object({ email: z.string().trim().toLowerCase().email().max(254), businessId: z.string().min(1) }).safeParse(await req.json().catch(() => null))
+  if (!parsed.success) return NextResponse.json({ error: "Adresse email invalide." }, { status: 400 })
+  const { email, businessId } = parsed.data
+  const quota = await rateLimit(`otp-send:${businessId}:${email}`, 3, 10 * 60_000)
+  if (!quota.ok) return NextResponse.json({ error: "Patientez avant de demander un nouveau code." }, { status: 429 })
 
   if (!email || !businessId) {
     return NextResponse.json({ error: "Champs manquants" }, { status: 400 })

@@ -5,14 +5,14 @@ import { replyToReview } from "@/lib/google-business"
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
 
   const businesses = await prisma.business.findMany({
     where: {
       autoReplyEnabled: true,
-      gbpLocationId: { not: null },
+      gbpReviewLocationId: { not: null },
       gbpAccessToken: { not: null },
       user: { subscription: { status: { in: ["ACTIVE", "TRIALING"] } } },
     },
@@ -24,6 +24,8 @@ export async function GET(req: NextRequest) {
     const pendingReviews = await prisma.review.findMany({
       where: {
         businessId: business.id,
+        source: "GOOGLE",
+        externalReviewId: { contains: "accounts/" },
         status: "PENDING",
         rating: { gte: business.autoReplyMinRating },
       },

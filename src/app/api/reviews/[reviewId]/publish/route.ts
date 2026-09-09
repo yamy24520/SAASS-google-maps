@@ -5,15 +5,16 @@ import { prisma } from "@/lib/prisma"
 import { replyToReview } from "@/lib/google-business"
 import { z } from "zod"
 
-const schema = z.object({ response: z.string().min(1) })
+const schema = z.object({ response: z.string().trim().min(1).max(4096), publish: z.boolean().optional() })
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ reviewId: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
   const { reviewId } = await params
-  const body = await req.json()
-  const { response } = schema.parse(body)
+  const parsed = schema.safeParse(await req.json().catch(() => null))
+  if (!parsed.success) return NextResponse.json({ error: "Réponse invalide (1 à 4096 caractères)." }, { status: 400 })
+  const { response, publish } = parsed.data
 
   const bizId = new URL(req.url).searchParams.get("biz")
   const isAdmin = session.user.role === "ADMIN"
@@ -29,16 +30,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ rev
   })
   if (!review) return NextResponse.json({ error: "Avis introuvable" }, { status: 404 })
 
-  // Try to publish on Google — if GBP API unavailable, save locally anyway
+  // Copying a response is not confirmation that it was published externally.
+  if (!publish || review.source !== "GOOGLE") {
+    await prisma.review.update({ where: { id: reviewId }, data: { aiDraftResponse: response, ...(review.status === "PUBLISHED" ? {} : { status: "APPROVED" }) } })
+    return NextResponse.json({ success: true, published: false })
+  }
   try {
     await replyToReview(business, review.externalReviewId, response)
   } catch {
     // GBP unavailable — save response locally as APPROVED (not yet published on Google)
     await prisma.review.update({
       where: { id: reviewId },
-      data: { publishedResponse: response, publishedAt: new Date(), status: "APPROVED" },
+      data: { aiDraftResponse: response, ...(review.status === "PUBLISHED" ? {} : { status: "APPROVED" }) },
     })
-    return NextResponse.json({ success: true, warning: "Réponse sauvegardée localement. Publication Google indisponible pour le moment." })
+    return NextResponse.json({ error: "Réponse sauvegardée. Publication Google impossible ; vous pouvez copier la réponse et la publier sur Google.", published: false }, { status: 502 })
   }
 
   await prisma.review.update({
@@ -61,5 +66,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ rev
     data: { responseRate: total > 0 ? (published / total) * 100 : 0 },
   })
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, published: true })
 }

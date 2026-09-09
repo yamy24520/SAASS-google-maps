@@ -13,16 +13,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) redirect("/login")
 
-  const [subscription, businesses] = await Promise.all([
+  const [subscription, businesses, user] = await Promise.all([
     prisma.subscription.findUnique({ where: { userId: session.user.id } }),
     prisma.business.findMany({
       where: { userId: session.user.id },
       select: { id: true, name: true },
       orderBy: { createdAt: "asc" },
     }),
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { role: true } }),
   ])
 
-  const isActive = subscription?.status === "ACTIVE" || subscription?.status === "TRIALING"
+  const isActive = user?.role === "ADMIN" || subscription?.status === "ACTIVE" || subscription?.status === "TRIALING"
 
   const headersList = await headers()
   const pathname = headersList.get("x-pathname") ?? ""

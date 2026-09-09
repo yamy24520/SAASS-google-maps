@@ -2,11 +2,12 @@ export const runtime = "nodejs"
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { getAvailability } from "@/lib/booking-availability"
 
 export async function GET(req: NextRequest) {
   // Vérifier le secret Vapi
   const secret = req.headers.get("x-vapi-secret")
-  if (secret !== process.env.VAPI_WEBHOOK_SECRET) {
+  if (!process.env.VAPI_WEBHOOK_SECRET || secret !== process.env.VAPI_WEBHOOK_SECRET) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
 
@@ -19,13 +20,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "businessId et date requis" }, { status: 400 })
   }
 
-  // Réutiliser la logique d'availability existante via fetch interne
-  const params = new URLSearchParams({ businessId, date })
-  if (serviceId) params.set("serviceId", serviceId)
-
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000"
-  const res = await fetch(`${baseUrl}/api/availability?${params}`)
-  const data = await res.json()
+  const business = await prisma.business.findFirst({ where: { id: businessId, vapiEnabled: true }, select: { id: true } })
+  if (!business) return NextResponse.json({ error: "Service vocal indisponible" }, { status: 404 })
+  const data = await getAvailability({ businessId, date, serviceId })
 
   return NextResponse.json({
     slots: data.slots ?? [],

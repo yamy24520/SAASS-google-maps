@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "@/components/ui/toaster"
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
@@ -63,8 +64,7 @@ export default function ReviewsPage() {
   const [loading, setLoading] = useState(true)
   const [activeSources, setActiveSources] = useState<string[]>(["GOOGLE"])
 
-  async function fetchReviews() {
-    setLoading(true)
+  function fetchReviews() {
     const params = new URLSearchParams({ page: String(page), limit: String(LIMIT) })
     if (bizId) params.set("biz", bizId)
     if (sourceFilter !== "ALL") params.set("source", sourceFilter)
@@ -72,11 +72,11 @@ export default function ReviewsPage() {
     if (ratingFilter !== "ALL") params.set("rating", ratingFilter)
     if (search) params.set("q", search)
 
-    const res = await fetch(`/api/reviews?${params}`)
-    const data = await res.json()
+    return fetch(`/api/reviews?${params}`).then(res => { if (!res.ok) throw new Error("Chargement impossible"); return res.json() }).then(data => {
     setReviews(data.reviews ?? [])
     setTotal(data.total ?? 0)
     setLoading(false)
+    }).catch(() => { setLoading(false); toast({ title: "Avis indisponibles", variant: "destructive" }) })
   }
 
   useEffect(() => {

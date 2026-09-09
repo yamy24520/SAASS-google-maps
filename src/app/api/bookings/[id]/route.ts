@@ -1,4 +1,7 @@
-import { NextRequest, NextResponse } from "next/server"
+import { after, NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+import { dateSchema, timeSchema } from "@/lib/booking-rules"
+import { getAvailability } from "@/lib/booking-availability"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
@@ -33,16 +36,34 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Introuvable" }, { status: 404 })
   }
 
-  const body = await req.json()
-  const { status, date, timeSlot, notes, clientName, clientPhone } = body
+  const parsed = z.object({
+    status: z.enum(["PENDING", "CONFIRMED", "CANCELLED"]).optional(),
+    date: dateSchema.optional(), timeSlot: timeSchema.optional(),
+    staffId: z.string().nullable().optional(),
+    notes: z.string().max(5000).nullable().optional(),
+    clientName: z.string().trim().min(1).max(150).optional(),
+    clientPhone: z.string().max(40).nullable().optional(),
+  }).safeParse(await req.json().catch(() => null))
+  if (!parsed.success) return NextResponse.json({ error: "Modification invalide." }, { status: 400 })
+  const { status, date, timeSlot, staffId, notes, clientName, clientPhone } = parsed.data
 
   if (status && !["PENDING", "CONFIRMED", "CANCELLED"].includes(status)) {
     return NextResponse.json({ error: "Statut invalide" }, { status: 400 })
   }
 
-  const updated = await prisma.booking.update({
+  let updated
+  try { updated = await prisma.$transaction(async tx => {
+    let assignedStaff = staffId === undefined ? booking.staffId : staffId
+    if ((status ?? booking.status) !== "CANCELLED" && ((date !== undefined && date !== booking.date) || (timeSlot !== undefined && timeSlot !== booking.timeSlot) || (staffId !== undefined && staffId !== booking.staffId) || (status && status !== booking.status))) {
+      const availability = await getAvailability({ businessId: booking.businessId, date: date ?? booking.date, serviceId: booking.serviceId, staffId: assignedStaff, partySize: booking.partySize ?? 1, ignoreBookingId: id }, tx)
+      if (!availability.slots.includes(timeSlot ?? booking.timeSlot)) throw new Error("Créneau indisponible : horaires, absence ou conflit avec un autre rendez-vous.")
+      assignedStaff = availability.staffForSlot[timeSlot ?? booking.timeSlot]
+    }
+    return tx.booking.update({
     where: { id },
     data: {
+      staffId: assignedStaff,
+      ...((date && date !== booking.date) || (timeSlot && timeSlot !== booking.timeSlot) ? { reminderSentAt: null, smsSentAt: null } : {}),
       ...(status && { status }),
       ...(date && { date }),
       ...(timeSlot && { timeSlot }),
@@ -50,7 +71,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(clientName && { clientName }),
       ...(clientPhone !== undefined && { clientPhone: clientPhone || null }),
     },
-  })
+    })
+  }, { isolationLevel: "Serializable" })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error && error.message.startsWith("Créneau") ? error.message : "Le rendez-vous a changé. Actualisez et réessayez." }, { status: 409 })
+  }
 
   const isRestaurant = booking.business.bookingType === "restaurant"
   const ownerEmail = booking.business.user?.email
@@ -96,9 +121,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     emailSenderName: booking.business.emailSenderName,
   }
 
-  if (status === "CONFIRMED") {
+  after(async () => {
+  if (status === "CONFIRMED" && booking.status !== "CONFIRMED") {
     // Mail client
-    sendBookingConfirmedClient({
+    await sendBookingConfirmedClient({
       clientEmail: booking.clientEmail,
       clientName: booking.clientName,
       businessName: booking.business.name,
@@ -114,13 +140,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }).catch(console.error)
     // Mail proprio
     if (ownerEmail) {
-      sendBookingConfirmedOwner({ ownerEmail, ...ownerBase }).catch(console.error)
+      await sendBookingConfirmedOwner({ ownerEmail, ...ownerBase }).catch(console.error)
     }
   }
 
-  if (status === "CANCELLED") {
+  if (status === "CANCELLED" && booking.status !== "CANCELLED") {
     // Mail client
-    sendBookingCancelledClient({
+    await sendBookingCancelledClient({
       clientEmail: booking.clientEmail,
       clientName: booking.clientName,
       businessName: booking.business.name,
@@ -131,7 +157,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }).catch(console.error)
     // Mail proprio
     if (ownerEmail) {
-      sendBookingCancelledOwner({ ownerEmail, ...ownerBase, cancelledBy: "owner" }).catch(console.error)
+      await sendBookingCancelledOwner({ ownerEmail, ...ownerBase, cancelledBy: "owner" }).catch(console.error)
     }
   }
 
@@ -144,9 +170,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (clientName && clientName !== booking.clientName) changes.push(`👤 Nom : ${booking.clientName} → ${clientName}`)
     if (clientPhone !== undefined && clientPhone !== booking.clientPhone) changes.push(`📞 Téléphone modifié`)
     if (changes.length > 0) {
-      sendBookingModifiedOwner({ ownerEmail, ...ownerBase, changes }).catch(console.error)
+      await sendBookingModifiedOwner({ ownerEmail, ...ownerBase, changes }).catch(console.error)
     }
   }
 
+  })
   return NextResponse.json({ booking: updated })
 }

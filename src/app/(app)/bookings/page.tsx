@@ -78,28 +78,21 @@ export default function BookingsPage() {
     date: "", timeSlot: "", notes: "", status: "CONFIRMED",
     recurrence: "", recurrenceEnd: "",
   })
-  const [availableSlots, setAvailableSlots] = useState<string[]>([])
   const [submittingModal, setSubmittingModal] = useState(false)
 
-  const fetchAll = useCallback(async () => {
-    const [bRes, sRes, stRes] = await Promise.all([
-      fetch(`/api/bookings${bizParam}`),
-      fetch(`/api/services${bizParam}`),
-      fetch(`/api/stats${bizParam}`),
-    ])
+  const fetchAll = useCallback(() => Promise.all([
+    fetch(`/api/bookings${bizParam}`), fetch(`/api/services${bizParam}`), fetch(`/api/stats${bizParam}`),
+  ]).then(async ([bRes, sRes, stRes]) => {
+    if (!bRes.ok || !sRes.ok || !stRes.ok) throw new Error("Chargement impossible")
     const [bData, sData, stData] = await Promise.all([bRes.json(), sRes.json(), stRes.json()])
     setBookings(bData.bookings ?? [])
     setServices(sData.services ?? [])
     setStats(stData.caMonth !== undefined ? stData : null)
     setLoading(false)
-  }, [bizParam])
+  }).catch(() => { setLoading(false); toast({ title: "Chargement impossible", description: "Actualisez la page pour réessayer.", variant: "destructive" }) }), [bizParam])
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  // Réinitialiser les créneaux quand la date ou le service change
-  useEffect(() => {
-    setAvailableSlots([])
-  }, [modalForm.date, modalForm.serviceId])
 
   async function updateStatus(id: string, status: "CONFIRMED" | "CANCELLED") {
     setUpdating(id)

@@ -34,10 +34,6 @@ export default function NewBusinessPage() {
     const error = searchParams.get("error")
     if (error === "google_denied") toast({ title: "Annulé", description: "La connexion Google a été annulée.", variant: "destructive" })
     if (error === "token_failed") toast({ title: "Erreur", description: "Impossible de connecter Google. Réessayez.", variant: "destructive" })
-    const stepParam = searchParams.get("step")
-    if (stepParam) setStep(parseInt(stepParam))
-    const bizParam = searchParams.get("biz")
-    if (bizParam) setBizId(bizParam)
   }, [searchParams])
 
   async function handleConnectGoogle() {

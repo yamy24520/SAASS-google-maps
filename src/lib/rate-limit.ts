@@ -1,40 +1,24 @@
-/**
- * Simple in-memory rate limiter (per-process, resets on cold start).
- * Good enough for serverless where each instance is isolated.
- * For multi-instance production, replace with Upstash Redis.
- */
+import { createHash } from "node:crypto"
+import { prisma } from "./prisma"
+import { Prisma } from "@prisma/client"
 
-interface Entry { count: number; resetAt: number }
-const store = new Map<string, Entry>()
-
-// Periodically clean up expired entries to avoid memory leaks
-if (typeof setInterval !== "undefined") {
-  setInterval(() => {
-    const now = Date.now()
-    for (const [key, entry] of store) {
-      if (entry.resetAt < now) store.delete(key)
-    }
-  }, 60_000)
-}
-
-/**
- * @param key      Unique key (e.g. `ip:POST:/api/bookings`)
- * @param limit    Max requests allowed in the window
- * @param windowMs Window duration in milliseconds
- * @returns `{ ok: true }` if allowed, `{ ok: false, retryAfter: number }` if rate-limited
- */
-export function rateLimit(key: string, limit: number, windowMs: number): { ok: boolean; retryAfter?: number } {
-  const now = Date.now()
-  const entry = store.get(key)
-
-  if (!entry || entry.resetAt < now) {
-    store.set(key, { count: 1, resetAt: now + windowMs })
-    return { ok: true }
-  }
-
-  entry.count++
-  if (entry.count > limit) {
-    return { ok: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) }
-  }
-  return { ok: true }
+/** Atomic PostgreSQL buckets shared by all Vercel instances; no raw emails or IPs stored. */
+export async function rateLimit(key: string, limit: number, windowMs: number): Promise<{ ok: boolean; retryAfter?: number }> {
+  const id = createHash("sha256").update(key).digest("hex")
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + windowMs)
+  const schema = process.env.DATABASE_SCHEMA ?? "public"
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) throw new Error("Invalid database schema")
+  const table = Prisma.raw(`"${schema}"."RateLimitBucket"`)
+  const rows = await prisma.$queryRaw<{ count: number; expiresAt: Date }[]>`
+    INSERT INTO ${table} AS bucket ("id", "count", "expiresAt") VALUES (${id}, 1, ${expiresAt})
+    ON CONFLICT ("id") DO UPDATE SET
+      "count" = CASE WHEN bucket."expiresAt" <= ${now} THEN 1 ELSE bucket."count" + 1 END,
+      "expiresAt" = CASE WHEN bucket."expiresAt" <= ${now} THEN ${expiresAt} ELSE bucket."expiresAt" END
+    WHERE bucket."expiresAt" <= ${now} OR bucket."count" < ${limit}
+    RETURNING "count", "expiresAt"
+  `
+  if (rows.length) return { ok: true }
+  const bucket = await prisma.rateLimitBucket.findUnique({ where: { id }, select: { expiresAt: true } })
+  return { ok: false, retryAfter: Math.max(1, Math.ceil(((bucket?.expiresAt.getTime() ?? expiresAt.getTime()) - now.getTime()) / 1000)) }
 }

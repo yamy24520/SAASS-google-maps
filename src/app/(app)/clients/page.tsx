@@ -75,9 +75,7 @@ export default function ClientsPage() {
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [favoriteStaffId, setFavoriteStaffId] = useState<string>("")
 
-  const fetchClients = useCallback(async () => {
-    const res = await fetch(`/api/bookings${bizParam}`)
-    const data = await res.json()
+  const fetchClients = useCallback(() => fetch(`/api/bookings${bizParam}`).then(res => { if (!res.ok) throw new Error("Chargement impossible"); return res.json() }).then(data => {
     const bookings: (Booking & { clientName: string; clientEmail: string; clientPhone: string | null })[] = data.bookings ?? []
 
     const map = new Map<string, Client>()
@@ -94,7 +92,7 @@ export default function ClientsPage() {
     const sorted = Array.from(map.values()).sort((a, b) => (b.lastVisit ?? "").localeCompare(a.lastVisit ?? ""))
     setClients(sorted)
     setLoading(false)
-  }, [bizParam])
+  }).catch(() => { setLoading(false); toast({ title: "Clients indisponibles", variant: "destructive" }) }), [bizParam])
 
   useEffect(() => { fetchClients() }, [fetchClients])
 

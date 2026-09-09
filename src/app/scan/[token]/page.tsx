@@ -101,7 +101,7 @@ export default function ScanPage({ params }: { params: Promise<{ token: string }
               </h1>
               <p style={{ color: "rgba(232,232,255,0.6)", fontSize: 14, lineHeight: 1.65, textAlign: "center", marginBottom: 24 }}>
                 Prenez en photo votre carte ou importez des images depuis votre galerie.
-                L'IA extrait automatiquement tous les plats et prix.
+                L&apos;IA extrait automatiquement tous les plats et prix.
               </p>
 
               {/* Primary CTA — camera */}
@@ -141,7 +141,7 @@ export default function ScanPage({ params }: { params: Promise<{ token: string }
 
             <p style={{ color: "rgba(232,232,255,0.3)", fontSize: 12, textAlign: "center", lineHeight: 1.6 }}>
               Vous pouvez ajouter plusieurs photos pour couvrir toute la carte.
-              Les résultats s'ajoutent automatiquement à votre page.
+              Les résultats s&apos;ajoutent automatiquement à votre page.
             </p>
           </>
         )}
@@ -194,7 +194,7 @@ export default function ScanPage({ params }: { params: Promise<{ token: string }
               background: "rgba(255,255,255,0.07)", border: "1.5px solid rgba(255,255,255,0.12)",
               color: "rgba(232,232,255,0.8)", fontWeight: 600, fontSize: 14, cursor: "pointer",
             }}>
-              + Ajouter d'autres photos
+              + Ajouter d&apos;autres photos
               <input type="file" accept="image/*" capture="environment" multiple style={{ display: "none" }}
                 onChange={e => {
                   if (e.target.files?.length) {

@@ -6,6 +6,13 @@ datasource db {
   provider = "postgresql"
 }
 
+model RateLimitBucket {
+  id        String   @id
+  count     Int
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 
 model User {
@@ -90,6 +97,7 @@ model Business {
 
   gbpAccountId         String?
   gbpLocationId        String?
+  gbpReviewLocationId  String?
   gbpLocationName      String?
   gbpAccessToken       String?          @db.Text
   gbpRefreshToken      String?          @db.Text
@@ -103,6 +111,9 @@ model Business {
   alertEmailEnabled    Boolean      @default(true)
 
   lastSyncAt           DateTime?
+  syncAttemptAt        DateTime?
+  syncLeaseUntil       DateTime?
+  reviewSyncCursor     String?
   totalReviews         Int          @default(0)
   averageRating        Float        @default(0)
   responseRate         Float        @default(0)

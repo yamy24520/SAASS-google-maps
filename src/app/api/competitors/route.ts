@@ -1,15 +1,16 @@
+import { businessScope } from "@/lib/business-scope"
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { findNearbyCompetitors, getPlaceDetails } from "@/lib/google-places"
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
   const business = await prisma.business.findFirst({
-    where: { userId: session.user.id },
+    where: businessScope(req, session.user.id),
     include: { competitors: { orderBy: { rating: "desc" } } },
   })
 
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
 
   const { lat, lng } = await req.json()
 
-  const business = await prisma.business.findFirst({ where: { userId: session.user.id } })
+  const business = await prisma.business.findFirst({ where: businessScope(req, session.user.id) })
   if (!business) return NextResponse.json({ error: "Aucun établissement" }, { status: 404 })
 
   try {

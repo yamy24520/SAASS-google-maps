@@ -1,3 +1,5 @@
+import { rateLimit } from "@/lib/rate-limit"
+import { businessScope } from "@/lib/business-scope"
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
@@ -6,12 +8,14 @@ import Anthropic from "@anthropic-ai/sdk"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+  const quota = await rateLimit(`src/app/api/insights/route.ts:${session.user.id}`, 1, 3600000)
+  if (!quota.ok) return NextResponse.json({ error: "Limite temporaire atteinte. Réessayez plus tard.", retryAfter: quota.retryAfter }, { status: 429, headers: { "Retry-After": String(quota.retryAfter) } })
 
   const business = await prisma.business.findFirst({
-    where: { userId: session.user.id },
+    where: businessScope(req, session.user.id),
     include: {
       reviews: {
         orderBy: { reviewPublishedAt: "desc" },

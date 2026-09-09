@@ -8,7 +8,7 @@ import { z } from "zod"
 
 const schema = z.object({
   name: z.string().min(2).optional(),
-  category: z.enum(["RESTAURANT", "HOTEL", "BAR", "CAFE", "SPA", "RETAIL", "SERVICE", "OTHER"]).optional(),
+  category: z.enum(["RESTAURANT", "HOTEL", "BAR", "CAFE", "SPA", "HAIR_SALON", "BEAUTY", "RETAIL", "SERVICE", "OTHER"]).optional(),
   responseTone: z.enum(["PROFESSIONAL", "FRIENDLY", "LUXURY", "CASUAL"]).optional(),
   autoReplyEnabled: z.boolean().optional(),
   autoReplyMinRating: z.number().min(1).max(5).optional(),
@@ -30,12 +30,12 @@ const schema = z.object({
     website: z.string().optional(),
     tripadvisor: z.string().optional(),
   }).nullable().optional(),
-  logoDataUrl: z.string().nullable().optional(),
+  logoDataUrl: z.string().max(700_000, "Le logo est trop volumineux (500 Ko maximum).").nullable().optional(),
   pageTheme: z.string().optional(),
   pageStyle: z.string().optional(),
   pageTagline: z.string().nullable().optional(),
   pageAccentColor: z.string().nullable().optional(),
-  pageCoverDataUrl: z.string().nullable().optional(),
+  pageCoverDataUrl: z.string().max(2_800_000, "La couverture est trop volumineuse (2 Mo maximum).").nullable().optional(),
   pageDescription: z.string().nullable().optional(),
   pageLegalText: z.string().nullable().optional(),
   pageLabels: z.record(z.string(), z.string()).nullable().optional(),
@@ -70,7 +70,9 @@ export async function GET(req: NextRequest) {
 
   const bizId = new URL(req.url).searchParams.get("biz")
   const business = await getBusinessForUser(session.user.id, bizId)
-  return NextResponse.json({ business })
+  if (!business) return NextResponse.json({ business: null })
+  const { gbpAccessToken: _access, gbpRefreshToken: _refresh, calendarToken: _calendar, ...safeBusiness } = business
+  return NextResponse.json({ business: safeBusiness })
 }
 
 export async function PUT(req: NextRequest) {
@@ -147,7 +149,7 @@ export async function PUT(req: NextRequest) {
       })
     }
 
-    return NextResponse.json({ business })
+    return NextResponse.json({ business: { ...business, gbpAccessToken: undefined, gbpRefreshToken: undefined, calendarToken: undefined } })
   } catch (err) {
     console.error("[settings PUT] db error:", err)
     return NextResponse.json({ error: "Erreur serveur." }, { status: 500 })

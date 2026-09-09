@@ -10,6 +10,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://reputix.net"),
   title: {
     default: "Reputix — Gérez votre réputation en ligne automatiquement",
     template: "%s | Reputix",

@@ -1,15 +1,16 @@
+import { businessScope } from "@/lib/business-scope"
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getPlaceDetails } from "@/lib/google-places"
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
 
   const business = await prisma.business.findFirst({
-    where: { userId: session.user.id },
+    where: businessScope(req, session.user.id),
     include: {
       _count: { select: { reviews: true } },
       reviews: {
@@ -56,14 +57,14 @@ export async function GET() {
       label: "Note moyenne ≥ 4.0",
       done: business.averageRating >= 4.0,
       impact: "high",
-      tip: "Une note ≥ 4.0 est le seuil critique pour apparaître dans le Google Local Pack.",
+      tip: "Une bonne note aide les clients à choisir votre établissement. Ce seuil est un repère interne, pas une règle de classement Google.",
     },
     {
       id: "reviews_count",
       label: "Plus de 50 avis",
       done: business.totalReviews >= 50,
       impact: "medium",
-      tip: "Les établissements avec 50+ avis sont favorisés dans les résultats locaux.",
+      tip: "Développez progressivement le nombre d’avis authentiques pour mieux représenter l’expérience de vos clients.",
     },
     {
       id: "website",
@@ -91,14 +92,14 @@ export async function GET() {
       label: "Photos présentes (5+)",
       done: (placeDetails?.photos?.length ?? 0) >= 5,
       impact: "medium",
-      tip: "Les fiches avec 5+ photos reçoivent 42% de demandes d'itinéraire en plus.",
+      tip: "Ajoutez des photos récentes et représentatives pour aider les clients à découvrir votre établissement.",
     },
     {
       id: "auto_reply",
       label: "Auto-réponse activée",
       done: business.autoReplyEnabled,
       impact: "low",
-      tip: "L'auto-réponse garantit un temps de réponse rapide, facteur de classement.",
+      tip: "L’auto-réponse facilite le suivi des avis positifs lorsque la connexion Google est opérationnelle.",
     },
     {
       id: "negative_alerts",
@@ -116,7 +117,10 @@ export async function GET() {
   return NextResponse.json({
     score,
     responseRate,
-    checklist,
+    checklist: checklist.map(item => ({ ...item,
+      actionUrl: ["place_linked", "website", "phone", "hours", "photos"].includes(item.id) ? `/reputation?biz=${encodeURIComponent(business.id)}` : item.id === "auto_reply" || item.id === "negative_alerts" ? `/settings?biz=${encodeURIComponent(business.id)}` : `/reviews?biz=${encodeURIComponent(business.id)}`,
+      actionLabel: "Voir et améliorer",
+    })),
     placeDetails: placeDetails
       ? {
           name: placeDetails.name,

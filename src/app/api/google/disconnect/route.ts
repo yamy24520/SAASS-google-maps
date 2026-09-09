@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       gbpTokenExpiresAt: null,
       gbpConnectedAt: null,
       gbpAccountId: null,
-      gbpLocationId: null,
+      gbpReviewLocationId: null,
       gbpLocationName: null,
     },
   })

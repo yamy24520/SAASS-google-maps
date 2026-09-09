@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { after, NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
@@ -6,6 +6,9 @@ import { sendBookingRequestClient, sendBookingRequestOwner } from "@/lib/email"
 import { sendPushNotification } from "@/lib/push"
 import { randomUUID } from "crypto"
 import { rateLimit } from "@/lib/rate-limit"
+
+import { bookingSchema, recurringDates } from "@/lib/booking-rules"
+import { getAvailability } from "@/lib/booking-availability"
 
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://reputix.net"
 
@@ -38,10 +41,12 @@ export async function GET(req: NextRequest) {
 // POST — public ou dashboard (manuelle): créer une réservation
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown"
-  const rl = rateLimit(`bookings:${ip}`, 10, 60_000)
+  const rl = await rateLimit(`bookings:${ip}`, 10, 60_000)
   if (!rl.ok) return NextResponse.json({ error: "Trop de requêtes, réessayez dans " + rl.retryAfter + "s" }, { status: 429 })
 
-  const { businessId, serviceId, staffId, clientName, clientEmail, clientPhone, date, timeSlot, notes, partySize, manualStatus, recurrence, recurrenceEnd, smsOptIn } = await req.json()
+  const parsed = bookingSchema.safeParse(await req.json().catch(() => null))
+  if (!parsed.success) return NextResponse.json({ error: "Réservation invalide. Vérifiez les champs, la date et l’adresse email." }, { status: 400 })
+  const { businessId, serviceId, staffId, clientName, clientEmail, clientPhone, date, timeSlot, notes, partySize, manualStatus, recurrence, recurrenceEnd, smsOptIn } = parsed.data
 
   if (!clientName || !date || !timeSlot) {
     return NextResponse.json({ error: "Champs manquants" }, { status: 400 })
@@ -63,13 +68,17 @@ export async function POST(req: NextRequest) {
   const business = await prisma.business.findUnique({
     where: { id: resolvedBusinessId },
     select: {
-      id: true, name: true, bookingType: true, bookingMaxCovers: true,
+      id: true, name: true, bookingType: true, bookingMaxCovers: true, bookingEnabled: true,
       user: { select: { id: true, email: true } },
       emailHeaderUrl: true, emailHeaderHeight: true, emailBgColor: true, emailButtonColor: true,
       emailGreeting: true, emailFooterMessage: true, emailSenderName: true,
     },
   })
   if (!business) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
+  const ownerSession = await getServerSession(authOptions)
+  const isOwner = ownerSession?.user?.id === business.user.id
+  if ((manualStatus || (recurrence && recurrence !== "none")) && !isOwner) return NextResponse.json({ error: "Création manuelle réservée au propriétaire." }, { status: 403 })
+  if (!isOwner && !business.bookingEnabled) return NextResponse.json({ error: "Les réservations sont désactivées." }, { status: 403 })
   const businessId2 = business.id
 
   const isRestaurant = business.bookingType === "restaurant"
@@ -82,22 +91,10 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // Récurrence : générer toutes les dates
-  const dates: string[] = [date]
-  if (recurrence && recurrenceEnd) {
-    const endDate = new Date(recurrenceEnd + "T00:00:00")
-    let cur = new Date(date + "T00:00:00")
-    while (true) {
-      cur = new Date(cur)
-      if (recurrence === "monthly") {
-        cur.setMonth(cur.getMonth() + 1)
-      } else {
-        cur.setDate(cur.getDate() + (recurrence === "weekly" ? 7 : 14))
-      }
-      if (cur > endDate) break
-      dates.push(cur.toISOString().split("T")[0])
-    }
-  }
+  if (!isRestaurant && !service) return NextResponse.json({ error: "Prestation introuvable." }, { status: 400 })
+  let dates: string[]
+  try { dates = recurringDates(date, recurrence, recurrenceEnd) }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Récurrence invalide" }, { status: 400 }) }
 
   const recurrenceGroupId = dates.length > 1 ? randomUUID() : null
   const cancelToken = randomUUID()
@@ -106,90 +103,31 @@ export async function POST(req: NextRequest) {
   // pour éviter les race conditions (double booking au même créneau)
   let booking
   try { booking = await prisma.$transaction(async (tx) => {
-    // Vérifier conflit côté serveur (seulement si pas manualStatus, i.e. réservation publique)
-    if (!manualStatus) {
-      if (isRestaurant) {
-        if (business.bookingMaxCovers) {
-          const existingCovers = await tx.booking.aggregate({
-            where: { businessId: businessId2, date, timeSlot, status: { not: "CANCELLED" } },
-            _sum: { partySize: true },
-          })
-          const taken = existingCovers._sum.partySize ?? 0
-          const needed = partySize ?? 1
-          if (taken + needed > business.bookingMaxCovers) {
-            throw Object.assign(new Error("Plus de places disponibles pour ce créneau"), { status: 409 })
-          }
-        }
-      } else {
-        const conflict = await tx.booking.findFirst({
-          where: { businessId: businessId2, date, timeSlot, status: { not: "CANCELLED" }, ...(staffId ? { staffId } : {}) },
-        })
-        if (conflict) throw Object.assign(new Error("Ce créneau n'est plus disponible"), { status: 409 })
-      }
+    for (let index = 0; index < dates.length; index++) {
+      const d = dates[index]
+      const availability = await getAvailability({ businessId: businessId2, date: d, serviceId, staffId, partySize: partySize ?? 1 }, tx)
+      if (!availability.slots.includes(timeSlot)) throw Object.assign(new Error(`Créneau indisponible le ${d} à ${timeSlot}.`), { status: 409 })
+      await tx.booking.create({ data: {
+        businessId: businessId2, serviceId: isRestaurant ? null : serviceId,
+        staffId: availability.staffForSlot[timeSlot], clientName, clientEmail,
+        clientPhone: clientPhone || null, date: d, timeSlot, notes: notes || null,
+        partySize: isRestaurant ? partySize ?? 1 : null,
+        cancelToken: index === 0 ? cancelToken : randomUUID(), recurrenceGroupId,
+        status: manualStatus ?? "PENDING",
+      } })
     }
-
-    // Auto-assign staff
-    let resolvedStaffId: string | null = staffId || null
-    if (!resolvedStaffId && !isRestaurant) {
-      const activeStaffs = await tx.staff.findMany({
-        where: { businessId: businessId2, active: true },
-        select: { id: true },
-      })
-      if (activeStaffs.length > 0) {
-        const absences = await tx.staffAbsence.findMany({
-          where: { staffId: { in: activeStaffs.map(s => s.id) }, startDate: { lte: date }, endDate: { gte: date } },
-          select: { staffId: true },
-        })
-        const absentIds = new Set(absences.map(a => a.staffId))
-        const slotConflicts = await tx.booking.findMany({
-          where: { businessId: businessId2, date, timeSlot, status: { not: "CANCELLED" }, staffId: { in: activeStaffs.map(s => s.id) } },
-          select: { staffId: true },
-        })
-        const bookedIds = new Set(slotConflicts.map(b => b.staffId).filter(Boolean) as string[])
-        const available = activeStaffs.filter(s => !absentIds.has(s.id) && !bookedIds.has(s.id))
-        if (available.length > 0) {
-          const counts = await tx.booking.groupBy({
-            by: ["staffId"],
-            where: { businessId: businessId2, date, status: { not: "CANCELLED" }, staffId: { in: available.map(s => s.id) } },
-            _count: { id: true },
-          })
-          const countMap = new Map(counts.map(c => [c.staffId, c._count.id]))
-          const sorted = [...available].sort((a, b) => (countMap.get(a.id) ?? 0) - (countMap.get(b.id) ?? 0))
-          resolvedStaffId = sorted[0].id
-        }
-      }
-    }
-
-    // Créer tous les RDV
-    const bookingsData = dates.map((d, i) => ({
-      businessId: businessId2,
-      serviceId: serviceId || null,
-      staffId: resolvedStaffId,
-      clientName,
-      clientEmail,
-      clientPhone: clientPhone || null,
-      date: d,
-      timeSlot,
-      notes: notes || null,
-      partySize: partySize || null,
-      cancelToken: i === 0 ? cancelToken : randomUUID(),
-      recurrenceGroupId,
-      status: (manualStatus ?? "PENDING") as "PENDING" | "CONFIRMED" | "CANCELLED",
-    }))
-
-    await tx.booking.createMany({ data: bookingsData })
     return tx.booking.findFirst({ where: { cancelToken } })
-  }, { isolationLevel: "Serializable" })
+  }, { isolationLevel: "Serializable", timeout: 30000 })
   } catch (err: unknown) {
-    const e = err as Error & { status?: number }
-    const status = e.status ?? 500
-    return NextResponse.json({ error: e.message ?? "Erreur lors de la création" }, { status })
+    const e = err as Error & { status?: number; code?: string }
+    const status = e.code === "P2034" ? 409 : e.status ?? 500
+    return NextResponse.json({ error: status === 500 ? "Erreur lors de la création" : e.code === "P2034" ? "Ce créneau vient de changer. Réessayez." : e.message }, { status })
   }
 
   if (!booking) return NextResponse.json({ error: "Erreur lors de la création" }, { status: 500 })
 
   // Archiver le lead email — fire-and-forget intentionnel (non-critique)
-  void prisma.leadEmail.upsert({
+  await prisma.leadEmail.upsert({
     where: { businessId_email: { businessId: businessId2, email: clientEmail } } as never,
     update: { name: clientName, phone: clientPhone || null },
     create: { businessId: businessId2, email: clientEmail, name: clientName, phone: clientPhone || null, source: "booking" },
@@ -197,7 +135,7 @@ export async function POST(req: NextRequest) {
 
   // Upsert ClientProfile pour conserver smsOptIn (fire-and-forget)
   if (typeof smsOptIn === "boolean") {
-    void prisma.clientProfile.upsert({
+    await prisma.clientProfile.upsert({
       where: { businessId_email: { businessId: businessId2, email: clientEmail } },
       update: { smsOptIn },
       create: { businessId: businessId2, email: clientEmail, smsOptIn },
@@ -247,11 +185,12 @@ export async function POST(req: NextRequest) {
   }
 
   // Notifications push au propriétaire
+  after(async () => {
   if (business.user?.id) {
-    prisma.pushSubscription.findMany({ where: { userId: business.user.id } }).then(subs => {
+    await prisma.pushSubscription.findMany({ where: { userId: business.user.id } }).then(subs => {
       const serviceName = isRestaurant ? `Table pour ${partySize ?? 1}` : (service?.name ?? "RDV")
-      subs.forEach(sub => {
-        sendPushNotification(sub, {
+      return Promise.all(subs.map(async sub => {
+        await sendPushNotification(sub, {
           title: `📅 Nouveau RDV — ${clientName}`,
           body: `${serviceName} · ${new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })} à ${timeSlot}`,
           url: "/bookings",
@@ -260,11 +199,11 @@ export async function POST(req: NextRequest) {
             prisma.pushSubscription.delete({ where: { endpoint: sub.endpoint } }).catch(() => null)
           }
         })
-      })
+      }))
     }).catch(() => null)
   }
 
-  Promise.all([
+  await Promise.all([
     sendBookingRequestClient(emailParams).catch(console.error),
     business.user?.email
       ? sendBookingRequestOwner({
@@ -285,5 +224,6 @@ export async function POST(req: NextRequest) {
       : Promise.resolve(),
   ])
 
+  })
   return NextResponse.json({ booking })
 }

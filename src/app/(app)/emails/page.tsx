@@ -215,7 +215,7 @@ function EmailsPageInner() {
               <ImageIcon className="w-4 h-4 text-slate-500" />
               <h2 className="font-semibold text-slate-800 text-sm">Image en-tête</h2>
             </div>
-            <p className="text-xs text-slate-500 mb-3">URL d'une image ou d'un GIF affiché en haut de l'email. Laissez vide pour supprimer.</p>
+            <p className="text-xs text-slate-500 mb-3">URL d&apos;une image ou d&apos;un GIF affiché en haut de l&apos;email. Laissez vide pour supprimer.</p>
             <input
               type="url"
               value={settings.emailHeaderUrl ?? ""}
@@ -240,14 +240,14 @@ function EmailsPageInner() {
                 onClick={() => setSettings(s => ({ ...s, emailHeaderUrl: null }))}
                 className="text-xs text-slate-500 hover:text-red-600 underline"
               >
-                Supprimer l'image
+                Supprimer l&apos;image
               </button>
             </div>
 
             {(settings.emailHeaderUrl || settings.emailHeaderUrl === null) && (
               <div className="mt-4 pt-4 border-t border-slate-100">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-medium text-slate-600">Hauteur de l'image</label>
+                  <label className="text-xs font-medium text-slate-600">Hauteur de l&apos;image</label>
                   <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                     {settings.emailHeaderHeight ? `${settings.emailHeaderHeight}px` : "Auto"}
                   </span>
@@ -285,7 +285,7 @@ function EmailsPageInner() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">Fond de l'email</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Fond de l&apos;email</label>
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <input
@@ -345,7 +345,7 @@ function EmailsPageInner() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1.5">Message du pied de mail</label>
-                <p className="text-xs text-slate-400 mb-1.5">Affiché dans le footer sombre en bas de l'email.</p>
+                <p className="text-xs text-slate-400 mb-1.5">Affiché dans le footer sombre en bas de l&apos;email.</p>
                 <textarea
                   value={settings.emailFooterMessage ?? ""}
                   onChange={e => setSettings(s => ({ ...s, emailFooterMessage: e.target.value || null }))}
@@ -355,8 +355,8 @@ function EmailsPageInner() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">Nom d'expéditeur</label>
-                <p className="text-xs text-slate-400 mb-1.5">Nom affiché dans la boîte de réception du client (ex: "Le Saint James").</p>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Nom d&apos;expéditeur</label>
+                <p className="text-xs text-slate-400 mb-1.5">Nom affiché dans la boîte de réception du client (ex: &quot;Le Saint James&quot;).</p>
                 <input
                   type="text"
                   value={settings.emailSenderName ?? ""}

@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "@/components/ui/toaster"
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
@@ -68,13 +69,16 @@ export function DashboardClient() {
   async function handleSync() {
     setSyncing(true)
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 28000)
+    const timeout = setTimeout(() => controller.abort(), 290000)
     try {
       const res = await fetch(`/api/reviews/sync${bizParam}`, { method: "POST", signal: controller.signal })
-      if (res.ok) await fetchData()
-    } catch {
-      // timeout or network error — still refresh data
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error ?? "Synchronisation impossible")
+      const messages = [...(result.errors ?? []), ...(result.warnings ?? [])]
+      toast({ title: result.cached ? "Synchronisation récente" : `${result.synced} nouvel(s) avis`, description: messages.join(" ") || "Vos avis sont à jour.", variant: result.errors?.length ? "destructive" : "success" })
       await fetchData()
+    } catch (error) {
+      toast({ title: "Synchronisation interrompue", description: error instanceof Error ? error.message : "Réessayez plus tard.", variant: "destructive" })
     } finally {
       clearTimeout(timeout)
       setSyncing(false)

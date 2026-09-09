@@ -18,7 +18,7 @@ export default function ClaimPage({
   params: Promise<{ businessId: string; token: string }>
 }) {
   const { businessId, token } = use(params)
-  const [info, setInfo] = useState<any>(null)
+  const [info, setInfo] = useState<{ error?: string; placeId?: string; businessName?: string; offerText?: string; offerType?: string; spinPrizes?: { label: string; emoji: string; probability: number }[]; alreadyClaimed?: boolean; prizeWon?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [spinning, setSpinning] = useState(false)
   const [prize, setPrize] = useState<string | null>(null)
@@ -119,9 +119,9 @@ export default function ClaimPage({
           key={i}
           className="cc"
           style={{
-            left: `${(i / 24) * 100 + (Math.random() * 4 - 2)}%`,
-            width: `${7 + Math.floor(Math.random() * 8)}px`,
-            height: `${7 + Math.floor(Math.random() * 8)}px`,
+            left: `${(i / 24) * 100 + ((i * 7 % 5) - 2)}%`,
+            width: `${7 + (i * 3 % 8)}px`,
+            height: `${7 + (i * 3 % 8)}px`,
             background: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
             borderRadius: i % 3 === 0 ? "50%" : "2px",
             animationDuration: `${1.8 + (i % 5) * 0.4}s`,

@@ -1,3 +1,10 @@
+interface GooglePlace {
+  id: string; displayName?: { text: string }; rating?: number; userRatingCount?: number;
+  formattedAddress?: string; primaryTypeDisplayName?: { text: string }; primaryType?: string;
+  photos?: { name: string }[]; location?: { latitude: number; longitude: number };
+  websiteUri?: string; nationalPhoneNumber?: string; regularOpeningHours?: { weekdayDescriptions: string[] };
+}
+interface GoogleReview { authorAttribution?: { displayName: string }; rating?: number; text?: { text: string }; publishTime?: string }
 const PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY!
 const BASE = "https://places.googleapis.com/v1"
 
@@ -36,7 +43,7 @@ export async function searchPlace(query: string): Promise<PlaceResult[]> {
   if (!res.ok) throw new Error(`Places search failed: ${await res.text()}`)
   const data = await res.json()
 
-  return (data.places ?? []).slice(0, 5).map((p: any) => ({
+  return (data.places ?? []).slice(0, 5).map((p: GooglePlace) => ({
     placeId: p.id,
     name: p.displayName?.text ?? "",
     rating: p.rating ?? 0,
@@ -73,7 +80,7 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceDetails> {
     website: p.websiteUri,
     phone: p.nationalPhoneNumber,
     openingHours: p.regularOpeningHours?.weekdayDescriptions ?? [],
-    photos: (p.photos ?? []).slice(0, 5).map((ph: any) => getPhotoUrl(ph.name)),
+    photos: (p.photos ?? []).slice(0, 5).map((ph: { name: string }) => getPhotoUrl(ph.name)),
     photoUrl: p.photos?.[0]?.name ? getPhotoUrl(p.photos[0].name) : undefined,
     lat: p.location?.latitude,
     lng: p.location?.longitude,
@@ -98,7 +105,7 @@ export async function getPlaceReviews(placeId: string): Promise<PlaceReview[]> {
   })
   if (!res.ok) return []
   const p = await res.json()
-  return (p.reviews ?? []).map((r: any) => ({
+  return (p.reviews ?? []).map((r: GoogleReview) => ({
     authorName: r.authorAttribution?.displayName ?? "Anonyme",
     rating: r.rating ?? 0,
     text: r.text?.text ?? "",
@@ -136,9 +143,9 @@ export async function findNearbyCompetitors(
   const data = await res.json()
 
   return (data.places ?? [])
-    .filter((p: any) => p.id !== excludePlaceId)
+    .filter((p: GooglePlace) => p.id !== excludePlaceId)
     .slice(0, 5)
-    .map((p: any) => ({
+    .map((p: GooglePlace) => ({
       placeId: p.id,
       name: p.displayName?.text ?? "",
       rating: p.rating ?? 0,

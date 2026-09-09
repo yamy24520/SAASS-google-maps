@@ -1,4 +1,7 @@
 "use client"
+import type { ApiData } from "@/types/api-data"
+import type { GET as getApiData } from "@/app/api/seo-local/route"
+import { useSearchParams } from "next/navigation"
 
 import { useEffect, useState } from "react"
 import { CheckCircle2, XCircle, AlertCircle, RefreshCw, Zap, AlertTriangle, ExternalLink } from "lucide-react"
@@ -18,7 +21,10 @@ const impactLabels = {
 }
 
 export default function SeoLocalPage() {
-  const [data, setData] = useState<any>(null)
+  const searchParams = useSearchParams()
+  const biz = searchParams.get("biz")
+  const bizParam = biz ? `?biz=${encodeURIComponent(biz)}` : ""
+  const [data, setData] = useState<ApiData<typeof getApiData> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -26,7 +32,7 @@ export default function SeoLocalPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("/api/seo-local")
+      const res = await fetch(`/api/seo-local${bizParam}`)
       if (!res.ok) throw new Error(`Erreur ${res.status}`)
       const json = await res.json()
       setData(json)
@@ -37,7 +43,7 @@ export default function SeoLocalPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return (
     <div className="space-y-6 animate-pulse">
@@ -72,7 +78,7 @@ export default function SeoLocalPage() {
 
   const score = data?.score ?? 0
   const checklist = data?.checklist ?? []
-  const done = checklist.filter((c: any) => c.done).length
+  const done = checklist.filter((c) => c.done).length
   const total = checklist.length
 
   const scoreBg = score >= 80 ? "from-emerald-500 to-teal-500" : score >= 50 ? "from-amber-500 to-orange-500" : "from-red-500 to-rose-500"
@@ -120,7 +126,7 @@ export default function SeoLocalPage() {
 
       {/* Checklist by impact */}
       {(["high", "medium", "low"] as const).map((impact) => {
-        const items = checklist.filter((c: any) => c.impact === impact)
+        const items = checklist.filter((c) => c.impact === impact)
         if (items.length === 0) return null
         return (
           <Card key={impact}>
@@ -132,7 +138,7 @@ export default function SeoLocalPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {items.map((item: any) => (
+              {items.map((item) => (
                 <div
                   key={item.id}
                   className={`flex items-start gap-3 p-4 rounded-2xl border transition-all ${

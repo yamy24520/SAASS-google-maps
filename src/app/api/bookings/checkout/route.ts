@@ -1,26 +1,33 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import Stripe from "stripe"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://reputix.net"
 
 export async function POST(req: NextRequest) {
-  const { bookingId } = await req.json()
-  if (!bookingId) return NextResponse.json({ error: "bookingId requis" }, { status: 400 })
+  const body = await req.json().catch(() => null)
+  const bookingId = body?.bookingId
+  if (typeof bookingId !== "string") return NextResponse.json({ error: "bookingId requis" }, { status: 400 })
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
     include: {
-      business: { select: { id: true, name: true, stripeAccountId: true, bookingSettings: true } },
+      business: { select: { id: true, userId: true, name: true, stripeAccountId: true, bookingSettings: true } },
       service: { select: { name: true, price: true, duration: true } },
     },
   })
 
   if (!booking) return NextResponse.json({ error: "Réservation introuvable" }, { status: 404 })
+  const session = await getServerSession(authOptions)
+  if ((!booking.cancelToken || body.bookingToken !== booking.cancelToken) && session?.user?.id !== booking.business.userId) return NextResponse.json({ error: "Non autorisé" }, { status: 403 })
+  if (booking.status === "CANCELLED" || booking.paymentStatus === "PAID" || booking.paymentStatus === "REFUNDED") return NextResponse.json({ error: "Cette réservation ne peut plus être payée." }, { status: 409 })
   if (!booking.business.stripeAccountId) return NextResponse.json({ error: "Paiement non configuré" }, { status: 400 })
 
   const settings = (booking.business.bookingSettings ?? {}) as Record<string, unknown>
+  if (!settings.paymentEnabled) return NextResponse.json({ error: "Le paiement en ligne est désactivé." }, { status: 400 })
   const depositType = (settings.depositType as string) ?? "full"
   const depositValue = (settings.depositValue as number) ?? 100
   const servicePrice = booking.service?.price ?? 0
@@ -34,7 +41,12 @@ export async function POST(req: NextRequest) {
     amount = Math.round(servicePrice * 100)
   }
 
-  if (amount < 50) return NextResponse.json({ error: "Montant trop faible (min 0,50 €)" }, { status: 400 })
+  if (!Number.isFinite(amount) || amount < 50 || amount > Math.round(servicePrice * 100)) return NextResponse.json({ error: "Montant invalide : entre 0,50 € et le prix de la prestation." }, { status: 400 })
+  if (booking.paymentIntentId && booking.paymentStatus === "PENDING") {
+    const existing = await stripe.checkout.sessions.retrieve(booking.paymentIntentId, {}, { stripeAccount: booking.business.stripeAccountId })
+    if (existing.status === "open" && existing.url) return NextResponse.json({ url: existing.url })
+    if (existing.payment_status === "paid") return NextResponse.json({ error: "Paiement reçu, confirmation en cours." }, { status: 409 })
+  }
 
   const dateLabel = new Date(booking.date + "T12:00:00").toLocaleDateString("fr-FR", {
     weekday: "long", day: "numeric", month: "long",
@@ -67,7 +79,7 @@ export async function POST(req: NextRequest) {
       cancel_url: `${APP_URL}/book/cancel?booking=${bookingId}`,
       metadata: { bookingId: booking.id, businessId: booking.businessId },
     },
-    { stripeAccount: booking.business.stripeAccountId }
+    { stripeAccount: booking.business.stripeAccountId, idempotencyKey: `booking:${booking.id}:${booking.paymentIntentId ?? "initial"}:${amount}` }
   )
 
   // Mettre à jour le booking avec le session ID et le montant

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getGBPAuthUrl } from "@/lib/google-business"
+import { createGoogleState } from "@/lib/google-oauth-state"
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -22,6 +23,10 @@ export async function GET(req: NextRequest) {
     businessId = business.id
   }
 
-  const url = getGBPAuthUrl(businessId)
-  return NextResponse.redirect(url)
+  const owned = await prisma.business.findFirst({ where: { id: businessId, userId: session.user.id } })
+  if (!owned) return NextResponse.json({ error: "Établissement introuvable" }, { status: 404 })
+  const state = createGoogleState(session.user.id, businessId)
+  const response = NextResponse.redirect(getGBPAuthUrl(state))
+  response.cookies.set("google_oauth_state", state, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/api/google", maxAge: 600 })
+  return response
 }

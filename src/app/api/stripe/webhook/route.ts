@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
 
       // ── Paiement réservation (bookingId dans metadata) ──
       if (session.metadata?.bookingId) {
+        if (session.payment_status !== "paid") break
         const bookingId = session.metadata.bookingId
         const booking = await prisma.booking.findUnique({
           where: { id: bookingId },
@@ -31,11 +32,12 @@ export async function POST(req: NextRequest) {
             service: { select: { name: true, duration: true, price: true } },
           },
         })
-        if (booking) {
-          await prisma.booking.update({
-            where: { id: bookingId },
-            data: { status: "CONFIRMED", paymentStatus: "PAID" },
+        if (booking && booking.paymentIntentId === session.id && session.amount_total === Math.round((booking.depositAmount ?? 0) * 100)) {
+          const claimed = await prisma.booking.updateMany({
+            where: { id: bookingId, paymentIntentId: session.id, paymentStatus: "PENDING" },
+            data: { ...(booking.status === "CANCELLED" ? {} : { status: "CONFIRMED" }), paymentStatus: "PAID" },
           })
+          if (!claimed.count || booking.status === "CANCELLED") break
 
           const dateLabel = new Date(booking.date + "T12:00:00").toLocaleDateString("fr-FR", {
             weekday: "long", day: "numeric", month: "long", year: "numeric",
@@ -62,7 +64,7 @@ export async function POST(req: NextRequest) {
       if (!userId || !session.subscription) break
 
       const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
-      const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end
+      const periodEnd = subscription.items.data[0]?.current_period_end
 
       await prisma.subscription.upsert({
         where: { stripeCustomerId: session.customer as string },
@@ -72,13 +74,13 @@ export async function POST(req: NextRequest) {
           stripeSubscriptionId: subscription.id,
           stripePriceId: subscription.items.data[0].price.id,
           stripeCurrentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
-          status: subscription.status === "trialing" ? "TRIALING" : "ACTIVE",
+          status: mapStatus(subscription.status),
         },
         update: {
           stripeSubscriptionId: subscription.id,
           stripePriceId: subscription.items.data[0].price.id,
           stripeCurrentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
-          status: subscription.status === "trialing" ? "TRIALING" : "ACTIVE",
+          status: mapStatus(subscription.status),
         },
       })
       break
@@ -86,7 +88,7 @@ export async function POST(req: NextRequest) {
 
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription
-      const updatedPeriodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end
+      const updatedPeriodEnd = subscription.items.data[0]?.current_period_end
       await prisma.subscription.updateMany({
         where: { stripeSubscriptionId: subscription.id },
         data: {
@@ -109,8 +111,9 @@ export async function POST(req: NextRequest) {
 
     case "invoice.payment_failed": {
       const invoice = event.data.object as Stripe.Invoice
-      if ((invoice as unknown as { subscription?: string }).subscription) {
-        const invoiceSub = (invoice as unknown as { subscription?: string }).subscription
+      const invoiceSubscription = invoice.parent?.subscription_details?.subscription
+      if (invoiceSubscription) {
+        const invoiceSub = typeof invoiceSubscription === "string" ? invoiceSubscription : invoiceSubscription.id
         await prisma.subscription.updateMany({
           where: { stripeSubscriptionId: invoiceSub as string },
           data: { status: "PAST_DUE" },

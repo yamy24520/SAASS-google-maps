@@ -1,4 +1,5 @@
 "use client"
+import { useSearchParams } from "next/navigation"
 
 import { useState } from "react"
 import { Sparkles, ThumbsUp, ThumbsDown, Lightbulb, BarChart3, RefreshCw, Star } from "lucide-react"
@@ -16,6 +17,9 @@ interface Analysis {
 }
 
 export default function InsightsPage() {
+  const searchParams = useSearchParams()
+  const biz = searchParams.get("biz")
+  const bizParam = biz ? `?biz=${encodeURIComponent(biz)}` : ""
   const [analysis, setAnalysis] = useState<Analysis | null>(null)
   const [reviewCount, setReviewCount] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -27,7 +31,7 @@ export default function InsightsPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("/api/insights")
+      const res = await fetch(`/api/insights${bizParam}`)
       const data = await res.json()
       if (!res.ok) {
         setError(data.error ?? "Erreur lors de l'analyse")

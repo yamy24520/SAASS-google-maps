@@ -6,6 +6,7 @@ interface SmsParams {
 }
 
 export async function sendSms({ to, message }: SmsParams): Promise<boolean> {
+  if (process.env.NOTIFICATIONS_ENABLED === "false") return false
   const sid   = process.env.TWILIO_ACCOUNT_SID
   const token = process.env.TWILIO_AUTH_TOKEN
   const from  = process.env.TWILIO_PHONE_NUMBER

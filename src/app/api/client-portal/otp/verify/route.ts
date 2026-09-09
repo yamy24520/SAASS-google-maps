@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { randomUUID } from "crypto"
+import { rateLimit } from "@/lib/rate-limit"
+import { z } from "zod"
 
 export async function POST(req: NextRequest) {
-  const { email, businessId, code } = await req.json()
+  const parsed = z.object({ email: z.string().trim().toLowerCase().email().max(254), businessId: z.string().min(1), code: z.string().regex(/^\d{6}$/) }).safeParse(await req.json().catch(() => null))
+  if (!parsed.success) return NextResponse.json({ error: "Code ou adresse invalide." }, { status: 400 })
+  const { email, businessId, code } = parsed.data
+  const quota = await rateLimit(`otp-verify:${businessId}:${email}`, 5, 10 * 60_000)
+  if (!quota.ok) return NextResponse.json({ error: "Trop de tentatives. Réessayez dans quelques minutes." }, { status: 429 })
 
   if (!email || !businessId || !code) {
     return NextResponse.json({ error: "Champs manquants" }, { status: 400 })
@@ -27,7 +33,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Marquer l'OTP comme utilisé
-  await prisma.clientOtp.update({ where: { id: otp.id }, data: { used: true } })
+  const consumed = await prisma.clientOtp.updateMany({ where: { id: otp.id, used: false, expiresAt: { gt: new Date() } }, data: { used: true } })
+  if (!consumed.count) return NextResponse.json({ error: "Code déjà utilisé ou expiré." }, { status: 401 })
 
   // Créer la session (30 jours)
   const token = randomUUID()

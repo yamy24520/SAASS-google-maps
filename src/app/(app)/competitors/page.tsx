@@ -1,4 +1,5 @@
 "use client"
+import { useSearchParams } from "next/navigation"
 
 import { useEffect, useState } from "react"
 import { Trophy, Star, MessageSquare, TrendingUp, RefreshCw } from "lucide-react"
@@ -20,21 +21,23 @@ interface CompetitorData {
 }
 
 export default function CompetitorsPage() {
+  const params = useSearchParams()
+  const biz = params.get("biz")
+  const bizParam = biz ? `?biz=${encodeURIComponent(biz)}` : ""
   const [data, setData] = useState<CompetitorData | null>(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
 
-  async function load() {
-    setLoading(true)
-    const res = await fetch("/api/competitors")
-    const json = await res.json()
+  function load() {
+    return fetch(`/api/competitors${bizParam}`).then(res => { if (!res.ok) throw new Error("Chargement impossible"); return res.json() }).then(json => {
     setData(json)
     setLoading(false)
+    }).catch(() => { setLoading(false); toast({ title: "Chargement impossible", variant: "destructive" }) })
   }
 
   async function handleSync() {
     setSyncing(true)
-    const repRes = await fetch("/api/reputation")
+    const repRes = await fetch(`/api/reputation${bizParam}`)
     const repData = await repRes.json()
     if (!repData.business?.placeId) {
       toast({ title: "Fiche Google Maps manquante", description: "Liez d'abord votre fiche Google Maps dans la page Réputation.", variant: "destructive" })
@@ -46,7 +49,7 @@ export default function CompetitorsPage() {
       setSyncing(false)
       return
     }
-    const res = await fetch("/api/competitors", {
+    const res = await fetch(`/api/competitors${bizParam}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lat: repData.business.lat, lng: repData.business.lng, placeType: repData.business.placeType }),
@@ -61,7 +64,7 @@ export default function CompetitorsPage() {
     setSyncing(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [bizParam]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return (
     <div className="space-y-6 animate-pulse">

@@ -1,3 +1,4 @@
+import { rateLimit } from "@/lib/rate-limit"
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
@@ -8,6 +9,8 @@ import { anthropic, AI_MODEL } from "@/lib/anthropic"
 export async function POST(req: NextRequest, { params }: { params: Promise<{ reviewId: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+  const quota = await rateLimit(`src/app/api/reviews/[reviewId]/generate/route.ts:${session.user.id}`, 10, 60000)
+  if (!quota.ok) return NextResponse.json({ error: "Limite temporaire atteinte. Réessayez plus tard.", retryAfter: quota.retryAfter }, { status: 429, headers: { "Retry-After": String(quota.retryAfter) } })
 
   const { reviewId } = await params
 
